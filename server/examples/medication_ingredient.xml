@@ -1,0 +1,53 @@
+<Medication xmlns="http://hl7.org/fhir">
+    <id value="e3a4efa7-84fc-465b-b14c-720195097783"/>
+    <meta>
+        <profile value="https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_Ingredient|1.00.000"/>
+    </meta>
+    <extension url="https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Medication_Category">
+        <valueCoding>
+            <system value="https://fhir.kbv.de/CodeSystem/KBV_CS_ERP_Medication_Category"/>
+            <code value="00"/>
+        </valueCoding>
+    </extension>
+    <extension url="https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Medication_Vaccine">
+        <valueBoolean value="false"/>
+    </extension>
+    <code>
+        <coding>
+            <system value="https://fhir.kbv.de/CodeSystem/KBV_CS_ERP_Medication_Type"/>
+            <code value="wirkstoff"/>
+        </coding>
+    </code>
+    <form>
+        <text value="Tabletten"/>
+    </form>
+    <amount>
+        <numerator>
+            <value value="20"/>
+            <unit value="Stk"/>
+            <system value="http://unitsofmeasure.org"/>
+        </numerator>
+        <denominator>
+            <value value="1"/>
+        </denominator>
+    </amount>
+    <ingredient>
+        <itemCodeableConcept>
+            <coding>
+                <system value="https://fhir.kbv.de/NamingSystem/KBV_NS_ERP_ASK"/>
+                <code value="Dummy-ASK"/>
+            </coding>
+            <text value="Ibuprofen"/>
+        </itemCodeableConcept>
+        <strength>
+            <numerator>
+                <value value="800"/>
+                <unit value="mg"/>
+                <system value="http://unitsofmeasure.org"/>
+            </numerator>
+            <denominator>
+                <value value="1"/>
+            </denominator>
+        </strength>
+    </ingredient>
+</Medication>

@@ -1,0 +1,34 @@
+<Organization xmlns="http://hl7.org/fhir">
+    <id value="cf042e44-086a-4d51-9c77-172f9a972e3b"/>
+    <meta>
+        <profile value="https://fhir.kbv.de/StructureDefinition/KBV_PR_FOR_Organization|1.0.1"/>
+    </meta>
+    <identifier>
+        <type>
+            <coding>
+                <system value="http://terminology.hl7.org/CodeSystem/v2-0203"/>
+                <code value="BSNR"/>
+            </coding>
+        </type>
+        <system value="https://fhir.kbv.de/NamingSystem/KBV_NS_Base_BSNR"/>
+        <value value="031234567"/>
+    </identifier>
+    <name value="Hausarztpraxis Dr. Topp-Glücklich"/>
+    <telecom>
+        <system value="phone"/>
+        <value value="0301234567"/>
+    </telecom>
+    <address>
+        <type value="both"/>
+        <line value="Musterstr. 2">
+            <extension url="http://hl7.org/fhir/StructureDefinition/iso21090-ADXP-houseNumber">
+                <valueString value="2"/>
+            </extension>
+            <extension url="http://hl7.org/fhir/StructureDefinition/iso21090-ADXP-streetName">
+                <valueString value="Musterstr."/>
+            </extension>
+        </line>
+        <city value="Berlin"/>
+        <postalCode value="10623"/>
+    </address>
+</Organization>

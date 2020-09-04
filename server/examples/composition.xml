@@ -1,0 +1,71 @@
+<Composition xmlns="http://hl7.org/fhir">
+    <id value="ed52c1e3-b700-4497-ae19-b23744e29876"/>
+    <meta>
+        <profile value="https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Composition|1.00.000"/>
+    </meta>
+    <extension url="https://fhir.kbv.de/StructureDefinition/KBV_EX_FOR_Legal_basis">
+        <valueCoding>
+            <system value="https://fhir.kbv.de/CodeSystem/KBV_CS_SFHIR_KBV_STATUSKENNZEICHEN"/>
+            <code value="00"/>
+        </valueCoding>
+    </extension>
+    <status value="final"/>
+    <type>
+        <coding>
+            <system value="https://fhir.kbv.de/CodeSystem/KBV_CS_FOR_Formular_Art"/>
+            <code value="e16A"/>
+        </coding>
+    </type>
+    <subject>
+        <reference value="Patient/9774f67f-a238-4daf-b4e6-679deeef3811"/>
+    </subject>
+    <date value="2020-05-04T08:00:00+00:00"/>
+    <author>
+        <reference value="Practitioner/20597e0e-cb2a-45b3-95f0-dc3dbdb617c3"/>
+        <type value="Practitioner"/>
+    </author>
+    <author>
+        <type value="Device"/>
+        <identifier>
+            <system value="https://fhir.kbv.de/NamingSystem/KBV_NS_FOR_Pruefnummer"/>
+            <value value="Y/400/1910/36/346"/>
+        </identifier>
+    </author>
+    <title value="elektronische Arzneimittelverordnung"/>
+    <custodian>
+        <reference value="Organization/cf042e44-086a-4d51-9c77-172f9a972e3b"/>
+    </custodian>
+    <section>
+        <code>
+            <coding>
+                <system value="https://fhir.kbv.de/CodeSystem/KBV_CS_FOR_Section_Type"/>
+                <code value="Verordnung"/>
+            </coding>
+        </code>
+        <entry>
+            <reference value="MedicationRequest/e930cdee-9eb5-4b44-88b5-2a18b69f3b9a"/>
+        </entry>
+    </section>
+    <section>
+        <code>
+            <coding>
+                <system value="https://fhir.kbv.de/CodeSystem/KBV_CS_FOR_Section_Type"/>
+                <code value="Coverage"/>
+            </coding>
+        </code>
+        <entry>
+            <reference value="Coverage/1b1ffb6e-eb05-43d7-87eb-e7818fe9661a"/>
+        </entry>
+    </section>
+    <section>
+        <code>
+            <coding>
+                <system value="https://fhir.kbv.de/CodeSystem/KBV_CS_FOR_Section_Type"/>
+                <code value="FOR_PractitionerRole"/>
+            </coding>
+        </code>
+        <entry>
+            <reference value="PractitionerRole/9a4090f8-8c5a-11ea-bc55-0242ac13000"/>
+        </entry>
+    </section>
+</Composition>

@@ -1,0 +1,14 @@
+[workspace]
+members = [
+    "proc-macros",
+    "resources",
+    "server",
+    "vau",
+]
+default-members = [
+    "server"
+]
+
+[patch.crates-io]
+actix-web = { git = "https://github.com/Gematik-Entwicklung/actix-web.git", branch = "ref-erx-fd-server-v2.0.0" }
+openssl = { git = "https://github.com/Gematik-Entwicklung/rust-openssl.git", branch = "ref-erx-fd-server-v0.10.30" }

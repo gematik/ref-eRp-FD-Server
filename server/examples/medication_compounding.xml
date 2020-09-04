@@ -1,0 +1,74 @@
+
+<Medication xmlns="http://hl7.org/fhir">
+    <id value="cabe8dc4-e1b7-4d2a-bc2d-9443167f88d8"/>
+    <meta>
+        <profile value="https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_Compounding|1.00.000"/>
+    </meta>
+    <extension url="https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Medication_Category">
+        <valueCoding>
+            <system value="https://fhir.kbv.de/CodeSystem/KBV_CS_ERP_Medication_Category"/>
+            <code value="00"/>
+        </valueCoding>
+    </extension>
+    <extension url="https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Medication_Vaccine">
+        <valueBoolean value="false"/>
+    </extension>
+    <extension url="https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Medication_compoundingInstruction">
+        <valueString value="Dummy-Herstellungsanweisung einer Rezeptur"/>
+    </extension>
+    <extension url="https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Medication_Packaging">
+        <valueString value="Flasche"/>
+    </extension>
+    <code>
+        <coding>
+            <system value="https://fhir.kbv.de/CodeSystem/KBV_CS_ERP_Medication_Type"/>
+            <code value="rezeptur"/>
+        </coding>
+        <text value="Dummy-Rezeptur"/>
+    </code>
+    <form>
+        <text value="Salbe"/>
+    </form>
+    <amount>
+        <numerator>
+            <value value="100"/>
+            <unit value="ml"/>
+            <system value="http://unitsofmeasure.org"/>
+        </numerator>
+        <denominator>
+            <value value="1"/>
+        </denominator>
+    </amount>
+    <ingredient>
+        <itemCodeableConcept>
+            <coding>
+                <system value="https://fhir.kbv.de/NamingSystem/KBV_NS_ERP_PZN"/>
+                <code value="09703312"/>
+            </coding>
+            <text value="Hydrocortison ratiopharm 0,5%"/>
+        </itemCodeableConcept>
+        <strength>
+            <numerator>
+                <value value="30"/>
+                <unit value="g"/>
+                <system value="http://unitsofmeasure.org"/>
+            </numerator>
+            <denominator>
+                <value value="1"/>
+            </denominator>
+        </strength>
+    </ingredient>
+    <ingredient>
+        <extension url="https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Medication_Ingredient_Form">
+            <valueString value="Freitextdarreichungsform"/>
+        </extension>
+        <itemCodeableConcept>
+            <text value="weiterer Dummy-Freitextbestandteil"/>
+        </itemCodeableConcept>
+        <strength>
+            <extension url="https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Medication_Ingredient_Amount">
+                <valueString value="quantum satis"/>
+            </extension>
+        </strength>
+    </ingredient>
+</Medication>

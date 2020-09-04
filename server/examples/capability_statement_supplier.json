@@ -1,0 +1,42 @@
+{
+    "resourceType":"CapabilityStatement",
+    "fhirVersion":"4.0.0",
+    "name":"Gem_erxCapabilityStatement",
+    "title":"E-Rezept Workflow CapabilityStatement",
+    "status":"draft",
+    "date":"2020-01-01T00:00:00Z",
+    "kind":"instance",
+    "implementation":{
+        "description":"E-Rezept Fachdienst Server Referenzimplementierung"
+    },
+    "format":[
+        "application/fhir+xml",
+        "application/fhir+json"
+    ],
+    "rest":[
+        {
+            "mode":"server",
+            "resource":[
+                {
+                    "type":"Task",
+                    "profile":"https://gematik.de/fhir/StructureDefinition/eRxTask",
+                    "interaction":[
+                        {
+                            "code":"read"
+                        }
+                    ],
+                    "operation":[
+                        {
+                            "name":"create",
+                            "definition":"https://simplifier.net/erezept-workflow/CreateOperationDefinition"
+                        },
+                        {
+                            "name":"activate",
+                            "definition":"https://simplifier.net/erezept-workflow/ActivateOperationDefinition"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

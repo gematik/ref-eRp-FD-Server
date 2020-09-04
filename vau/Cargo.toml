@@ -1,0 +1,18 @@
+[package]
+name = "vau"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+actix-codec = "0.2"
+actix-http = "1.0"
+actix-router = "0.2"
+actix-web = "2.0"
+bytes = "0.5"
+futures = "0.3"
+lazy_static = "1.4"
+openssl = "0.10"
+pin-project = "0.4"
+rand = "0.7"
+thiserror = "1.0"
+tokio = { version = "0.2", features = [ "sync" ] }

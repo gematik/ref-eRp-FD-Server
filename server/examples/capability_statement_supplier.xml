@@ -1,0 +1,31 @@
+<CapabilityStatement xmlns="http://hl7.org/fhir">
+    <fhirVersion value="4.0.0"/>
+    <name value="Gem_erxCapabilityStatement"/>
+    <title value="E-Rezept Workflow CapabilityStatement"/>
+    <status value="draft"/>
+    <date value="2020-01-01T00:00:00Z"/>
+    <kind value="instance"/>
+    <implementation>
+        <description value="E-Rezept Fachdienst Server Referenzimplementierung"/>
+    </implementation>
+    <format value="application/fhir+xml"/>
+    <format value="application/fhir+json"/>
+    <rest>
+        <mode value="server"/>
+        <resource>
+            <type value="Task"/>
+            <profile value="https://gematik.de/fhir/StructureDefinition/eRxTask"/>
+            <interaction>
+                <code value="read"/>
+            </interaction>
+            <operation>
+                <name value="create"/>
+                <definition value="https://simplifier.net/erezept-workflow/CreateOperationDefinition"/>
+            </operation>
+            <operation>
+                <name value="activate"/>
+                <definition value="https://simplifier.net/erezept-workflow/ActivateOperationDefinition"/>
+            </operation>
+        </resource>
+    </rest>
+</CapabilityStatement>

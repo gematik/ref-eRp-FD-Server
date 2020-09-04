@@ -1,0 +1,20 @@
+1 0123456789ABCDEF0123456789ABCDEF 0123456789ABCDEF0123456789ABCDEF 0123456789ABCDEF0123456789ABCDEF POST /Task/$create HTTP/1.1
+Content-Type: application/fhir+json
+User-Agent: PostmanRuntime/7.26.2
+Accept: */*
+Postman-Token: a3720e83-ef04-450a-bc46-21439551dff6
+Host: localhost:3000
+Accept-Encoding: gzip, deflate, br
+Connection: keep-alive
+Content-Length: 231
+
+{
+    "resourceType":"Parameters",
+    "parameter":[{
+        "name":"workflowType",
+        "valueCoding":{
+            "system":"https://gematik.de/fhir/CodeSystem/Flowtype",
+            "code":"160"
+        }
+    }]
+}

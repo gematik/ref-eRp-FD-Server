@@ -1,0 +1,42 @@
+<Medication xmlns="http://hl7.org/fhir">
+    <id value="5fe6e06c-8725-46d5-aecd-e65e041ca3de"/>
+    <meta>
+        <profile value="https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_PZN|1.00.000"/>
+    </meta>
+    <extension url="https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Medication_Category">
+        <valueCoding>
+            <system value="https://fhir.kbv.de/CodeSystem/KBV_CS_ERP_Medication_Category"/>
+            <code value="00"/>
+        </valueCoding>
+    </extension>
+    <extension url="https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Medication_Vaccine">
+        <valueBoolean value="false"/>
+    </extension>
+    <extension url="http://fhir.de/StructureDefinition/normgroesse">
+        <valueCode value="N1"/>
+    </extension>
+    <code>
+        <coding>
+            <system value="https://fhir.kbv.de/NamingSystem/KBV_NS_ERP_PZN"/>
+            <code value="06313728"/>
+        </coding>
+        <text value="Sumatriptan-1a Pharma 100 mg Tabletten"/>
+    </code>
+    <form>
+        <coding>
+            <system value="https://fhir.kbv.de/CodeSystem/KBV_CS_SFHIR_KBV_DARREICHUNGSFORM"/>
+            <code value="TAB"/>
+        </coding>
+    </form>
+    <amount>
+        <numerator>
+            <value value="12"/>
+            <unit value="TAB"/>
+            <system value="http://unitsofmeasure.org"/>
+            <code value="{tbl}"/>
+        </numerator>
+        <denominator>
+            <value value="1"/>
+        </denominator>
+    </amount>
+</Medication>

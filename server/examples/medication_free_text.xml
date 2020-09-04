@@ -1,0 +1,22 @@
+<Medication xmlns="http://hl7.org/fhir">
+    <id value="a0553ad5-56bc-446c-91de-70f0260b4e7a"/>
+    <meta>
+        <profile value="https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_FreeText|1.00.000"/>
+    </meta>
+    <extension url="https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Medication_Category">
+        <valueCoding>
+            <system value="https://fhir.kbv.de/CodeSystem/KBV_CS_ERP_Medication_Category"/>
+            <code value="00"/>
+        </valueCoding>
+    </extension>
+    <extension url="https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Medication_Vaccine">
+        <valueBoolean value="true"/>
+    </extension>
+    <code>
+        <coding>
+            <system value="https://fhir.kbv.de/CodeSystem/KBV_CS_ERP_Medication_Type"/>
+            <code value="freitext"/>
+        </coding>
+        <text value="Dummy-Impfstoff als Freitext"/>
+    </code>
+</Medication>
