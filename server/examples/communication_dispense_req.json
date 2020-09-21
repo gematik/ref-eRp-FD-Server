@@ -1,0 +1,34 @@
+{
+    "resourceType":"Communication",
+    "meta":{
+        "profile":[
+            "https://gematik.de/fhir/StructureDefinition/erxCommunicationDispReq"
+        ]
+    },
+    "basedOn":[
+        {
+            "reference":"Task/4711/$accept?ac=777bea0e13cc9c42ceec14aec3ddee2263325dc2c6c699db115f58fe423607ea"
+        }
+    ],
+    "status":"unknown",
+    "sent":"2020-03-12T18:01:10+00:00",
+    "recipient":[
+        {
+            "identifier":{
+                "system":"https://gematik.de/fhir/Namingsystem/TelematikID",
+                "value":"606358757"
+            }
+        }
+    ],
+    "sender":{
+        "identifier":{
+            "system":"http://fhir.de/NamingSystem/gkv/kvid-10",
+            "value":"X234567890"
+        }
+    },
+    "payload":[
+        {
+            "contentString":"Bitte schicken Sie einen Boten."
+        }
+    ]
+}

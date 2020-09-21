@@ -19,15 +19,13 @@ use actix_web::{
     web::{Data, Path},
     HttpResponse,
 };
-use resources::{primitives::Id, types::Profession, Task};
+use resources::{primitives::Id, Task};
 
-use super::super::{
-    super::{
-        error::Error,
-        header::{Accept, Authorization, XAccessCode},
-        state::State,
-    },
-    misc::DataType,
+use crate::service::{
+    header::{Accept, Authorization, XAccessCode},
+    misc::{DataType, Profession},
+    state::State,
+    RequestError,
 };
 
 pub async fn get_all(
@@ -35,7 +33,7 @@ pub async fn get_all(
     accept: Accept,
     id_token: Authorization,
     access_code: Option<XAccessCode>,
-) -> Result<HttpResponse, Error> {
+) -> Result<HttpResponse, RequestError> {
     get(&state, None, accept, id_token, access_code).await
 }
 
@@ -45,7 +43,7 @@ pub async fn get_one(
     accept: Accept,
     id_token: Authorization,
     access_code: Option<XAccessCode>,
-) -> Result<HttpResponse, Error> {
+) -> Result<HttpResponse, RequestError> {
     get(&state, Some(id.into_inner()), accept, id_token, access_code).await
 }
 
@@ -54,31 +52,18 @@ async fn get(
     state: &State,
     id: Option<Id>,
     accept: Accept,
-    id_token: Authorization,
+    access_token: Authorization,
     access_code: Option<XAccessCode>,
-) -> Result<HttpResponse, Error> {
-    let id_token = id_token.0;
-    let access_code = access_code.map(|access_code| access_code.0);
-    let state = state.lock().await;
+) -> Result<HttpResponse, RequestError> {
+    access_token.check_profession(|p| p == Profession::Versicherter)?;
 
-    match state
-        .idp_client
-        .get_profession(&id_token)
-        .map_err(Error::IdpClientError)?
-    {
-        Profession::Insured | Profession::PublicPharmacy | Profession::HospitalPharmacy => (),
-        profession => return Err(Error::InvalidProfession(profession)),
-    }
-
-    let kvnr = state
-        .idp_client
-        .get_kvnr(&id_token)
-        .map_err(Error::IdpClientError)?;
-
+    let kvnr = access_token.kvnr().ok();
     let data_type = DataType::from_accept(accept)
         .and_then(DataType::ignore_any)
-        .unwrap_or_default();
+        .unwrap_or_default()
+        .check_supported()?;
 
+    let state = state.lock().await;
     let mut bundle: Box<dyn BundleHelper> = match data_type {
         #[cfg(feature = "support-xml")]
         DataType::Xml => Box::new(xml::BundleHelper::new()),
@@ -86,50 +71,27 @@ async fn get(
         #[cfg(feature = "support-json")]
         DataType::Json => Box::new(json::BundleHelper::new()),
 
-        DataType::Unknown | DataType::Any => return Err(Error::AcceptUnsupported),
+        DataType::Unknown | DataType::Any => unreachable!(),
     };
 
     if let Some(id) = id {
-        let task = match state.tasks.get(&id) {
-            Some(task) => task,
+        match state.get_task(&id, &kvnr, &access_code) {
+            Some(Ok(task)) => bundle.add_task(task),
+            Some(Err(())) => return Ok(HttpResponse::Forbidden().finish()),
             None => return Ok(HttpResponse::NotFound().finish()),
-        };
-
-        if !task_matches(task, kvnr.as_ref(), access_code.as_ref()) {
-            return Ok(HttpResponse::Forbidden().finish());
         }
-
-        bundle.add_task(task);
     } else {
-        for (_, task) in state.tasks.iter() {
-            if !task_matches(task, kvnr.as_ref(), access_code.as_ref()) {
-                continue;
-            }
-
-            bundle.add_task(task);
+        for task in state.iter_tasks(kvnr, access_code) {
+            bundle.add_task(task)
         }
     }
 
     bundle.to_response()
 }
 
-fn task_matches(task: &Task, kvnr: Option<&String>, access_code: Option<&String>) -> bool {
-    match (task.for_.as_ref(), kvnr) {
-        (Some(task_kvnr), Some(kvnr)) if task_kvnr == kvnr => return true,
-        _ => (),
-    }
-
-    match (task.identifier.access_code.as_ref(), access_code) {
-        (Some(task_ac), Some(ac)) if task_ac == ac => return true,
-        _ => (),
-    }
-
-    false
-}
-
 trait BundleHelper<'a> {
     fn add_task(&mut self, task: &'a Task);
-    fn to_response(&self) -> Result<HttpResponse, Error>;
+    fn to_response(&self) -> Result<HttpResponse, RequestError>;
 }
 
 #[cfg(feature = "support-xml")]
@@ -143,15 +105,15 @@ mod xml {
     };
     use serde::Serialize;
 
-    use crate::fhir::xml::{
-        definitions::{BundleRoot as XmlBundle, TaskCow as XmlTask},
-        to_string as to_xml,
+    use crate::{
+        fhir::xml::{
+            definitions::{BundleRoot as XmlBundle, TaskCow as XmlTask},
+            to_string as to_xml,
+        },
+        service::{misc::DataType, RequestError},
     };
 
-    use super::{
-        super::super::{super::error::Error, misc::DataType},
-        BundleHelper as BundleHelperTrait,
-    };
+    use super::BundleHelper as BundleHelperTrait;
 
     pub struct BundleHelper<'a> {
         bundle: Bundle<Resource<'a>>,
@@ -179,8 +141,8 @@ mod xml {
             self.bundle.entries.push(entry);
         }
 
-        fn to_response(&self) -> Result<HttpResponse, Error> {
-            let xml = to_xml(&XmlBundle::new(&self.bundle)).map_err(Error::SerializeXml)?;
+        fn to_response(&self) -> Result<HttpResponse, RequestError> {
+            let xml = to_xml(&XmlBundle::new(&self.bundle)).map_err(RequestError::SerializeXml)?;
 
             Ok(HttpResponse::Ok()
                 .content_type(DataType::Xml.as_mime().to_string())
@@ -200,21 +162,22 @@ mod json {
     };
     use serde::Serialize;
 
-    use crate::fhir::json::{
-        definitions::{BundleRoot as JsonBundle, TaskCow as JsonTask},
-        to_string as to_json,
+    use crate::{
+        fhir::json::{
+            definitions::{BundleRoot as JsonBundle, TaskCow as JsonTask},
+            to_string as to_json,
+        },
+        service::{misc::DataType, RequestError},
     };
 
-    use super::{
-        super::super::{super::error::Error, misc::DataType},
-        BundleHelper as BundleHelperTrait,
-    };
+    use super::BundleHelper as BundleHelperTrait;
 
     pub struct BundleHelper<'a> {
         bundle: Bundle<Resource<'a>>,
     }
 
     #[derive(Clone, Serialize)]
+    #[serde(tag = "resourceType")]
     pub enum Resource<'a> {
         Task(JsonTask<'a>),
     }
@@ -236,8 +199,9 @@ mod json {
             self.bundle.entries.push(entry);
         }
 
-        fn to_response(&self) -> Result<HttpResponse, Error> {
-            let json = to_json(&JsonBundle::new(&self.bundle)).map_err(Error::SerializeJson)?;
+        fn to_response(&self) -> Result<HttpResponse, RequestError> {
+            let json =
+                to_json(&JsonBundle::new(&self.bundle)).map_err(RequestError::SerializeJson)?;
 
             Ok(HttpResponse::Ok()
                 .content_type(DataType::Json.as_mime().to_string())

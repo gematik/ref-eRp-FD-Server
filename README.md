@@ -45,9 +45,19 @@ Following functionality is available:
 
         -   $activate operation
 
+    -   Communication resource
+
+        -   create interaction
+
+        -   read interaction
+
+        -   delete interaction
+
 -   access code generation
 
 -   separate interfaces for eRp-App (FdV) and medical suppliers/pharmacies (LE)
+
+-   Access token validation
 
 There is no complete workflow implemented just now. It is intended as an very early release.
 
@@ -106,7 +116,7 @@ To run the service use the following command line. The service needs a
 private key and X.509 certificate for the VAU encryption. These two parameters
 are mandatory.
 
-    $ cargo run -p ref-erx-fd-server -- --vau-key ./path/to/vau_key.pem --vau-cert ./path/to/vau_cert.pem
+    $ cargo run -p ref-erx-fd-server -- --key ./path/to/key.pem --cert ./path/to/cert.pem --token ./path/to/acces_token_pub.pem
 
 To get a full list of all supported parameters use
 

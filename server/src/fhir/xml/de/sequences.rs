@@ -25,6 +25,7 @@ use super::Deserializer;
 pub struct SeqAccess<'a, R: BufRead> {
     deserializer: &'a mut Deserializer<R>,
     max_size: Option<usize>,
+    is_value_tag: bool,
     tag: Tag,
 }
 
@@ -46,9 +47,12 @@ impl<'a, R: BufRead> SeqAccess<'a, R> {
             Tag(None)
         };
 
+        let is_value_tag = deserializer.is_value_tag();
+
         Ok(SeqAccess {
             deserializer,
             max_size,
+            is_value_tag,
             tag,
         })
     }
@@ -89,6 +93,10 @@ impl<'de, 'a, R: 'a + BufRead> DeSeqAccess<'de> for SeqAccess<'a, R> {
             _ => {
                 if let Some(tag) = self.tag.get() {
                     self.deserializer.set_expected_start_tag(tag)?;
+                }
+
+                if self.is_value_tag {
+                    self.deserializer.set_value_tag(true);
                 }
 
                 let result = seed.deserialize(&mut *self.deserializer).map(Some);

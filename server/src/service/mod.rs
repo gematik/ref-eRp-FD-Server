@@ -15,10 +15,11 @@
  *
  */
 
+mod constants;
 mod error;
 mod header;
-mod idp_client;
 mod middleware;
+mod misc;
 mod routes;
 mod state;
 
@@ -30,23 +31,27 @@ use actix_rt::System;
 use actix_web::{App, HttpServer};
 use openssl::{ec::EcKey, x509::X509};
 use tokio::task::LocalSet;
+use url::Url;
 
-pub use error::Error;
-use middleware::{CharsetUtf8, Logging, Vau};
+pub use error::{Error, RequestError};
+use middleware::{HeaderCheck, Logging, Vau};
+use misc::PukToken;
 use routes::configure_routes;
 use state::State;
 
 pub struct Service {
-    vau_key: PathBuf,
-    vau_cert: PathBuf,
+    key: PathBuf,
+    cert: PathBuf,
+    puk_token: Url,
     addresses: Vec<SocketAddr>,
 }
 
 impl Service {
-    pub fn new(vau_key: PathBuf, vau_cert: PathBuf) -> Self {
+    pub fn new(key: PathBuf, cert: PathBuf, puk_token: Url) -> Self {
         Self {
-            vau_key,
-            vau_cert,
+            key,
+            cert,
+            puk_token,
             addresses: Vec::new(),
         }
     }
@@ -64,18 +69,21 @@ impl Service {
         let local = LocalSet::new();
         let _system = System::run_in_tokio("actix-web", &local);
 
-        let vau_key = read(&self.vau_key)?;
-        let vau_key = EcKey::private_key_from_pem(&vau_key).map_err(Error::OpenSslError)?;
+        let key = read(&self.key)?;
+        let key = EcKey::private_key_from_pem(&key).map_err(Error::OpenSslError)?;
 
-        let vau_cert = read(&self.vau_cert)?;
-        let vau_cert = X509::from_pem(&vau_cert)?;
+        let cert = read(&self.cert)?;
+        let cert = X509::from_pem(&cert)?;
+
+        let puk_token = PukToken::from_url(&self.puk_token)?;
 
         let mut server = HttpServer::new(move || {
             App::new()
-                .wrap(Vau::new(vau_key.clone(), vau_cert.clone()).unwrap())
-                .wrap(CharsetUtf8)
+                .wrap(Vau::new(key.clone(), cert.clone()).unwrap())
+                .wrap(HeaderCheck)
                 .wrap(Logging)
                 .data(state.clone())
+                .app_data(puk_token.clone())
                 .configure(configure_routes)
         });
 

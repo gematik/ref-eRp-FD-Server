@@ -19,6 +19,7 @@ use std::borrow::Cow;
 use std::convert::TryInto;
 
 use resources::{
+    misc::Kvnr,
     patient::{Identifier, Patient},
     primitives::{Date, Id},
 };
@@ -119,7 +120,7 @@ impl<'a> Into<PatientHelper<'a>> for &'a Patient {
 impl Into<IdentifierDef> for Identifier {
     fn into(self) -> IdentifierDef {
         match self {
-            Identifier::GKV { value } => IdentifierDef {
+            Identifier::GKV(kvnr) => IdentifierDef {
                 type_: Some(CodableConceptDef {
                     coding: vec![CodingDef {
                         system: Some(CODING_SYSTEM_IDENTIFIER_BASE.into()),
@@ -129,7 +130,7 @@ impl Into<IdentifierDef> for Identifier {
                     ..Default::default()
                 }),
                 system: Some(IDENTITY_SYSTEM_KVID.into()),
-                value: Some(value),
+                value: Some(kvnr.into()),
                 ..Default::default()
             },
             Identifier::PKV { system, value } => IdentifierDef {
@@ -227,11 +228,14 @@ impl TryInto<Identifier> for IdentifierDef {
             .ok_or_else(|| "Patient identifier type is missing the `code` field!")?;
 
         match code {
-            PATIENT_IDENTIFIER_GKV => Ok(Identifier::GKV {
-                value: self
+            PATIENT_IDENTIFIER_GKV => {
+                let kvnr = self
                     .value
-                    .ok_or_else(|| "Patient identifier is missing the `value` field!")?,
-            }),
+                    .ok_or_else(|| "Patient identifier is missing the `value` field!")?;
+                let kvnr = Kvnr::new(kvnr)?;
+
+                Ok(Identifier::GKV(kvnr))
+            }
             PATIENT_IDENTIFIER_PKV => Ok(Identifier::PKV {
                 value: self
                     .value
@@ -289,9 +293,7 @@ pub mod tests {
     pub fn test_patient() -> Patient {
         Patient {
             id: "9774f67f-a238-4daf-b4e6-679deeef3811".try_into().unwrap(),
-            identifier: Some(Identifier::GKV {
-                value: "X234567890".into(),
-            }),
+            identifier: Some(Identifier::GKV(Kvnr::new("X234567890").unwrap())),
             name: Name {
                 prefix: None,
                 prefix_qualifier: false,

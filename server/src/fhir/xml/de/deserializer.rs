@@ -156,10 +156,10 @@ impl<R: BufRead> Deserializer<R> {
     }
 
     fn next_text(&mut self) -> Result<BytesText<'static>, Error> {
-        match self.next(&mut Vec::new())? {
+        match dbg!(self.next(&mut Vec::new())?) {
             Event::Text(e) | Event::CData(e) => Ok(e),
             Event::Start(e) => {
-                let inner = self.next(&mut Vec::new())?;
+                let inner = dbg!(self.next(&mut Vec::new())?);
                 let t = match inner {
                     Event::Text(t) | Event::CData(t) => t,
                     Event::Start(s) => {
@@ -174,6 +174,8 @@ impl<R: BufRead> Deserializer<R> {
                                 Ok(attrib) if attrib.key == b"value" => true,
                                 _ => false,
                             });
+
+                            dbg!(&attrib);
 
                             if let Some(Ok(attrib)) = attrib {
                                 return Ok(BytesText::from_escaped(attrib.value.into_owned()));
@@ -263,6 +265,8 @@ impl<'de, 'a, R: BufRead> DeDeserializer<'de> for &'a mut Deserializer<R> {
     }
 
     fn deserialize_string<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        dbg!("deserialize_string");
+
         let value = self.next_text()?;
         let value = self.decode(&*value)?.to_string();
 

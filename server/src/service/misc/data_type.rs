@@ -15,19 +15,13 @@
  *
  */
 
-#[cfg(feature = "support-json")]
-pub mod json;
-#[cfg(feature = "support-xml")]
-pub mod xml;
-
 use mime::Mime;
 
-use super::super::header::Accept;
-use super::constants::MIME_ANY;
 #[cfg(feature = "support-json")]
-use super::constants::{MIMES_FHIR_JSON, MIME_FHIR_JSON};
+use crate::service::constants::{MIMES_FHIR_JSON, MIME_FHIR_JSON};
 #[cfg(feature = "support-xml")]
-use super::constants::{MIMES_FHIR_XML, MIME_FHIR_XML};
+use crate::service::constants::{MIMES_FHIR_XML, MIME_FHIR_XML};
+use crate::service::{constants::MIME_ANY, header::Accept, RequestError};
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum DataType {
@@ -82,6 +76,19 @@ impl DataType {
         }
     }
 
+    pub fn check_supported(self) -> Result<Self, RequestError> {
+        match self {
+            #[cfg(feature = "support-xml")]
+            DataType::Xml => Ok(self),
+
+            #[cfg(feature = "support-json")]
+            DataType::Json => Ok(self),
+
+            DataType::Any => Err(RequestError::AcceptUnsupported),
+            DataType::Unknown => Err(RequestError::AcceptUnsupported),
+        }
+    }
+
     pub fn as_mime(&self) -> &'static Mime {
         match self {
             #[cfg(feature = "support-xml")]
@@ -100,6 +107,13 @@ impl DataType {
             None
         } else {
             Some(self)
+        }
+    }
+
+    pub fn replace_any(self, value: DataType) -> Self {
+        match self {
+            Self::Any => value,
+            _ => self,
         }
     }
 }

@@ -35,6 +35,7 @@ use super::{
 pub struct Serializer<W: Write> {
     writer: Writer<W>,
     tags: Vec<StartTag>,
+    attrib: Option<Vec<u8>>,
     update_name: bool,
 }
 
@@ -49,6 +50,7 @@ impl<W: Write> Serializer<W> {
         Self {
             writer: Writer::new(writer),
             tags: Vec::new(),
+            attrib: None,
             update_name: false,
         }
     }
@@ -57,8 +59,21 @@ impl<W: Write> Serializer<W> {
         Self {
             writer: Writer::new_with_indent(writer, indent_char, indent_size),
             tags: Vec::new(),
+            attrib: None,
             update_name: false,
         }
+    }
+
+    pub fn attrib(&mut self, attrib: Option<Vec<u8>>) -> Result<(), Error> {
+        if self.attrib.is_some() && attrib.is_some() {
+            return Err(Error::Custom(
+                "Can not write attribute within attribute!".into(),
+            ));
+        }
+
+        self.attrib = attrib;
+
+        Ok(())
     }
 
     pub fn update_name(&mut self) {
@@ -195,15 +210,23 @@ impl<W: Write> Serializer<W> {
     }
 
     fn serialize_primitive<V: Display>(&mut self, value: V) -> Result<(), Error> {
-        self.write_pending_tags()?;
+        match self.attrib.clone() {
+            None => {
+                self.write_pending_tags()?;
 
-        let s = value.to_string();
-        let t = BytesText::from_plain_str(&s);
-        let e = Event::Text(t);
+                let s = value.to_string();
+                let t = BytesText::from_plain_str(&s);
+                let e = Event::Text(t);
 
-        self.write_event(e)?;
+                self.write_event(e)
+            }
+            Some(attrib) => {
+                let value = value.to_string();
+                let attrib = Attribute::from((&attrib[..], value.as_bytes()));
 
-        Ok(())
+                self.add_attribute(attrib)
+            }
+        }
     }
 
     fn write_pending_tags(&mut self) -> Result<(), Error> {

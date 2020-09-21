@@ -17,7 +17,7 @@
 
 /* Parameter Types */
 pub const PARAMETER_TYPE_TASK_CREATE: &str = "workflowType";
-pub const PARAMETER_TYPE_TASK_ACTIVATE: &str = "erxBinary";
+pub const PARAMETER_TYPE_TASK_ACTIVATE: &str = "ePrescription";
 
 /* Binary Content Types */
 pub const BINARY_CONTENT_TYPE_PKCS7: &str = "application/pkcs7-mime";
@@ -44,6 +44,8 @@ pub const CODING_SYSTEM_ASK: &str = "https://fhir.kbv.de/NamingSystem/KBV_NS_ERP
 pub const CODING_SYSTEM_IDENTIFIER_BASE: &str =
     "http://fhir.de/CodeSystem/identifier-type-de-basis";
 pub const CODING_SYSTEM_V2_0203: &str = "http://terminology.hl7.org/CodeSystem/v2-0203";
+pub const CODING_SYSTEM_AVAILABILITY_STATUS: &str =
+    "https://gematik.de/fhir/CodeSystem/AvailabilityStatus";
 
 /* Contact Point Systems */
 pub const CONTACT_POINT_SYSTEM_PHONE: &str = "phone";
@@ -61,6 +63,7 @@ pub const IDENTITY_SYSTEM_ZANR: &str = "http://fhir.de/NamingSystem/kzbv/zahnarz
 pub const IDENTITY_SYSTEM_IKNR: &str = "http://fhir.de/NamingSystem/arge-ik/iknr";
 pub const IDENTITY_SYSTEM_BSNR: &str = "https://fhir.kbv.de/NamingSystem/KBV_NS_Base_BSNR";
 pub const IDENTITY_SYSTEM_TEAM_NUMBER: &str = "http://fhir.de/NamingSystem/asv/teamnummer";
+pub const IDENTITY_SYSTEM_TELEMATIK_ID: &str = "https://gematik.de/fhir/Namingsystem/TelematikID";
 
 /* Identifier Systems */
 pub const IDENTIFIER_SYSTEM_PRESCRIPTION_ID: &str =
@@ -95,6 +98,16 @@ pub const RESOURCE_PROFILE_COVERAGE: &str =
     "https://fhir.kbv.de/StructureDefinition/KBV_PR_FOR_Coverage|1.0.1";
 pub const RESOURCE_PROFILE_PRACTITIONER_ROLE: &str =
     "https://fhir.kbv.de/StructureDefinition/KBV_PR_FOR_PractitionerRole|1.0.1";
+pub const RESOURCE_PROFILE_COMMUNICATION: &str =
+    "https://gematik.de/fhir/StructureDefinition/erxCommunication";
+pub const RESOURCE_PROFILE_COMMUNICATION_INFO_REQ: &str =
+    "https://gematik.de/fhir/StructureDefinition/erxCommunicationInfoReq";
+pub const RESOURCE_PROFILE_COMMUNICATION_REPLY: &str =
+    "https://gematik.de/fhir/StructureDefinition/erxCommunicationReply";
+pub const RESOURCE_PROFILE_COMMUNICATION_DISPENSE_REQ: &str =
+    "https://gematik.de/fhir/StructureDefinition/erxCommunicationDispReq";
+pub const RESOURCE_PROFILE_COMMUNICATION_REPRESENTATIVE: &str =
+    "https://gematik.de/fhir/StructureDefinition/erxCommunicationRepresentative";
 
 /* Extension Urls */
 pub const EXTENSION_URL_PRESCRIPTION: &str =
@@ -154,6 +167,14 @@ pub const EXTENSION_URL_INSURED_TYPE: &str =
 pub const EXTENSION_URL_WOP: &str = "http://fhir.de/StructureDefinition/gkv/wop";
 pub const EXTENSION_URL_ALTERNATIVE_IK: &str =
     "https://fhir.kbv.de/StructureDefinition/KBV_EX_FOR_Alternative_IK";
+pub const EXTENSION_URL_INSURANCE_PROVIDER: &str =
+    "https://gematik.de/fhir/StructureDefinition/InsuranceProvider";
+pub const EXTENSION_URL_SUPPLY_OPTIONS: &str =
+    "https://gematik.de/fhir/StructureDefinition/SupplyOptionsType";
+pub const EXTENSION_URL_SUBSTITUTION_ALLOWED: &str =
+    "https://gematik.de/fhir/StructureDefinition/SubstitutionAllowedType";
+pub const EXTENSION_URL_AVAILABILITY_STATUS: &str =
+    "https://gematik.de/fhir/StructureDefinition/AvailabilityStatus";
 
 /* Resource Types */
 pub const RESOURCE_TYPE_TASK: &str = "Task";
@@ -169,6 +190,7 @@ pub const RESOURCE_TYPE_COVERAGE: &str = "Coverage";
 pub const RESOURCE_TYPE_PRACTITIONER_ROLE: &str = "PractitionerRole";
 pub const RESOURCE_TYPE_BUNDLE: &str = "Bundle";
 pub const RESOURCE_CAPABILITY_STATEMENT: &str = "CapabilityStatement";
+pub const RESOURCE_TYPE_COMMUNICATION: &str = "Communication";
 
 /* XMLNS */
 pub const XMLNS_TASK: &str = "http://hl7.org/fhir";
@@ -184,6 +206,7 @@ pub const XMLNS_COVERAGE: &str = "http://hl7.org/fhir";
 pub const XMLNS_PRACTITIONER_ROLE: &str = "http://hl7.org/fhir";
 pub const XMLNS_BUNDLE: &str = "http://hl7.org/fhir";
 pub const XMLNS_CAPABILITY_STATEMENT: &str = "http://hl7.org/fhir";
+pub const XMLNS_COMMUNICATION: &str = "http://hl7.org/fhir";
 
 /* Constant Values */
 pub const TASK_INTENT: &str = "order";

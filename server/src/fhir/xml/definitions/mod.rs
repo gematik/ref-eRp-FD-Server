@@ -20,6 +20,7 @@ pub mod primitives;
 
 mod bundle;
 mod capability_statement;
+mod communication;
 mod composition;
 mod coverage;
 mod kbv_bundle;
@@ -33,6 +34,7 @@ mod task;
 
 pub use bundle::{BundleCow, BundleDef, BundleRoot};
 pub use capability_statement::{CapabilityStatementDef, CapabilityStatementRoot};
+pub use communication::{CommunicationCow, CommunicationDef, CommunicationRoot};
 pub use composition::CompositionDef;
 pub use coverage::CoverageDef;
 pub use kbv_bundle::{KbvBundleDef, KbvBundleRoot};

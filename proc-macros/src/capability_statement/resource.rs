@@ -15,10 +15,12 @@
  *
  */
 
+use std::mem::take;
+
 use proc_macro::{token_stream::IntoIter, Delimiter, Group, TokenStream, TokenTree};
 use proc_macro2::TokenStream as TokenStream2;
 
-use super::misc::{parse_key_value_list, Attrib};
+use super::misc::{parse_key_value_list, Attrib, Interaction, Operation};
 
 pub fn resource(attribs: TokenStream, tokens: TokenStream) -> TokenStream {
     let res = ResourceMacro::new(attribs, tokens).and_then(|x| x.execute());
@@ -39,23 +41,27 @@ struct ResourceMacro {
     routes: Vec<Route>,
     type_: TokenStream2,
     profile: TokenStream2,
+    supported_profiles: Option<TokenStream2>,
 }
 
 struct Route {
-    attrib: Attrib,
     method: TokenStream2,
     cfg: Option<TokenStream2>,
+    operations: Vec<Operation>,
+    interactions: Vec<Interaction>,
 }
 
 impl ResourceMacro {
     fn new(attribs: TokenStream, tokens: TokenStream) -> Result<Self, String> {
         let mut type_ = None;
         let mut profile = None;
+        let mut supported_profiles = None;
 
         parse_key_value_list(attribs.into_iter(), |key, value| {
             match key {
                 "type" => type_ = Some(value),
                 "profile" => profile = Some(value),
+                "supported_profiles" => supported_profiles = Some(value),
                 s => return Err(format!("Unexpected value: {}", s)),
             }
 
@@ -71,6 +77,7 @@ impl ResourceMacro {
             profile: profile
                 .ok_or_else(|| "Missing the 'profile' attribute")?
                 .into(),
+            supported_profiles: supported_profiles.map(Into::into),
         })
     }
 
@@ -110,8 +117,8 @@ impl ResourceMacro {
 
     fn handle_inner(&mut self, group: Group) -> Result<TokenStream, String> {
         let mut cfg = None;
-        let mut operation = None;
-        let mut interaction = None;
+        let mut operations = Vec::new();
+        let mut interactions = Vec::new();
 
         let mut ret = TokenStream::new();
         let mut it = group.stream().into_iter();
@@ -133,20 +140,8 @@ impl ResourceMacro {
 
                             cfg = Some(s);
                         }
-                        Attrib::Operation(o) => {
-                            if operation.is_some() {
-                                return Err("Attribute 'operation' is already set".into());
-                            }
-
-                            operation = Some(o);
-                        }
-                        Attrib::Interaction(i) => {
-                            if interaction.is_some() {
-                                return Err("Attribute 'interaction' is already set".into());
-                            }
-
-                            interaction = Some(i);
-                        }
+                        Attrib::Operation(o) => operations.push(o),
+                        Attrib::Interaction(i) => interactions.push(i),
                         Attrib::Unknown => {
                             ret.extend(TokenStream::from(TokenTree::Punct(punct.clone())));
                             ret.extend(TokenStream::from(TokenTree::Group(group)));
@@ -167,23 +162,13 @@ impl ResourceMacro {
                             let token = TokenTree::Ident(ident);
                             let method = TokenStream::from(token.clone()).into();
                             let cfg = cfg.take().map(Into::into);
-                            let attrib = match (operation.take(), interaction.take()) {
-                                (None, None) => None,
-                                (Some(operation), None) => Some(Attrib::Operation(operation)),
-                                (None, Some(interaction)) => Some(Attrib::Interaction(interaction)),
-                                (Some(_), Some(_)) => return Err(
-                                    "Attribute 'operation' and 'interaction' can not be set both"
-                                        .into(),
-                                ),
-                            };
 
-                            if let Some(attrib) = attrib {
-                                self.routes.push(Route {
-                                    cfg,
-                                    method,
-                                    attrib,
-                                });
-                            }
+                            self.routes.push(Route {
+                                cfg,
+                                method,
+                                operations: take(&mut operations),
+                                interactions: take(&mut interactions),
+                            });
                         }
                         _ => return Err("Expected method name after 'fn' keyword".into()),
                     }
@@ -218,6 +203,12 @@ impl ResourceMacro {
     fn generate_update_capability_statement(&self) -> TokenStream {
         let type_ = &self.type_;
         let profile = &self.profile;
+        let supported_profiles = match &self.supported_profiles {
+            Some(supported_profiles) => {
+                quote! { #supported_profiles.iter().map(|s| (*s).into()).collect() }
+            }
+            None => quote! { Vec::new() },
+        };
 
         let update_resource = self.routes.iter().map(|route| {
             let cfg = &route.cfg;
@@ -226,25 +217,27 @@ impl ResourceMacro {
                 stringify!(#method)
             };
 
-            match &route.attrib {
-                Attrib::Operation(operation) => {
-                    let name = operation.name.as_ref().unwrap_or(&method);
-                    let definition = &operation.definition;
+            let operations = route.operations.iter().map(|operation| {
+                let name = operation.name.as_ref().unwrap_or(&method);
+                let definition = &operation.definition;
 
-                    quote! {
-                        #cfg
-                        update_resource_operation(res, #name, #definition);
-                    }
+                quote! {
+                    #cfg
+                    update_resource_operation(res, #name, #definition);
                 }
-                Attrib::Interaction(interaction) => {
-                    let name = &interaction.name;
+            });
+            let interactions = route.interactions.iter().map(|interaction| {
+                let name = &interaction.name;
 
-                    quote! {
-                        #cfg
-                        update_resource_interaction(res, #name);
-                    }
+                quote! {
+                    #cfg
+                    update_resource_interaction(res, #name);
                 }
-                _ => unreachable!(),
+            });
+
+            quote! {
+                #(#operations)*
+                #(#interactions)*
             }
         });
 
@@ -274,6 +267,7 @@ impl ResourceMacro {
                 let mut res = resources::capability_statement::Resource {
                     type_: #type_.into(),
                     profile: #profile.into(),
+                    supported_profiles: #supported_profiles,
                     operation: Vec::new(),
                     interaction: Vec::new(),
                 };

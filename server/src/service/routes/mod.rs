@@ -16,14 +16,14 @@
  */
 
 mod capabilty_statement;
-mod constants;
-mod misc;
+mod communication;
 mod task;
 
 use actix_web::web::ServiceConfig;
 use proc_macros::capability_statement;
 
 use capabilty_statement::{create as capability_statement_create, get as capability_statement_get};
+use communication::CommunicationRoutes;
 use task::TaskRoutes;
 
 #[capability_statement(
@@ -32,6 +32,9 @@ use task::TaskRoutes;
 pub struct Routes {
     #[resource]
     task: TaskRoutes,
+
+    #[resource]
+    communication: CommunicationRoutes,
 }
 
 pub fn configure_routes(cfg: &mut ServiceConfig) {

@@ -20,6 +20,7 @@ pub mod primitives;
 
 mod bundle;
 mod capability_statement;
+mod communication;
 mod composition;
 mod coverage;
 #[cfg(feature = "interface-supplier")]
@@ -34,6 +35,7 @@ mod task;
 
 pub use bundle::{BundleCow, BundleDef, BundleRoot};
 pub use capability_statement::{CapabilityStatementDef, CapabilityStatementRoot};
+pub use communication::{CommunicationCow, CommunicationDef, CommunicationRoot};
 pub use composition::CompositionDef;
 pub use coverage::CoverageDef;
 #[cfg(feature = "interface-supplier")]

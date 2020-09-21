@@ -15,10 +15,10 @@
  *
  */
 
-mod charset_utf8;
+mod header_check;
 mod logging;
 mod vau;
 
 pub use self::vau::Vau;
-pub use charset_utf8::CharsetUtf8;
+pub use header_check::HeaderCheck;
 pub use logging::Logging;

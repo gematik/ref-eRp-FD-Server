@@ -46,19 +46,15 @@ pub struct TaskRoutes;
     profile = RESOURCE_PROFILE_TASK)]
 impl TaskRoutes {
     #[cfg(feature = "interface-supplier")]
-    #[operation(definition = OPERATION_TASK_CREATE)]
-    fn create(&self, cfg: &mut ServiceConfig) {
+    #[operation(name="create", definition = OPERATION_TASK_CREATE)]
+    #[operation(name="activate", definition = OPERATION_TASK_ACTIVATE)]
+    fn configure_supplier(&self, cfg: &mut ServiceConfig) {
         cfg.service(resource("/Task/$create").route(post().to(create)));
-    }
-
-    #[cfg(feature = "interface-supplier")]
-    #[operation(definition = OPERATION_TASK_ACTIVATE)]
-    fn activate(&self, cfg: &mut ServiceConfig) {
-        cfg.service(resource("/Task/{id}/$activate").route(post().to(activate)));
+        cfg.service(resource("/Task/$activate").route(post().to(activate)));
     }
 
     #[interaction(Interaction::Read)]
-    fn get(&self, cfg: &mut ServiceConfig) {
+    fn configure_all(&self, cfg: &mut ServiceConfig) {
         cfg.service(resource("/Task").route(get().to(get_all)));
         cfg.service(resource("/Task/{id}").route(get().to(get_one)));
     }

@@ -25,13 +25,13 @@ use actix_web::{
 use encoding_rs::UTF_8;
 use futures::future::{ok, Either, Ready};
 
-pub struct CharsetUtf8;
+pub struct HeaderCheck;
 
-pub struct CharsetUtf8Middleware<S> {
+pub struct HeaderCheckMiddleware<S> {
     service: S,
 }
 
-impl<S> Transform<S> for CharsetUtf8
+impl<S> Transform<S> for HeaderCheck
 where
     S: Service<Request = ServiceRequest, Response = ServiceResponse, Error = Error>,
 {
@@ -39,15 +39,15 @@ where
     type Response = ServiceResponse;
     type Error = Error;
     type InitError = ();
-    type Transform = CharsetUtf8Middleware<S>;
+    type Transform = HeaderCheckMiddleware<S>;
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
-        ok(CharsetUtf8Middleware { service })
+        ok(HeaderCheckMiddleware { service })
     }
 }
 
-impl<S> Service for CharsetUtf8Middleware<S>
+impl<S> Service for HeaderCheckMiddleware<S>
 where
     S: Service<Request = ServiceRequest, Response = ServiceResponse, Error = Error>,
 {
@@ -62,15 +62,35 @@ where
 
     fn call(&mut self, req: ServiceRequest) -> Self::Future {
         match req.encoding() {
-            Ok(encoding) if encoding == UTF_8 => Either::Left(self.service.call(req)),
+            Ok(encoding) if encoding == UTF_8 => (),
             _ => {
                 let (req, _payload) = req.into_parts();
 
-                Either::Right(ok(ServiceResponse::new(
+                return Either::Right(ok(ServiceResponse::new(
                     req,
-                    HttpResponse::NotImplemented().finish(),
-                )))
+                    HttpResponse::NotImplemented().body("Unsupported encoding!"),
+                )));
             }
         }
+
+        for header in UNSUPPORTED_HEADERS {
+            if req.headers().contains_key(*header) {
+                let (req, _payload) = req.into_parts();
+
+                return Either::Right(ok(ServiceResponse::new(
+                    req,
+                    HttpResponse::NotImplemented().body(format!("Unsupported header: {}!", header)),
+                )));
+            }
+        }
+
+        Either::Left(self.service.call(req))
     }
 }
+
+const UNSUPPORTED_HEADERS: &[&str] = &[
+    "Content-Language",
+    "Content-Location",
+    "Content-MD5",
+    "Content-Range",
+];

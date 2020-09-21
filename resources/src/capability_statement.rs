@@ -39,6 +39,7 @@ pub struct Rest {
 pub struct Resource {
     pub type_: Type,
     pub profile: String,
+    pub supported_profiles: Vec<String>,
     pub operation: Vec<Operation>,
     pub interaction: Vec<Interaction>,
 }
@@ -84,6 +85,7 @@ pub enum Mode {
 pub enum Type {
     Task,
     Operation,
+    Communication,
 }
 
 #[allow(dead_code)]

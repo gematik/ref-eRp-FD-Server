@@ -19,10 +19,28 @@ use std::convert::TryFrom;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::ops::Deref;
 
+use chrono::{DateTime as ChronoDateTime, TimeZone, Utc};
+
 use regex::Regex;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct DateTime(String);
+
+impl<TZ> From<ChronoDateTime<TZ>> for DateTime
+where
+    TZ: TimeZone,
+    <TZ as TimeZone>::Offset: Display,
+{
+    fn from(v: ChronoDateTime<TZ>) -> Self {
+        Self(v.to_rfc3339())
+    }
+}
+
+impl Into<ChronoDateTime<Utc>> for DateTime {
+    fn into(self) -> ChronoDateTime<Utc> {
+        self.0.parse().unwrap()
+    }
+}
 
 impl TryFrom<&str> for DateTime {
     type Error = String;

@@ -25,9 +25,7 @@ use futures::{
 };
 use serde::de::DeserializeOwned;
 
-use crate::fhir::xml::from_str;
-
-use super::super::super::error::Error;
+use crate::{fhir::xml::from_str, service::RequestError};
 
 pub struct Data<T>(pub T);
 
@@ -40,8 +38,8 @@ impl<T> FromRequest for Data<T>
 where
     T: DeserializeOwned + 'static,
 {
-    type Error = Error;
-    type Future = LocalBoxFuture<'static, Result<Self, Error>>;
+    type Error = RequestError;
+    type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
     type Config = Config;
 
     #[inline]
@@ -60,14 +58,14 @@ where
                 let chunk = item?;
 
                 if (body.len() + chunk.len()) > limit {
-                    return Err(Error::PayloadOverflow(limit));
+                    return Err(RequestError::PayloadToLarge(limit));
                 } else {
                     body.extend_from_slice(&chunk);
                 }
             }
 
             let body = from_utf8(&body)?;
-            let data: T = from_str(&body)?;
+            let data: T = from_str(&body).map_err(RequestError::DeserializeXml)?;
 
             Ok(Data(data))
         })

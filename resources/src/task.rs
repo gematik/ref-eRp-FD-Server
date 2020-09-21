@@ -16,7 +16,7 @@
  */
 
 use super::{
-    misc::PrescriptionId,
+    misc::{Kvnr, PrescriptionId},
     primitives::{DateTime, Id},
     types::{FlowType, PerformerType},
     KbvBundle,
@@ -28,7 +28,7 @@ pub struct Task {
     pub extension: Extension,
     pub identifier: Identifier,
     pub status: Status,
-    pub for_: Option<String>,
+    pub for_: Option<Kvnr>,
     pub authored_on: Option<DateTime>,
     pub last_modified: Option<DateTime>,
     pub performer_type: Vec<PerformerType>,

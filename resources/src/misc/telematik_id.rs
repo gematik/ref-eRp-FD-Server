@@ -15,38 +15,28 @@
  *
  */
 
-use resources::types::Profession;
-use std::str::FromStr;
-
-#[derive(Default)]
-pub struct IdpClient {}
-
-#[derive(Debug, Clone)]
-pub struct IdToken(String);
+use std::fmt::Display;
+use std::ops::Deref;
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Error {}
+pub struct TelematikId(pub String);
 
-impl IdpClient {
-    pub fn get_profession(&self, _id_token: &IdToken) -> Result<Profession, Error> {
-        Ok(Profession::Insured)
-    }
-
-    pub fn get_kvnr(&self, _id_token: &IdToken) -> Result<Option<String>, Error> {
-        Ok(Some("KVNR0123456789".to_owned()))
+impl TelematikId {
+    pub fn new<T: Display>(value: T) -> Self {
+        Self(value.to_string())
     }
 }
 
-impl IdToken {
-    pub fn into_inner(self) -> String {
+impl Into<String> for TelematikId {
+    fn into(self) -> String {
         self.0
     }
 }
 
-impl FromStr for IdToken {
-    type Err = ();
+impl Deref for TelematikId {
+    type Target = str;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(IdToken(s.to_owned()))
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }

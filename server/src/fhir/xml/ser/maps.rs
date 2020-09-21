@@ -18,10 +18,7 @@
 use std::io::Write;
 use std::mem::take;
 
-use quick_xml::{
-    events::{attributes::Attribute, BytesStart},
-    DeError as Error,
-};
+use quick_xml::{events::BytesStart, DeError as Error};
 use serde::{ser::SerializeMap as SerSerializeMap, Serialize};
 
 use super::{values::ValueSerializer, Serializer};
@@ -95,24 +92,20 @@ impl<'a, W: Write> SerSerializeMap for SerializeMap<'a, W> {
                 self.serializer.close_tag(tag_id)?;
             }
             Pending::Attrib(key) => {
-                let mut attr_ser = ValueSerializer::default();
-                value.serialize(&mut attr_ser)?;
+                self.serializer.attrib(Some(key))?;
 
-                if let Some(value) = attr_ser.value() {
-                    let attrib = Attribute::from((key.as_ref(), value));
-                    self.serializer.add_attribute(attrib)?;
-                }
+                value.serialize(&mut *self.serializer)?;
+
+                self.serializer.attrib(None)?;
             }
             Pending::AttribTag(key) => {
-                let mut attr_ser = ValueSerializer::default();
-                value.serialize(&mut attr_ser)?;
+                self.serializer.attrib(Some("value".into()))?;
+                let tag_id = self.serializer.open_tag(BytesStart::owned_name(key), false);
 
-                if let Some(value) = attr_ser.value() {
-                    let attrib = Attribute::from((&b"value"[..], value));
-                    let tag_id = self.serializer.open_tag(BytesStart::owned_name(key), false);
-                    self.serializer.add_attribute(attrib)?;
-                    self.serializer.close_tag(tag_id)?;
-                }
+                value.serialize(&mut *self.serializer)?;
+
+                self.serializer.close_tag(tag_id)?;
+                self.serializer.attrib(None)?;
             }
         }
 

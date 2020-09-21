@@ -27,5 +27,22 @@
                 <definition value="https://simplifier.net/erezept-workflow/ActivateOperationDefinition"/>
             </operation>
         </resource>
+        <resource>
+            <type value="Communication"/>
+            <profile value="https://gematik.de/fhir/StructureDefinition/erxCommunication"/>
+            <supportedProfile value="https://gematik.de/fhir/StructureDefinition/erxCommunicationInfoReq"/>
+            <supportedProfile value="https://gematik.de/fhir/StructureDefinition/erxCommunicationReply"/>
+            <supportedProfile value="https://gematik.de/fhir/StructureDefinition/erxCommunicationDispReq"/>
+            <supportedProfile value="https://gematik.de/fhir/StructureDefinition/erxCommunicationRepresentative"/>
+            <interaction>
+                <code value="create"/>
+            </interaction>
+            <interaction>
+                <code value="read"/>
+            </interaction>
+            <interaction>
+                <code value="delete"/>
+            </interaction>
+        </resource>
     </rest>
 </CapabilityStatement>

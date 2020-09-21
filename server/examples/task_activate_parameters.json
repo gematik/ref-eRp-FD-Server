@@ -1,7 +1,7 @@
 {
     "resourceType":"Parameters",
     "parameter":[{
-        "name":"erxBinary",
+        "name":"ePrescription",
         "resource":{
             "resourceType":"Binary",
             "contentType":"application/pkcs7-mime",

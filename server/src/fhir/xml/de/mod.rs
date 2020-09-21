@@ -461,4 +461,29 @@ pub mod tests {
 
         assert_eq!(actual, expected);
     }
+
+    #[test]
+    fn deserialize_value_tag_sequence() {
+        #[derive(Debug, PartialEq, Deserialize)]
+        #[serde(rename_all = "PascalCase")]
+        struct Test {
+            #[serde(alias = "Item")]
+            #[serde(rename = "value-tag=Item")]
+            item: Vec<String>,
+        };
+
+        const TEST_XML: &str = r##"
+            <Test>
+                <Item value="fuu"/>
+                <Item value="bar"/>
+            </Test>
+        "##;
+
+        let expected = Test {
+            item: vec!["fuu".into(), "bar".into()],
+        };
+        let actual: Test = from_str(TEST_XML).unwrap();
+
+        assert_eq!(actual, expected);
+    }
 }

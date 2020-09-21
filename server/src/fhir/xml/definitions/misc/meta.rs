@@ -54,7 +54,7 @@ pub struct MetaDef {
 
 #[derive(Serialize, Deserialize, PartialEq)]
 #[serde(rename = "value-tag=Uri")]
-pub struct UriDef(String);
+pub struct UriDef(pub String);
 
 impl From<&str> for UriDef {
     fn from(value: &str) -> Self {

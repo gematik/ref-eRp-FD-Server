@@ -374,4 +374,31 @@ pub mod tests {
 
         assert_eq!(actual, expected);
     }
+
+    #[test]
+    fn serialize_value_tag_sequence() {
+        #[derive(Serialize)]
+        #[serde(rename_all = "PascalCase")]
+        struct Test {
+            #[serde(alias = "Item")]
+            #[serde(rename = "value-tag=Item")]
+            item: Vec<String>,
+        };
+
+        let test = Test {
+            item: vec!["fuu".into(), "bar".into()],
+        };
+
+        let actual = trim_xml_str(&to_string(&test).unwrap());
+        let expected = trim_xml_str(
+            r##"
+            <Test>
+                <Item value="fuu"/>
+                <Item value="bar"/>
+            </Test>
+        "##,
+        );
+
+        assert_eq!(actual, expected);
+    }
 }

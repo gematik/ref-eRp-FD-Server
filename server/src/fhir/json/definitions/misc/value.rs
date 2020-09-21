@@ -81,3 +81,15 @@ impl TryInto<Code> for ValueDef {
         }
     }
 }
+
+impl TryInto<bool> for ValueDef {
+    type Error = &'static str;
+
+    fn try_into(self) -> Result<bool, Self::Error> {
+        if let ValueDef::Boolean(value) = self {
+            Ok(value)
+        } else {
+            Err("Value does not contain a boolean!")
+        }
+    }
+}

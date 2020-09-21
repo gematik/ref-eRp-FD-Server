@@ -17,13 +17,10 @@
 
 use std::io::Write;
 
-use quick_xml::{
-    events::{attributes::Attribute, BytesStart},
-    DeError as Error,
-};
+use quick_xml::{events::BytesStart, DeError as Error};
 use serde::{ser::SerializeStruct as SerSerializeStruct, Serialize};
 
-use super::{values::ValueSerializer, Serializer};
+use super::Serializer;
 
 pub struct SerializeStruct<'a, W: Write> {
     serializer: &'a mut Serializer<W>,
@@ -50,25 +47,21 @@ impl<'a, W: Write> SerSerializeStruct for SerializeStruct<'a, W> {
 
             value.serialize(&mut *self.serializer)?;
         } else if key.starts_with("attrib=") {
-            let mut attr_ser = ValueSerializer::default();
-            value.serialize(&mut attr_ser)?;
+            self.serializer.attrib(Some(key[7..].into()))?;
 
-            if let Some(value) = attr_ser.value() {
-                let attrib = Attribute::from((key[7..].as_bytes(), value));
-                self.serializer.add_attribute(attrib)?;
-            }
+            value.serialize(&mut *self.serializer)?;
+
+            self.serializer.attrib(None)?;
         } else if key.starts_with("value-tag=") {
-            let mut attr_ser = ValueSerializer::default();
-            value.serialize(&mut attr_ser)?;
+            self.serializer.attrib(Some(b"value".to_vec()))?;
+            let tag_id = self
+                .serializer
+                .open_tag(BytesStart::owned_name(key[10..].as_bytes()), false);
 
-            if let Some(value) = attr_ser.value() {
-                let attrib = Attribute::from((&b"value"[..], value));
-                let tag_id = self
-                    .serializer
-                    .open_tag(BytesStart::borrowed_name(key[10..].as_bytes()), false);
-                self.serializer.add_attribute(attrib)?;
-                self.serializer.close_tag(tag_id)?;
-            }
+            value.serialize(&mut *self.serializer)?;
+
+            self.serializer.close_tag(tag_id)?;
+            self.serializer.attrib(None)?;
         } else {
             let key = key.as_bytes();
 

@@ -18,54 +18,50 @@
 use std::collections::hash_map::Entry;
 use std::convert::TryInto;
 
-use actix_web::FromRequest;
 use actix_web::{
     web::{Data, Payload},
-    HttpRequest, HttpResponse,
+    FromRequest, HttpRequest, HttpResponse,
 };
 use chrono::Utc;
 use log::debug;
-use rand::{
-    distributions::{Alphanumeric, Standard},
-    thread_rng, Rng,
-};
-
-#[cfg(feature = "support-json")]
-use crate::fhir::json::definitions::TaskCreateParametersRoot as JsonParameters;
-#[cfg(feature = "support-xml")]
-use crate::fhir::xml::definitions::TaskCreateParametersRoot as XmlParameters;
+use rand::{distributions::Standard, thread_rng, Rng};
 use resources::{
     misc::PrescriptionId,
+    primitives::Id,
     task::{Extension, Identifier, Status, Task},
     types::{FlowType, PerformerType},
 };
 
-#[cfg(feature = "support-json")]
-use super::super::misc::json::Data as Json;
-#[cfg(feature = "support-xml")]
-use super::super::misc::xml::Data as Xml;
-use super::{
-    super::{
-        super::{
-            error::Error,
-            header::{Accept, ContentType},
-            State,
-        },
-        misc::DataType,
-    },
-    misc::response_with_task,
+use crate::service::{
+    error::RequestError,
+    header::{Accept, Authorization, ContentType},
+    misc::{DataType, Profession},
+    State,
 };
+#[cfg(feature = "support-json")]
+use crate::{
+    fhir::json::definitions::TaskCreateParametersRoot as JsonParameters,
+    service::misc::json::Data as Json,
+};
+#[cfg(feature = "support-xml")]
+use crate::{
+    fhir::xml::definitions::TaskCreateParametersRoot as XmlParameters,
+    service::misc::xml::Data as Xml,
+};
+
+use super::misc::response_with_task;
 
 pub async fn create(
     state: Data<State>,
     request: HttpRequest,
     accept: Accept,
+    access_token: Authorization,
     content_type: ContentType,
     payload: Payload,
-) -> Result<HttpResponse, Error> {
-    let content_type = content_type.0;
-    let data_type = DataType::from_mime(&content_type);
+) -> Result<HttpResponse, RequestError> {
+    access_token.check_profession(|p| p == Profession::Versicherter)?;
 
+    let data_type = DataType::from_mime(&content_type);
     let args = match data_type {
         #[cfg(feature = "support-xml")]
         DataType::Xml => Xml::<XmlParameters>::from_request(&request, &mut payload.into_inner())
@@ -80,18 +76,16 @@ pub async fn create(
             .into_inner(),
 
         DataType::Unknown | DataType::Any => {
-            return Err(Error::ContentTypeNotSupported(content_type))
+            return Err(RequestError::ContentTypeNotSupported(
+                content_type.to_string(),
+            ))
         }
     };
 
     let task = create_task(args.flow_type)?;
+    let id = task.id.clone().unwrap();
+
     let mut state = state.lock().await;
-
-    let id = match &task.id {
-        Some(id) => id.clone(),
-        None => return Err(Error::Internal),
-    };
-
     let task = match state.tasks.entry(id) {
         Entry::Occupied(entry) => entry.into_mut(),
         Entry::Vacant(entry) => entry.insert(task),
@@ -106,8 +100,9 @@ pub async fn create(
     response_with_task(task, data_type)
 }
 
-fn create_task(flow_type: FlowType) -> Result<Task, Error> {
-    let id: String = thread_rng().sample_iter(&Alphanumeric).take(64).collect();
+fn create_task(flow_type: FlowType) -> Result<Task, RequestError> {
+    let id =
+        Some(Id::generate().map_err(|()| RequestError::Internal("Unable to generate Id".into()))?);
     let access_code: String = thread_rng()
         .sample_iter(&Standard)
         .take(32)
@@ -117,7 +112,7 @@ fn create_task(flow_type: FlowType) -> Result<Task, Error> {
     let prescription_id = PrescriptionId::new(FlowType::PharmaceuticalDrugs, 123);
 
     Ok(Task {
-        id: Some(id.try_into().unwrap()),
+        id,
         extension: Extension {
             accept_date: None,
             expiry_date: None,
@@ -130,18 +125,12 @@ fn create_task(flow_type: FlowType) -> Result<Task, Error> {
         },
         status: Status::Draft,
         for_: None,
-        authored_on: Some(
-            Utc::now()
-                .to_rfc3339()
-                .try_into()
-                .map_err(|_| Error::Internal)?,
-        ),
-        last_modified: Some(
-            Utc::now()
-                .to_rfc3339()
-                .try_into()
-                .map_err(|_| Error::Internal)?,
-        ),
+        authored_on: Some(Utc::now().to_rfc3339().try_into().map_err(|err| {
+            RequestError::internal(format!("Unable to set Task.authored_on: {}", err))
+        })?),
+        last_modified: Some(Utc::now().to_rfc3339().try_into().map_err(|err| {
+            RequestError::internal(format!("Unable to set Task.last_modified: {}", err))
+        })?),
         performer_type: vec![PerformerType::PublicPharmacy],
         input: Default::default(),
         output: Default::default(),

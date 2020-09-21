@@ -35,6 +35,27 @@
                             "definition":"https://simplifier.net/erezept-workflow/ActivateOperationDefinition"
                         }
                     ]
+                },
+                {
+                    "type":"Communication",
+                    "profile":"https://gematik.de/fhir/StructureDefinition/erxCommunication",
+                    "supportedProfile":[
+                        "https://gematik.de/fhir/StructureDefinition/erxCommunicationInfoReq",
+                        "https://gematik.de/fhir/StructureDefinition/erxCommunicationReply",
+                        "https://gematik.de/fhir/StructureDefinition/erxCommunicationDispReq",
+                        "https://gematik.de/fhir/StructureDefinition/erxCommunicationRepresentative"
+                    ],
+                    "interaction":[
+                        {
+                            "code":"create"
+                        },
+                        {
+                            "code":"read"
+                        },
+                        {
+                            "code":"delete"
+                        }
+                    ]
                 }
             ]
         }

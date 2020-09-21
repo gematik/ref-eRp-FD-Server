@@ -16,6 +16,7 @@
  */
 
 use std::collections::hash_map::Entry;
+use std::convert::TryInto;
 
 use actix_web::FromRequest;
 use actix_web::{
@@ -25,48 +26,43 @@ use actix_web::{
 use resources::{primitives::Id, task::Status};
 
 #[cfg(feature = "support-json")]
-use crate::fhir::json::definitions::TaskActivateParametersRoot as JsonParameters;
+use crate::{
+    fhir::json::definitions::TaskActivateParametersRoot as JsonParameters,
+    service::misc::json::Data as Json,
+};
 #[cfg(feature = "support-xml")]
-use crate::fhir::xml::definitions::TaskActivateParametersRoot as XmlParameters;
-
-#[cfg(feature = "support-json")]
-use super::super::misc::json::Data as Json;
-#[cfg(feature = "support-xml")]
-use super::super::misc::xml::Data as Xml;
-use super::{
-    super::{
-        super::{
-            error::Error,
-            header::{Accept, ContentType, XAccessCode},
-            state::State,
-        },
-        misc::DataType,
-    },
-    misc::response_with_task,
+use crate::{
+    fhir::xml::definitions::TaskActivateParametersRoot as XmlParameters,
+    service::misc::xml::Data as Xml,
 };
 
+use crate::service::{
+    error::RequestError,
+    header::{Accept, Authorization, ContentType, XAccessCode},
+    misc::{DataType, Profession},
+    state::State,
+};
+
+use super::misc::response_with_task;
+
+#[allow(clippy::too_many_arguments)]
 pub async fn activate(
     state: Data<State>,
     request: HttpRequest,
     id: Path<Id>,
     accept: Accept,
+    access_token: Authorization,
     content_type: ContentType,
     access_code: XAccessCode,
     payload: Payload,
-) -> Result<HttpResponse, Error> {
-    let access_code = access_code.0;
-    let content_type = content_type.0;
+) -> Result<HttpResponse, RequestError> {
+    access_token.check_profession(|p| p == Profession::Versicherter)?;
+
     let data_type = DataType::from_mime(&content_type);
-
-    let accept = match DataType::from_accept(accept).unwrap_or_default() {
-        DataType::Any => data_type,
-        accept => accept,
-    };
-
-    match accept {
-        DataType::Any | DataType::Unknown => return Err(Error::AcceptUnsupported),
-        _ => (),
-    }
+    let accept = DataType::from_accept(accept)
+        .unwrap_or_default()
+        .replace_any(data_type)
+        .check_supported()?;
 
     let args = match data_type {
         #[cfg(feature = "support-xml")]
@@ -82,7 +78,9 @@ pub async fn activate(
             .into_inner(),
 
         DataType::Unknown | DataType::Any => {
-            return Err(Error::ContentTypeNotSupported(content_type))
+            return Err(RequestError::ContentTypeNotSupported(
+                content_type.to_string(),
+            ))
         }
     };
 
@@ -92,9 +90,20 @@ pub async fn activate(
         .patient
         .as_ref()
         .and_then(|(_url, patient)| patient.identifier.as_ref())
+        .map(Clone::clone)
+        .map(TryInto::try_into)
     {
-        Some(identifier) => identifier.clone().into(),
-        None => return Err(Error::MissingKvnr),
+        Some(Ok(kvnr)) => kvnr,
+        Some(Err(())) => {
+            return Err(RequestError::BadRequest(
+                "KBV Bundle does not contain a valid KV-Nr.!".into(),
+            ))
+        }
+        None => {
+            return Err(RequestError::BadRequest(
+                "KBV Bundle is missing the KV-Nr.!".into(),
+            ))
+        }
     };
 
     /* verify the request */
@@ -107,8 +116,12 @@ pub async fn activate(
             None => return Ok(HttpResponse::NotFound().finish()),
         };
 
-        if task.status != Status::Draft {
-            return Err(Error::InvalidTaskStatus);
+        if Status::Draft != task.status {
+            return Err(RequestError::BadRequest(format!(
+                "Invalid task status (expected={:?}, actual={:?})",
+                Status::Draft,
+                task.status
+            )));
         }
 
         match &task.identifier.access_code {
@@ -120,10 +133,16 @@ pub async fn activate(
     /* create / update resources */
 
     let mut patient_receipt = args.kbv_bundle.clone();
-    patient_receipt.id = Id::generate().map_err(|_| Error::Internal)?;
+    patient_receipt.id =
+        Id::generate().map_err(|_| RequestError::internal("Unable to generate ID"))?;
 
     let patient_receipt = match state.patient_receipts.entry(patient_receipt.id.clone()) {
-        Entry::Occupied(_) => return Err(Error::Internal),
+        Entry::Occupied(_) => {
+            return Err(RequestError::internal(format!(
+                "Patient receipt with this ID ({}) already exists!",
+                patient_receipt.id
+            )))
+        }
         Entry::Vacant(entry) => entry.insert(patient_receipt).id.clone(),
     };
 
@@ -134,7 +153,7 @@ pub async fn activate(
 
     let mut task = match state.tasks.get_mut(&id) {
         Some(task) => task,
-        None => return Err(Error::Internal),
+        None => return Err(RequestError::internal("Unable to get task from database!")),
     };
 
     task.for_ = Some(kvnr);

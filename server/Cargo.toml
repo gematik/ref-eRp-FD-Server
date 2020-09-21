@@ -36,6 +36,7 @@ bytes = "0.5"
 chrono = "0.4"
 encoding_rs = "0.8"
 futures = "0.3"
+jwt = { version = "0.10", features = [ "openssl" ]}
 lazy_static = "1.4"
 log = { version = "0.4", features = ["max_level_debug", "release_max_level_warn"] }
 log4rs = "0.11.0"
@@ -52,4 +53,5 @@ serde_json = { version = "1.0", optional = true }
 structopt = "0.3"
 thiserror = "1.0"
 tokio = { version = "0.2", features = [ "sync", "rt-core", "rt-threaded", "macros" ] }
+url = "2.1"
 vau = { path = "../vau" }

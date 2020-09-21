@@ -28,22 +28,21 @@ use resources::capability_statement::{
 use serde::Deserialize;
 
 #[cfg(feature = "support-json")]
-use crate::fhir::json::{
-    definitions::CapabilityStatementRoot as JsonCapabilityStatement, to_string as to_json,
+use crate::{
+    fhir::json::{
+        definitions::CapabilityStatementRoot as JsonCapabilityStatement, to_string as to_json,
+    },
+    service::constants::MIME_FHIR_JSON,
 };
 #[cfg(feature = "support-xml")]
-use crate::fhir::xml::{
-    definitions::CapabilityStatementRoot as XmlCapabilityStatement, to_string as to_xml,
+use crate::{
+    fhir::xml::{
+        definitions::CapabilityStatementRoot as XmlCapabilityStatement, to_string as to_xml,
+    },
+    service::constants::MIME_FHIR_XML,
 };
 
-#[cfg(feature = "support-json")]
-use super::constants::MIME_FHIR_JSON;
-#[cfg(feature = "support-xml")]
-use super::constants::MIME_FHIR_XML;
-use super::{
-    super::{error::Error, header::Accept},
-    misc::DataType,
-};
+use crate::service::{header::Accept, misc::DataType, RequestError};
 
 #[derive(Deserialize)]
 pub struct QueryArgs {
@@ -72,7 +71,7 @@ pub fn create() -> CapabilityStatement {
     }
 }
 
-pub async fn get(accept: Accept, query: Query<QueryArgs>) -> Result<HttpResponse, Error> {
+pub async fn get(accept: Accept, query: Query<QueryArgs>) -> Result<HttpResponse, RequestError> {
     let mut data_types = match query.0.format {
         #[cfg(feature = "support-xml")]
         Some(format) if format == "xml" => {
@@ -86,7 +85,7 @@ pub async fn get(accept: Accept, query: Query<QueryArgs>) -> Result<HttpResponse
 
         Some(format) => vec![format
             .parse()
-            .map_err(|_| Error::InvalidFormatArgument(format))?],
+            .map_err(|_| RequestError::InvalidFormatArgument(format))?],
 
         None => accept.0,
     };

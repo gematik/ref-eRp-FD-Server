@@ -24,7 +24,7 @@ use std::borrow::Cow;
 use std::convert::TryInto;
 
 use resources::{
-    misc::{Decode, DecodeStr, EncodeStr},
+    misc::{Decode, DecodeStr, EncodeStr, Kvnr},
     primitives::{DateTime, Id},
     task::{Extension, Identifier, Input, Output, Status, Task},
     types::{DocumentType, PerformerType},
@@ -170,7 +170,7 @@ impl Into<TaskHelper> for &Task {
             for_: self.for_.as_ref().map(|v| ReferenceDef {
                 identifier: Some(IdentifierDef {
                     system: Some(IDENTITY_SYSTEM_KVID.into()),
-                    value: Some(v.clone()),
+                    value: Some(v.clone().into()),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -376,7 +376,7 @@ impl TryInto<Task> for TaskHelper {
                         .value
                         .ok_or_else(|| "Task for identifier is missing the `value` field!")?;
 
-                    Ok(value)
+                    Ok(Kvnr::new(value)?)
                 })
                 .transpose()?,
             authored_on: self.authored_on,
@@ -703,7 +703,7 @@ pub mod tests {
                 ),
             },
             status: Status::InProgress,
-            for_: Some("X123456789".into()),
+            for_: Some(Kvnr::new("X123456789").unwrap()),
             authored_on: Some("2020-03-02T08:25:05+00:00".try_into().unwrap()),
             last_modified: Some("2020-03-02T08:45:05+00:00".try_into().unwrap()),
             performer_type: vec![PerformerType::PublicPharmacy],

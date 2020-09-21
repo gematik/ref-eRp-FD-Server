@@ -15,8 +15,10 @@
  *
  */
 
+use std::convert::TryInto;
+
 use super::{
-    misc::{Address, Name},
+    misc::{Address, Kvnr, Name},
     primitives::{Date, Id},
 };
 
@@ -31,9 +33,7 @@ pub struct Patient {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Identifier {
-    GKV {
-        value: String,
-    },
+    GKV(Kvnr),
     PKV {
         system: Option<String>,
         value: String,
@@ -43,12 +43,13 @@ pub enum Identifier {
     },
 }
 
-impl Into<String> for Identifier {
-    fn into(self) -> String {
+impl TryInto<Kvnr> for Identifier {
+    type Error = ();
+
+    fn try_into(self) -> Result<Kvnr, Self::Error> {
         match self {
-            Self::GKV { value } => value,
-            Self::PKV { value, .. } => value,
-            Self::KVK { value } => value,
+            Self::GKV(kvnr) => Ok(kvnr),
+            _ => Err(()),
         }
     }
 }

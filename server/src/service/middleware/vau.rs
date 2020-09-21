@@ -34,16 +34,17 @@ use futures::{
     future::{err, ok, Future, FutureExt, Ready},
     stream::{Stream, TryStreamExt},
 };
+use log::error;
 use openssl::{ec::EcKey, pkey::Private, x509::X509};
 use vau::{
     decode, encode, Decrypter, Encrypter, Error as VauError, PriorityFuture, UserPseudonymGenerator,
 };
 
-use crate::service::Error;
+use crate::service::{Error, RequestError};
 
 pub struct Vau {
     pkey: EcKey<Private>,
-    cert: X509,
+    cert: Vec<u8>,
 }
 
 pub struct VauMiddleware<S> {
@@ -54,7 +55,7 @@ struct Handle<S>(Rc<RefCell<Inner<S>>>);
 
 struct Inner<S> {
     service: S,
-    cert: X509,
+    cert: Vec<u8>,
     decrypter: Decrypter,
     encrypter: Encrypter,
     user_pseudonym_generator: UserPseudonymGenerator,
@@ -62,7 +63,10 @@ struct Inner<S> {
 
 impl Vau {
     pub fn new(pkey: EcKey<Private>, cert: X509) -> Result<Self, Error> {
-        Ok(Vau { pkey, cert })
+        Ok(Vau {
+            pkey,
+            cert: cert.to_der()?,
+        })
     }
 }
 
@@ -81,7 +85,11 @@ where
     fn new_transform(&self, service: S) -> Self::Future {
         match Handle::new(service, self.pkey.clone(), self.cert.clone()) {
             Ok(handle) => ok(VauMiddleware { handle }),
-            Err(_) => err(()),
+            Err(e) => {
+                error!("Error creating VAU middleware: {}", e);
+
+                err(())
+            }
         }
     }
 }
@@ -110,7 +118,7 @@ where
     S: Service<Request = ServiceRequest, Response = ServiceResponse, Error = ActixError> + 'static,
     S::Future: 'static,
 {
-    fn new(service: S, pkey: EcKey<Private>, cert: X509) -> Result<Self, ActixError> {
+    fn new(service: S, pkey: EcKey<Private>, cert: Vec<u8>) -> Result<Self, Error> {
         Ok(Self(Rc::new(RefCell::new(Inner {
             service,
             cert,
@@ -168,11 +176,9 @@ where
         }
 
         let (req, payload) = req.into_parts();
-        if req.content_type() != "application/octet-stream" {
-            return Ok(ServiceResponse::new(
-                req,
-                HttpResponse::BadRequest().finish(),
-            ));
+        let content_type = req.content_type();
+        if content_type != "application/octet-stream" {
+            return Err(RequestError::ContentTypeNotSupported(content_type.into()).into());
         }
 
         let mut this = self.0.borrow_mut();
@@ -202,10 +208,9 @@ where
         }
 
         let (req, _payload) = req.into_parts();
-        let body = self.0.borrow().cert.to_der().map_err(Error::from)?;
         let res = HttpResponse::Ok()
             .content_type(ContentType::octet_stream().try_into()?)
-            .body(body);
+            .body(self.0.borrow().cert.clone());
         let res = ServiceResponse::new(req, res);
 
         Ok(res)

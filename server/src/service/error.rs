@@ -15,57 +15,47 @@
  *
  */
 
+use std::fmt::Display;
 use std::io::Error as IoError;
 use std::str::Utf8Error;
 
 use actix_web::{
     error::{PayloadError, ResponseError},
-    http::header::HeaderName,
     http::StatusCode,
+    HttpResponse,
 };
-use mime::Mime;
 use openssl::error::ErrorStack as OpenSslError;
 #[cfg(feature = "support-xml")]
 use quick_xml::DeError as XmlError;
-use resources::types::Profession;
 #[cfg(feature = "support-json")]
 use serde_json::Error as JsonError;
 use thiserror::Error;
+use vau::Error as VauError;
 
-use super::idp_client::Error as IdpClientError;
+use super::misc::AccessTokenError;
 
-#[allow(dead_code)]
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("Expected Header was not set: {0}!")]
-    ExpectHeader(HeaderName),
+    #[error("IO Error: {0}")]
+    IoError(IoError),
 
-    #[error("Invalid Header: {0}!")]
-    InvalidHeader(HeaderName),
+    #[error("OpenSSL Error: {0}")]
+    OpenSslError(OpenSslError),
 
-    #[error("Content-Type is not supported: {0}!")]
-    ContentTypeNotSupported(Mime),
+    #[error("VAU Error: {0}")]
+    VauError(VauError),
 
-    #[error("The requested accept types are not supported!")]
-    AcceptUnsupported,
+    #[error("Unsupported Scheme {0}!")]
+    UnsupportedScheme(String),
+}
 
-    #[error("KVNR is missing in the request data!")]
-    MissingKvnr,
+#[derive(Error, Debug)]
+pub enum RequestError {
+    #[error("Internal Error: {0}")]
+    Internal(String),
 
-    #[error("Invalid Task Status!")]
-    InvalidTaskStatus,
-
-    #[error("Payload exceeds the configured limit: {0}!")]
-    PayloadOverflow(usize),
-
-    #[error("Payload Error: {0}")]
-    PayloadError(PayloadError),
-
-    #[error("Invalid profession: {0:?}!")]
-    InvalidProfession(Profession),
-
-    #[error("The query argument '_format' is malformed: {0}!")]
-    InvalidFormatArgument(String),
+    #[error("Unauthorized: {0}!")]
+    Unauthorized(String),
 
     #[cfg(feature = "support-xml")]
     #[error("Error while reading XML: {0}!")]
@@ -83,45 +73,40 @@ pub enum Error {
     #[error("Error while writing JSON: {0}!")]
     SerializeJson(JsonError),
 
-    #[error("IDP Client Error: {0:?}")]
-    IdpClientError(IdpClientError),
+    #[error("Access Token Error: {0}!")]
+    AccessTokenError(AccessTokenError),
+
+    #[error("Payload Error: {0}")]
+    PayloadError(PayloadError),
 
     #[error("UTF-8 Error: {0:?}")]
     Utf8Error(Utf8Error),
 
-    #[error("Error in OpenSSL Library: {0}")]
-    OpenSslError(OpenSslError),
+    #[error("Header is missing: {0}!")]
+    HeaderMissing(String),
 
-    #[error("IO Error: {0}")]
-    IoError(IoError),
+    #[error("Header has invalid value: {0}!")]
+    HeaderInvalid(String),
 
-    #[error("Internal Server Error!")]
-    Internal,
+    #[error("Payload exceeds the configured limit: {0}!")]
+    PayloadToLarge(usize),
+
+    #[error("Bad Request: {0}")]
+    BadRequest(String),
+
+    #[error("The query argument '_format' is malformed: {0}!")]
+    InvalidFormatArgument(String),
+
+    #[error("Content-Type is not supported: {0}!")]
+    ContentTypeNotSupported(String),
+
+    #[error("None of the accepted content types of the client are not supported by the server!")]
+    AcceptUnsupported,
 }
 
-#[cfg(feature = "support-xml")]
-impl From<XmlError> for Error {
-    fn from(v: XmlError) -> Self {
-        Error::DeserializeXml(v)
-    }
-}
-
-#[cfg(feature = "support-json")]
-impl From<JsonError> for Error {
-    fn from(v: JsonError) -> Self {
-        Error::DeserializeJson(v)
-    }
-}
-
-impl From<PayloadError> for Error {
-    fn from(v: PayloadError) -> Self {
-        Error::PayloadError(v)
-    }
-}
-
-impl From<Utf8Error> for Error {
-    fn from(v: Utf8Error) -> Self {
-        Error::Utf8Error(v)
+impl From<IoError> for Error {
+    fn from(v: IoError) -> Self {
+        Error::IoError(v)
     }
 }
 
@@ -131,22 +116,100 @@ impl From<OpenSslError> for Error {
     }
 }
 
-impl From<IoError> for Error {
-    fn from(v: IoError) -> Self {
-        Error::IoError(v)
+impl From<VauError> for Error {
+    fn from(v: VauError) -> Self {
+        Error::VauError(v)
     }
 }
 
-impl ResponseError for Error {
-    fn status_code(&self) -> StatusCode {
+impl RequestError {
+    pub fn internal<T: Display>(t: T) -> Self {
+        Self::Internal(t.to_string())
+    }
+
+    pub fn header_invalid<T: Display>(t: T) -> Self {
+        Self::HeaderInvalid(t.to_string())
+    }
+
+    pub fn header_missing<T: Display>(t: T) -> Self {
+        Self::HeaderMissing(t.to_string())
+    }
+}
+
+impl ResponseError for RequestError {
+    fn error_response(&self) -> HttpResponse {
+        let mut res = HttpResponse::InternalServerError();
+
         match self {
+            Self::Internal(_) => res.status(StatusCode::INTERNAL_SERVER_ERROR),
+
+            Self::Unauthorized(_) => res.status(StatusCode::UNAUTHORIZED),
+
             #[cfg(feature = "support-xml")]
-            Error::SerializeXml(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::DeserializeXml(_) => res.status(StatusCode::BAD_REQUEST),
+
             #[cfg(feature = "support-json")]
-            Error::SerializeJson(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            Error::PayloadOverflow(_) => StatusCode::PAYLOAD_TOO_LARGE,
-            Error::Internal | Error::IdpClientError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            _ => StatusCode::BAD_REQUEST,
-        }
+            Self::DeserializeJson(_) => res.status(StatusCode::BAD_REQUEST),
+
+            #[cfg(feature = "support-xml")]
+            Self::SerializeXml(_) => res.status(StatusCode::INTERNAL_SERVER_ERROR),
+
+            #[cfg(feature = "support-json")]
+            Self::SerializeJson(_) => res.status(StatusCode::INTERNAL_SERVER_ERROR),
+
+            #[cfg(feature = "interface-supplier")]
+            Self::AccessTokenError(AccessTokenError::Missing) => res
+                .status(StatusCode::UNAUTHORIZED)
+                .header(
+                    "WWW-Authenticate",
+                    "Bearer realm='prescriptionserver.telematik',scope='openid profile prescriptionservice.lei'"),
+
+            #[cfg(all(feature = "interface-patient", not(feature = "interface-supplier")))]
+            Self::AccessTokenError(AccessTokenError::Missing) => res
+                .status(StatusCode::UNAUTHORIZED)
+                .header(
+                    "WWW-Authenticate",
+                    "Bearer realm='prescriptionserver.telematik',scope='openid profile prescriptionservice.vers'"),
+
+            Self::AccessTokenError(AccessTokenError::NoKvnr)
+            | Self::AccessTokenError(AccessTokenError::NoTelematikId) =>
+                res.status(StatusCode::BAD_REQUEST),
+
+            Self::AccessTokenError(_) => res.status(StatusCode::UNAUTHORIZED).header(
+                "WWW-Authenticate",
+                "Bearer realm='prescriptionserver.telematik', error='invalACCESS_TOKEN'",
+            ),
+
+            Self::PayloadError(_)
+            | Self::Utf8Error(_)
+            | Self::HeaderMissing(_)
+            | Self::HeaderInvalid(_)
+            | Self::PayloadToLarge(_)
+            | Self::BadRequest(_)
+            | Self::InvalidFormatArgument(_)
+            | Self::ContentTypeNotSupported(_)
+            | Self::AcceptUnsupported => res.status(StatusCode::BAD_REQUEST),
+        };
+
+        res.header("Content-Type", "text/plain; charset=utf-8")
+            .body(format!("{}", self))
+    }
+}
+
+impl From<AccessTokenError> for RequestError {
+    fn from(err: AccessTokenError) -> Self {
+        Self::AccessTokenError(err)
+    }
+}
+
+impl From<PayloadError> for RequestError {
+    fn from(err: PayloadError) -> Self {
+        Self::PayloadError(err)
+    }
+}
+
+impl From<Utf8Error> for RequestError {
+    fn from(err: Utf8Error) -> Self {
+        Self::Utf8Error(err)
     }
 }

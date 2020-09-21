@@ -20,6 +20,7 @@ extern crate lazy_static;
 
 pub mod bundle;
 pub mod capability_statement;
+pub mod communication;
 pub mod composition;
 pub mod coverage;
 pub mod kbv_bundle;
@@ -36,6 +37,7 @@ pub mod task;
 pub mod types;
 
 pub use capability_statement::CapabilityStatement;
+pub use communication::Communication;
 pub use composition::Composition;
 pub use coverage::Coverage;
 pub use kbv_bundle::KbvBundle;

@@ -36,20 +36,6 @@ pub enum DocumentType {
     Receipt,
 }
 
-#[allow(dead_code)]
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Profession {
-    Insured,
-    PublicPharmacy,
-    HospitalPharmacy,
-    Doctor,
-    Dentist,
-    PracticeDoctor,
-    DentalPractice,
-    Psychotherapist,
-    Hospital,
-}
-
 impl Decode for FlowType {
     type Code = usize;
     type Auto = ();

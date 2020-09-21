@@ -81,12 +81,15 @@ struct RestDef {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct ResourceDef {
     #[serde(with = "TypeDef")]
     #[serde(rename = "type")]
     type_: Type,
 
     profile: String,
+
+    supported_profile: Vec<String>,
 
     interaction: Vec<InteractionDef>,
 
@@ -155,6 +158,7 @@ enum ModeDef {
 enum TypeDef {
     Task,
     Operation,
+    Communication,
 }
 
 #[derive(Serialize)]
@@ -236,6 +240,7 @@ impl Into<ResourceDef> for &Resource {
         ResourceDef {
             type_: self.type_,
             profile: self.profile.clone(),
+            supported_profile: self.supported_profiles.clone(),
             operation: self.operation.iter().map(Into::into).collect(),
             interaction: self
                 .interaction

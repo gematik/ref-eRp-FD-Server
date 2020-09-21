@@ -16,20 +16,19 @@
  */
 
 use actix_web::HttpResponse;
+use resources::Task;
 
 #[cfg(feature = "support-json")]
 use crate::fhir::json::{definitions::TaskRoot as JsonTask, to_string as to_json};
 #[cfg(feature = "support-xml")]
 use crate::fhir::xml::{definitions::TaskRoot as XmlTask, to_string as to_xml};
-use resources::Task;
+use crate::service::{misc::DataType, RequestError};
 
-use super::super::{super::error::Error, misc::DataType};
-
-pub fn response_with_task(task: &Task, data_type: DataType) -> Result<HttpResponse, Error> {
+pub fn response_with_task(task: &Task, data_type: DataType) -> Result<HttpResponse, RequestError> {
     match data_type {
         #[cfg(feature = "support-xml")]
         DataType::Xml => {
-            let xml = to_xml(&XmlTask::new(&task)).map_err(Error::SerializeXml)?;
+            let xml = to_xml(&XmlTask::new(&task)).map_err(RequestError::SerializeXml)?;
 
             Ok(HttpResponse::Ok()
                 .content_type(DataType::Xml.as_mime().to_string())
@@ -38,13 +37,13 @@ pub fn response_with_task(task: &Task, data_type: DataType) -> Result<HttpRespon
 
         #[cfg(feature = "support-json")]
         DataType::Json => {
-            let json = to_json(&JsonTask::new(&task)).map_err(Error::SerializeJson)?;
+            let json = to_json(&JsonTask::new(&task)).map_err(RequestError::SerializeJson)?;
 
             Ok(HttpResponse::Ok()
                 .content_type(DataType::Json.as_mime().to_string())
                 .body(json))
         }
 
-        DataType::Any | DataType::Unknown => Err(Error::AcceptUnsupported),
+        DataType::Any | DataType::Unknown => panic!("Data type of response was not specified"),
     }
 }

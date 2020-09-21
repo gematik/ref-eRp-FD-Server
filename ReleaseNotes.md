@@ -1,3 +1,12 @@
+# Release 0.2.0
+Implemented features:
+* FHIR resources and operations
+  * Communication resource
+    * create interaction
+    * read interaction
+    * delete interaction
+* Access token validation
+
 # Release 0.1.0
 Implemented features:
 * REST server basics
