@@ -18,6 +18,7 @@
 mod capabilty_statement;
 mod communication;
 mod task;
+mod tsl;
 
 use actix_web::web::ServiceConfig;
 use proc_macros::capability_statement;
@@ -25,6 +26,7 @@ use proc_macros::capability_statement;
 use capabilty_statement::{create as capability_statement_create, get as capability_statement_get};
 use communication::CommunicationRoutes;
 use task::TaskRoutes;
+use tsl::configure_routes as tsl_configure_routes;
 
 #[capability_statement(
     init = capability_statement_create,
@@ -39,6 +41,8 @@ pub struct Routes {
 
 pub fn configure_routes(cfg: &mut ServiceConfig) {
     ROUTES.configure_routes(cfg);
+
+    tsl_configure_routes(cfg);
 }
 
 lazy_static! {

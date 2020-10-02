@@ -62,6 +62,12 @@ fn parse_authorization(req: &HttpRequest) -> Result<Authorization, RequestError>
         .ok_or_else(|| AccessTokenError::Missing)?
         .to_str()
         .map_err(|_| AccessTokenError::InvalidValue)?;
+
+    if !access_token.starts_with("Bearer ") {
+        return Err(AccessTokenError::InvalidValue.into());
+    }
+
+    let access_token = &access_token[7..];
     let access_token = AccessToken::verify(access_token, puk_token.0.clone(), Utc::now())?;
 
     Ok(Authorization(access_token))

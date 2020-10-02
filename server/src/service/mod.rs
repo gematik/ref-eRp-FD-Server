@@ -26,12 +26,16 @@ mod state;
 use std::fs::read;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use actix_rt::System;
-use actix_web::{App, HttpServer};
+use actix_web::{dev::Server, App, HttpServer};
+use arc_swap::ArcSwapOption;
 use openssl::{ec::EcKey, x509::X509};
 use tokio::task::LocalSet;
 use url::Url;
+
+use crate::tsl::Tsl;
 
 pub use error::{Error, RequestError};
 use middleware::{HeaderCheck, Logging, Vau};
@@ -43,15 +47,17 @@ pub struct Service {
     key: PathBuf,
     cert: PathBuf,
     puk_token: Url,
+    tsl: Arc<ArcSwapOption<Tsl>>,
     addresses: Vec<SocketAddr>,
 }
 
 impl Service {
-    pub fn new(key: PathBuf, cert: PathBuf, puk_token: Url) -> Self {
+    pub fn new(key: PathBuf, cert: PathBuf, puk_token: Url, tsl: Arc<ArcSwapOption<Tsl>>) -> Self {
         Self {
             key,
             cert,
             puk_token,
+            tsl,
             addresses: Vec::new(),
         }
     }
@@ -64,10 +70,11 @@ impl Service {
         Ok(self)
     }
 
-    pub async fn run(self) -> Result<Self, Error> {
+    pub fn run(&self, local: &LocalSet) -> Result<Server, Error> {
         let state = State::default();
-        let local = LocalSet::new();
-        let _system = System::run_in_tokio("actix-web", &local);
+        let system = System::run_in_tokio("actix-web", &local);
+
+        local.spawn_local(system);
 
         let key = read(&self.key)?;
         let key = EcKey::private_key_from_pem(&key).map_err(Error::OpenSslError)?;
@@ -77,12 +84,15 @@ impl Service {
 
         let puk_token = PukToken::from_url(&self.puk_token)?;
 
+        let tsl = self.tsl.clone();
+
         let mut server = HttpServer::new(move || {
             App::new()
                 .wrap(Vau::new(key.clone(), cert.clone()).unwrap())
                 .wrap(HeaderCheck)
                 .wrap(Logging)
                 .data(state.clone())
+                .data(tsl.clone())
                 .app_data(puk_token.clone())
                 .configure(configure_routes)
         });
@@ -91,8 +101,8 @@ impl Service {
             server = server.bind(addr)?;
         }
 
-        server.run().await?;
+        let server = server.disable_signals().shutdown_timeout(10).run();
 
-        Ok(self)
+        Ok(server)
     }
 }

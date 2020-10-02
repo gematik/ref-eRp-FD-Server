@@ -34,7 +34,7 @@ use futures::stream::Stream;
 use super::{misc::hex_decode, Error};
 
 pub struct Decoded<'a> {
-    pub jwt_token: Vec<u8>,
+    pub jwt_token: String,
     pub request_id: &'a str,
     pub response_key: Vec<u8>,
 }
@@ -72,15 +72,19 @@ pub fn decode(
 
         next
     } else {
-        HttpRequest::new(
+        let mut res = HttpRequest::new(
             Path::new(Url::new(head.uri.clone())),
             head,
             payload,
             req.0.rmap.clone(),
             req.0.config.clone(),
-            req.0.app_data.clone(),
+            req.0.app_data[0].clone(),
             pool,
-        )
+        );
+
+        Rc::get_mut(&mut res.0).unwrap().app_data = req.0.app_data.clone();
+
+        res
     };
 
     Ok((decoded, ServiceRequest::new(next), req))
@@ -93,8 +97,9 @@ impl<'a> Decoded<'a> {
         let version = it.next().ok_or(Error::DecodeError)?;
 
         let jwt_token = it.next().ok_or(Error::DecodeError)?;
-        let jwt_token = from_utf8(&jwt_token).map_err(|_| Error::DecodeError)?;
-        let jwt_token = hex_decode(&jwt_token).map_err(|_| Error::DecodeError)?;
+        let jwt_token = from_utf8(&jwt_token)
+            .map_err(|_| Error::DecodeError)?
+            .into();
 
         let request_id = it.next().ok_or(Error::DecodeError)?;
         let request_id = from_utf8(&request_id).map_err(|_| Error::DecodeError)?;

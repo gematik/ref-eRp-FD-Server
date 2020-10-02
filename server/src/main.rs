@@ -16,12 +16,20 @@
  */
 
 use std::path::PathBuf;
+use std::sync::Arc;
 
+use arc_swap::ArcSwapOption;
+use futures::{future::FutureExt, select};
 use structopt::StructOpt;
-use tokio::runtime::Builder;
+use tokio::{
+    runtime::Builder,
+    task::{spawn, LocalSet},
+};
 use url::Url;
 
-use ref_erx_fd_server::{error::Error, logging::init_logger, service::Service};
+use ref_erx_fd_server::{
+    error::Error, logging::init_logger, service::Service, tsl::update as update_tsl,
+};
 
 fn main() -> Result<(), Error> {
     let opts = Options::from_args();
@@ -34,12 +42,50 @@ fn main() -> Result<(), Error> {
 }
 
 async fn run(opts: Options) -> Result<(), Error> {
-    Service::new(opts.key, opts.cert, opts.token)
-        .listen(&opts.server_addr)?
-        .run()
-        .await?;
+    let local = LocalSet::new();
 
-    Ok(())
+    let tsl = Arc::new(ArcSwapOption::from(None));
+    let handle = Service::new(opts.key, opts.cert, opts.token, tsl.clone())
+        .listen(&opts.server_addr)?
+        .run(&local)?;
+
+    spawn(update_tsl(opts.tsl, tsl));
+
+    local
+        .run_until(async move {
+            select! {
+                ret = handle.clone().fuse() => ret?,
+                ret = sig_handler().fuse() => {
+                    let gracefull = ret?;
+
+                    handle.stop(gracefull).await;
+                },
+            }
+
+            Ok(())
+        })
+        .await
+}
+
+#[cfg(not(unix))]
+async fn sig_handler() -> Result<bool, Error> {
+    tokio::signal::ctrl_c().await?;
+
+    Ok(true)
+}
+
+#[cfg(unix)]
+async fn sig_handler() -> Result<bool, Error> {
+    use futures::stream::StreamExt;
+    use tokio::signal::unix::{signal, SignalKind};
+
+    let mut sigint = signal(SignalKind::interrupt())?;
+    let mut sigterm = signal(SignalKind::terminate())?;
+
+    select! {
+        x = sigint.next().fuse() => Ok(x.is_some()),
+        _ = sigterm.next().fuse() => Ok(false),
+    }
 }
 
 #[derive(Clone, StructOpt)]
@@ -59,6 +105,13 @@ struct Options {
     ///     * file://idp/token.pub
     #[structopt(verbatim_doc_comment, long = "token")]
     token: Url,
+
+    /// URL to load TSL (Trust Status List) from.
+    /// This is the base URL the FD will look for two files in:
+    ///     * {tsl-url}/TSL.xml - Actual TSL
+    ///     * {tsl-url}/TSL.sha2 - SHA256 of the TSL.xml
+    #[structopt(verbatim_doc_comment, long = "tsl")]
+    tsl: Url,
 
     /// File to load log configuration from.
     #[structopt(

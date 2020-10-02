@@ -1,3 +1,9 @@
+# Release 0.3.0
+Implemented features:
+* Download and provide endpoints for TSL (Trust Status List)
+* Updated actix-web to 3.0
+* Extended Readme
+
 # Release 0.2.0
 Implemented features:
 * FHIR resources and operations

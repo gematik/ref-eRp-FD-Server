@@ -10,5 +10,5 @@ default-members = [
 ]
 
 [patch.crates-io]
-actix-web = { git = "https://github.com/Gematik-Entwicklung/actix-web.git", branch = "ref-erx-fd-server-v2.0.0" }
+actix-web = { git = "https://github.com/Gematik-Entwicklung/actix-web.git", branch = "ref-erx-fd-server-v3.0.2" }
 openssl = { git = "https://github.com/Gematik-Entwicklung/rust-openssl.git", branch = "ref-erx-fd-server-v0.10.30" }

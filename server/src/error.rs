@@ -37,7 +37,7 @@ pub enum Error {
     #[error("Unable to setup log4rs: {0}")]
     Log4RsError(Log4RsError),
 
-    #[error("ServiceError: {0}")]
+    #[error("Service Error: {0}")]
     ServiceError(ServiceError),
 }
 
