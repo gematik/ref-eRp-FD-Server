@@ -41,9 +41,9 @@ use super::{
 pub struct KbvBundleDef;
 pub type KbvBundleRoot<'a> = Root<KbvBundleCow<'a>>;
 
-#[derive(Serialize, Deserialize)]
 #[serde(rename = "Bundle")]
-pub struct KbvBundleCow<'a>(#[serde(with = "KbvBundleDef")] Cow<'a, KbvBundle>);
+#[derive(Clone, Serialize, Deserialize)]
+pub struct KbvBundleCow<'a>(#[serde(with = "KbvBundleDef")] pub Cow<'a, KbvBundle>);
 
 struct BundleDef<'a>(Bundle<ResourceDef<'a>>);
 

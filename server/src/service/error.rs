@@ -51,6 +51,9 @@ pub enum Error {
 
 #[derive(Error, Debug)]
 pub enum RequestError {
+    #[error("OpenSSL Error: {0}")]
+    OpenSslError(OpenSslError),
+
     #[error("Internal Error: {0}")]
     Internal(String),
 
@@ -141,6 +144,8 @@ impl ResponseError for RequestError {
         let mut res = HttpResponse::InternalServerError();
 
         match self {
+            Self::OpenSslError(_) => res.status(StatusCode::BAD_REQUEST),
+
             Self::Internal(_) => res.status(StatusCode::INTERNAL_SERVER_ERROR),
 
             Self::Unauthorized(_) => res.status(StatusCode::UNAUTHORIZED),
@@ -193,6 +198,12 @@ impl ResponseError for RequestError {
 
         res.header("Content-Type", "text/plain; charset=utf-8")
             .body(format!("{}", self))
+    }
+}
+
+impl From<OpenSslError> for RequestError {
+    fn from(err: OpenSslError) -> Self {
+        Self::OpenSslError(err)
     }
 }
 

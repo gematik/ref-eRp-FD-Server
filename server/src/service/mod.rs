@@ -39,23 +39,31 @@ use crate::tsl::Tsl;
 
 pub use error::{Error, RequestError};
 use middleware::{HeaderCheck, Logging, Vau};
-use misc::PukToken;
+use misc::{Cms, PukToken};
 use routes::configure_routes;
 use state::State;
 
 pub struct Service {
     key: PathBuf,
     cert: PathBuf,
+    kbv_cert: PathBuf,
     puk_token: Url,
     tsl: Arc<ArcSwapOption<Tsl>>,
     addresses: Vec<SocketAddr>,
 }
 
 impl Service {
-    pub fn new(key: PathBuf, cert: PathBuf, puk_token: Url, tsl: Arc<ArcSwapOption<Tsl>>) -> Self {
+    pub fn new(
+        key: PathBuf,
+        cert: PathBuf,
+        kbv_cert: PathBuf,
+        puk_token: Url,
+        tsl: Arc<ArcSwapOption<Tsl>>,
+    ) -> Self {
         Self {
             key,
             cert,
+            kbv_cert,
             puk_token,
             tsl,
             addresses: Vec::new(),
@@ -82,6 +90,10 @@ impl Service {
         let cert = read(&self.cert)?;
         let cert = X509::from_pem(&cert)?;
 
+        let kbv_cert = read(&self.kbv_cert)?;
+        let kbv_cert = X509::from_pem(&kbv_cert)?;
+        let cms = Cms::new(kbv_cert)?;
+
         let puk_token = PukToken::from_url(&self.puk_token)?;
 
         let tsl = self.tsl.clone();
@@ -93,6 +105,7 @@ impl Service {
                 .wrap(Logging)
                 .data(state.clone())
                 .data(tsl.clone())
+                .data(cms.clone())
                 .app_data(puk_token.clone())
                 .configure(configure_routes)
         });

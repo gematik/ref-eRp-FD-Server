@@ -39,7 +39,7 @@ pub use communication::{CommunicationCow, CommunicationDef, CommunicationRoot};
 pub use composition::CompositionDef;
 pub use coverage::CoverageDef;
 #[cfg(feature = "interface-supplier")]
-pub use kbv_bundle::KbvBundleDef;
+pub use kbv_bundle::{KbvBundleCow, KbvBundleDef};
 pub use medication::MedicationDef;
 pub use medication_request::MedicationRequestDef;
 pub use organization::OrganizationDef;

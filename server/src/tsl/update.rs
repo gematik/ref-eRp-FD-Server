@@ -27,10 +27,7 @@ use thiserror::Error;
 use tokio::time::delay_for;
 use url::{ParseError, Url};
 
-pub struct Tsl {
-    pub xml: String,
-    pub sha2: String,
-}
+use super::{extract::extract, Tsl};
 
 pub async fn update(url: Url, tsl: Arc<ArcSwapOption<Tsl>>) {
     let client = match create_client() {
@@ -70,7 +67,19 @@ pub async fn update(url: Url, tsl: Arc<ArcSwapOption<Tsl>>) {
                 }
             };
 
-            break Tsl { xml, sha2 };
+            let certs = match extract(&xml) {
+                Ok(certs) => certs,
+                Err(err) => {
+                    warn!("Unable to extract certificats from TSL: {}", err);
+
+                    delay_for(Duration::from_secs(retry_timeout)).await;
+                    retry_timeout = min(15 * 60, (retry_timeout as f64 * 1.2) as u64);
+
+                    continue;
+                }
+            };
+
+            break Tsl { xml, sha2, certs };
         };
 
         tsl.store(Some(Arc::new(next)));

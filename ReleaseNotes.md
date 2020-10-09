@@ -1,3 +1,9 @@
+# Release 0.4.0
+Implemented features:
+* Verify KBV Bundle Signature on Task activate
+* Process Certificates of TSL
+* Return all referenced resources on Task GET
+
 # Release 0.3.0
 Implemented features:
 * Download and provide endpoints for TSL (Trust Status List)

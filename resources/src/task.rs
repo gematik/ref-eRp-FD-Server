@@ -19,7 +19,6 @@ use super::{
     misc::{Kvnr, PrescriptionId},
     primitives::{DateTime, Id},
     types::{FlowType, PerformerType},
-    KbvBundle,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -43,7 +42,7 @@ pub struct TaskCreateParameters {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TaskActivateParameters {
-    pub kbv_bundle: KbvBundle,
+    pub data: String,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -62,13 +61,13 @@ pub struct Identifier {
 
 #[derive(Clone, Default, Debug, PartialEq)]
 pub struct Input {
-    pub e_prescription: Option<String>,
-    pub patient_receipt: Option<String>,
+    pub e_prescription: Option<Id>,
+    pub patient_receipt: Option<Id>,
 }
 
 #[derive(Clone, Default, Debug, PartialEq)]
 pub struct Output {
-    pub receipt: Option<String>,
+    pub receipt: Option<Id>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

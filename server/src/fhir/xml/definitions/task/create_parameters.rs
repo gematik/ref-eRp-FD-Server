@@ -106,8 +106,7 @@ impl TryInto<TaskCreateParameters> for ParametersDef<()> {
     fn try_into(self) -> Result<TaskCreateParameters, Self::Error> {
         let parameter = self
             .parameter
-            .iter()
-            .next()
+            .get(0)
             .ok_or_else(|| "Parameters is empty!")?;
 
         if parameter.name != PARAMETER_TYPE_TASK_CREATE {

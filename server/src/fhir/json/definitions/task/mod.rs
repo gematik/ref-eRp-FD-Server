@@ -279,7 +279,7 @@ impl Into<InputDef> for &Input {
                     ..Default::default()
                 }),
                 value_reference: Some(ReferenceDef {
-                    reference: Some(e_prescription.clone()),
+                    reference: Some(e_prescription.to_string()),
                     ..Default::default()
                 }),
             })
@@ -297,7 +297,7 @@ impl Into<InputDef> for &Input {
                     ..Default::default()
                 }),
                 value_reference: Some(ReferenceDef {
-                    reference: Some(patient_receipt.clone()),
+                    reference: Some(patient_receipt.to_string()),
                     ..Default::default()
                 }),
             })
@@ -323,7 +323,7 @@ impl Into<OutputDef> for &Output {
                     ..Default::default()
                 }),
                 value_reference: Some(ReferenceDef {
-                    reference: Some(receipt.clone()),
+                    reference: Some(receipt.to_string()),
                     ..Default::default()
                 }),
             })
@@ -543,7 +543,8 @@ impl TryInto<Input> for InputDef {
                         "Input `e_prescription` value is missong the `reference` field!".to_owned()
                     })?;
 
-                    e_prescription = Some(value);
+                    e_prescription =
+                        Some(value.try_into().map_err(|v| format!("Invalid ID: {}", v))?);
                 }
                 Some(DocumentType::PatientReceipt) => {
                     let value = input.value_reference.ok_or_else(|| {
@@ -553,7 +554,8 @@ impl TryInto<Input> for InputDef {
                         "Input `patient_receipt` value is missong the `reference` field!".to_owned()
                     })?;
 
-                    patient_receipt = Some(value);
+                    patient_receipt =
+                        Some(value.try_into().map_err(|v| format!("Invalid ID: {}", v))?);
                 }
                 Some(document_type) => {
                     return Err(format!("Unexpected document type: {:?}", document_type))
@@ -597,7 +599,7 @@ impl TryInto<Output> for OutputDef {
                         "Output `receipt` value is missong the `reference` field!".to_owned()
                     })?;
 
-                    receipt = Some(value);
+                    receipt = Some(value.try_into().map_err(|v| format!("Invalid ID: {}", v))?);
                 }
                 Some(document_type) => {
                     return Err(format!("Unexpected document type: {:?}", document_type))
@@ -708,11 +710,11 @@ pub mod tests {
             last_modified: Some("2020-03-02T08:45:05+00:00".try_into().unwrap()),
             performer_type: vec![PerformerType::PublicPharmacy],
             input: Input {
-                e_prescription: Some("Bundle/KbvPrescriptionExample".into()),
-                patient_receipt: Some("Bundle/KbvPatientReceiptExample".into()),
+                e_prescription: Some("Bundle/KbvPrescriptionExample".try_into().unwrap()),
+                patient_receipt: Some("Bundle/KbvPatientReceiptExample".try_into().unwrap()),
             },
             output: Output {
-                receipt: Some("Bundle/KbvReceiptExample".into()),
+                receipt: Some("Bundle/KbvReceiptExample".try_into().unwrap()),
             },
         }
     }

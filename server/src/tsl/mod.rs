@@ -15,18 +15,15 @@
  *
  */
 
-mod bit_string;
-mod object_identifier;
-mod octet_string;
-mod printable_string;
-mod sequence;
-mod set;
-mod utf8_string;
+mod extract;
+mod update;
 
-pub use bit_string::BitString;
-pub use object_identifier::ObjectIdentifier;
-pub use octet_string::OctetString;
-pub use printable_string::PrintableString;
-pub use sequence::Sequence;
-pub use set::Set;
-pub use utf8_string::Utf8String;
+use openssl::x509::X509;
+
+pub use update::update;
+
+pub struct Tsl {
+    pub xml: String,
+    pub sha2: String,
+    pub certs: Vec<X509>,
+}

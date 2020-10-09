@@ -16,6 +16,7 @@
  */
 
 pub mod access_token;
+pub mod cms;
 pub mod data_type;
 #[cfg(feature = "support-json")]
 pub mod json;
@@ -25,6 +26,7 @@ pub mod search;
 pub mod xml;
 
 pub use access_token::{AccessToken, Error as AccessTokenError, Profession};
+pub use cms::Cms;
 pub use data_type::DataType;
 pub use puk_token::PukToken;
 pub use search::Search;

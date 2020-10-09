@@ -37,7 +37,7 @@ pub use capability_statement::{CapabilityStatementDef, CapabilityStatementRoot};
 pub use communication::{CommunicationCow, CommunicationDef, CommunicationRoot};
 pub use composition::CompositionDef;
 pub use coverage::CoverageDef;
-pub use kbv_bundle::{KbvBundleDef, KbvBundleRoot};
+pub use kbv_bundle::{KbvBundleCow, KbvBundleDef, KbvBundleRoot};
 pub use medication::MedicationDef;
 pub use medication_request::MedicationRequestDef;
 pub use organization::OrganizationDef;

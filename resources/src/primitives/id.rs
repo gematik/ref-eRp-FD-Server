@@ -94,7 +94,7 @@ impl<'de> Deserialize<'de> for Id {
 
 fn check_str(s: &str) -> bool {
     lazy_static! {
-        static ref RX: Regex = Regex::new(r#"^[A-Za-z0-9\-\.]{1,64}$"#).unwrap();
+        static ref RX: Regex = Regex::new(r#"^[A-Za-z0-9\-\.\\/]{1,64}$"#).unwrap();
     }
 
     RX.is_match(s)

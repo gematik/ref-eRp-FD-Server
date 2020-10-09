@@ -19,7 +19,7 @@ use actix_web::{
     web::{Data, Path},
     HttpResponse,
 };
-use resources::{primitives::Id, Task};
+use resources::{primitives::Id, KbvBundle, Task};
 
 use crate::service::{
     header::{Accept, Authorization, XAccessCode},
@@ -76,13 +76,39 @@ async fn get(
 
     if let Some(id) = id {
         match state.get_task(&id, &kvnr, &access_code) {
-            Some(Ok(task)) => bundle.add_task(task),
+            Some(Ok(task)) => {
+                bundle.add_task(task);
+
+                if let Some(id) = task.input.e_prescription.as_ref() {
+                    if let Some(res) = state.e_prescriptions.get(id) {
+                        bundle.add_kbv_bundle(res);
+                    }
+                }
+
+                if let Some(id) = task.input.patient_receipt.as_ref() {
+                    if let Some(res) = state.patient_receipts.get(id) {
+                        bundle.add_kbv_bundle(res);
+                    }
+                }
+            }
             Some(Err(())) => return Ok(HttpResponse::Forbidden().finish()),
             None => return Ok(HttpResponse::NotFound().finish()),
         }
     } else {
         for task in state.iter_tasks(kvnr, access_code) {
-            bundle.add_task(task)
+            bundle.add_task(task);
+
+            if let Some(id) = task.input.e_prescription.as_ref() {
+                if let Some(res) = state.e_prescriptions.get(id) {
+                    bundle.add_kbv_bundle(res);
+                }
+            }
+
+            if let Some(id) = task.input.patient_receipt.as_ref() {
+                if let Some(res) = state.patient_receipts.get(id) {
+                    bundle.add_kbv_bundle(res);
+                }
+            }
         }
     }
 
@@ -91,6 +117,7 @@ async fn get(
 
 trait BundleHelper<'a> {
     fn add_task(&mut self, task: &'a Task);
+    fn add_kbv_bundle(&mut self, bundle: &'a KbvBundle);
     fn to_response(&self) -> Result<HttpResponse, RequestError>;
 }
 
@@ -101,13 +128,15 @@ mod xml {
     use actix_web::HttpResponse;
     use resources::{
         bundle::{Bundle, Entry, Type as BundleType},
-        Task,
+        KbvBundle, Task,
     };
     use serde::Serialize;
 
     use crate::{
         fhir::xml::{
-            definitions::{BundleRoot as XmlBundle, TaskCow as XmlTask},
+            definitions::{
+                BundleRoot as XmlBundle, KbvBundleCow as XmlKbvBundle, TaskCow as XmlTask,
+            },
             to_string as to_xml,
         },
         service::{misc::DataType, RequestError},
@@ -120,8 +149,10 @@ mod xml {
     }
 
     #[derive(Clone, Serialize)]
+    #[allow(clippy::large_enum_variant)]
     pub enum Resource<'a> {
         Task(XmlTask<'a>),
+        Bundle(XmlKbvBundle<'a>),
     }
 
     impl BundleHelper<'_> {
@@ -136,6 +167,14 @@ mod xml {
         fn add_task(&mut self, task: &'a Task) {
             let task = XmlTask(Cow::Borrowed(task));
             let resource = Resource::Task(task);
+            let entry = Entry::new(resource);
+
+            self.bundle.entries.push(entry);
+        }
+
+        fn add_kbv_bundle(&mut self, bundle: &'a KbvBundle) {
+            let bundle = XmlKbvBundle(Cow::Borrowed(bundle));
+            let resource = Resource::Bundle(bundle);
             let entry = Entry::new(resource);
 
             self.bundle.entries.push(entry);
@@ -158,13 +197,15 @@ mod json {
     use actix_web::HttpResponse;
     use resources::{
         bundle::{Bundle, Entry, Type as BundleType},
-        Task,
+        KbvBundle, Task,
     };
     use serde::Serialize;
 
     use crate::{
         fhir::json::{
-            definitions::{BundleRoot as JsonBundle, TaskCow as JsonTask},
+            definitions::{
+                BundleRoot as JsonBundle, KbvBundleCow as JsonKbvBundle, TaskCow as JsonTask,
+            },
             to_string as to_json,
         },
         service::{misc::DataType, RequestError},
@@ -178,8 +219,10 @@ mod json {
 
     #[derive(Clone, Serialize)]
     #[serde(tag = "resourceType")]
+    #[allow(clippy::large_enum_variant)]
     pub enum Resource<'a> {
         Task(JsonTask<'a>),
+        Bundle(JsonKbvBundle<'a>),
     }
 
     impl BundleHelper<'_> {
@@ -194,6 +237,14 @@ mod json {
         fn add_task(&mut self, task: &'a Task) {
             let task = JsonTask(Cow::Borrowed(task));
             let resource = Resource::Task(task);
+            let entry = Entry::new(resource);
+
+            self.bundle.entries.push(entry);
+        }
+
+        fn add_kbv_bundle(&mut self, bundle: &'a KbvBundle) {
+            let bundle = JsonKbvBundle(Cow::Borrowed(bundle));
+            let resource = Resource::Bundle(bundle);
             let entry = Entry::new(resource);
 
             self.bundle.entries.push(entry);

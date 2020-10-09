@@ -16,15 +16,9 @@
  */
 
 use std::borrow::Cow;
-use std::str::from_utf8;
 
 use resources::task::TaskActivateParameters;
 use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
-
-use crate::{
-    asn1::{definitions::SignedDataCow, from_bytes},
-    fhir::xml::{definitions::KbvBundleRoot, from_str as from_xml},
-};
 
 use super::super::{
     super::super::constants::{
@@ -91,7 +85,7 @@ impl TaskActivateParametersDef {
 
         let parameter = root
             .parameter
-            .iter()
+            .into_iter()
             .next()
             .ok_or_else(|| D::Error::custom("Parameters is empty!"))?;
 
@@ -104,7 +98,6 @@ impl TaskActivateParametersDef {
 
         let resource = parameter
             .resource
-            .as_ref()
             .ok_or_else(|| D::Error::custom("Parameter is missing the `resource` field!"))?;
 
         let binary = if let Resource::Binary(binary) = resource {
@@ -119,28 +112,11 @@ impl TaskActivateParametersDef {
             ));
         }
 
-        let data = binary.data.as_ref().ok_or_else(|| {
+        let data = binary.data.ok_or_else(|| {
             D::Error::custom("Parameter binary resource is missing the `data` field!")
         })?;
 
-        let signed_data = from_bytes::<SignedDataCow<'static>>(&data)
-            .map_err(|err| D::Error::custom(format!("Error while parsing PKCS#7 file: {}", err)))?
-            .into_inner();
-
-        let data = from_utf8(&signed_data.content).map_err(|_| {
-            D::Error::custom("Content of CMS container is not a valid UTF-8 string!")
-        })?;
-
-        let kbv_bundle = from_xml::<KbvBundleRoot>(data)
-            .map_err(|err| {
-                D::Error::custom(format!(
-                    "Content of CMS container is not a valid KBV bundle: {}",
-                    err
-                ))
-            })?
-            .into_inner();
-
-        Ok(Cow::Owned(TaskActivateParameters { kbv_bundle }))
+        Ok(Cow::Owned(TaskActivateParameters { data }))
     }
 }
 
@@ -151,8 +127,6 @@ pub mod tests {
     use std::fs::read_to_string;
 
     use crate::fhir::xml::from_str as from_xml;
-
-    use super::super::super::kbv_bundle::tests::test_kbv_bundle;
 
     #[test]
     fn convert_from() {
@@ -175,7 +149,7 @@ pub mod tests {
 
     fn test_parameters() -> TaskActivateParameters {
         TaskActivateParameters {
-            kbv_bundle: test_kbv_bundle(),
+            data: std::fs::read_to_string("./examples/cms.base64").unwrap(),
         }
     }
 }

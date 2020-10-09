@@ -50,7 +50,7 @@ impl TaskRoutes {
     #[operation(name="activate", definition = OPERATION_TASK_ACTIVATE)]
     fn configure_supplier(&self, cfg: &mut ServiceConfig) {
         cfg.service(resource("/Task/$create").route(post().to(create)));
-        cfg.service(resource("/Task/$activate").route(post().to(activate)));
+        cfg.service(resource("/Task/{id}/$activate").route(post().to(activate)));
     }
 
     #[interaction(Interaction::Read)]

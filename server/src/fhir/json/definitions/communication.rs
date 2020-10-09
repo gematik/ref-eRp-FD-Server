@@ -405,8 +405,7 @@ impl TryInto<Communication> for CommunicationHelper<'_> {
         let profile = self
             .meta
             .profile
-            .iter()
-            .next()
+            .get(0)
             .ok_or_else(|| "Communication meta is missing the `profile` field!")?;
 
         match profile.as_str() {

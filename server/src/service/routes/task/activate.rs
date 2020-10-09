@@ -17,6 +17,7 @@
 
 use std::collections::hash_map::Entry;
 use std::convert::TryInto;
+use std::str::from_utf8;
 
 use actix_web::FromRequest;
 use actix_web::{
@@ -32,14 +33,17 @@ use crate::{
 };
 #[cfg(feature = "support-xml")]
 use crate::{
-    fhir::xml::definitions::TaskActivateParametersRoot as XmlParameters,
+    fhir::xml::{
+        definitions::{KbvBundleRoot, TaskActivateParametersRoot as XmlParameters},
+        from_str as from_xml,
+    },
     service::misc::xml::Data as Xml,
 };
 
 use crate::service::{
     error::RequestError,
     header::{Accept, Authorization, ContentType, XAccessCode},
-    misc::{DataType, Profession},
+    misc::{Cms, DataType, Profession},
     state::State,
 };
 
@@ -48,6 +52,7 @@ use super::misc::response_with_task;
 #[allow(clippy::too_many_arguments)]
 pub async fn activate(
     state: Data<State>,
+    cms: Data<Cms>,
     request: HttpRequest,
     id: Path<Id>,
     accept: Accept,
@@ -84,8 +89,13 @@ pub async fn activate(
         }
     };
 
-    let kvnr = match args
-        .kbv_bundle
+    let kbv_bundle = cms.verify(&args.data)?;
+    let kbv_bundle = from_utf8(&kbv_bundle)?;
+    let kbv_bundle = from_xml::<KbvBundleRoot>(&kbv_bundle)
+        .map_err(RequestError::DeserializeXml)?
+        .into_inner();
+
+    let kvnr = match kbv_bundle
         .entry
         .patient
         .as_ref()
@@ -132,7 +142,7 @@ pub async fn activate(
 
     /* create / update resources */
 
-    let mut patient_receipt = args.kbv_bundle.clone();
+    let mut patient_receipt = kbv_bundle.clone();
     patient_receipt.id =
         Id::generate().map_err(|_| RequestError::internal("Unable to generate ID"))?;
 
@@ -146,9 +156,9 @@ pub async fn activate(
         Entry::Vacant(entry) => entry.insert(patient_receipt).id.clone(),
     };
 
-    let e_prescription = match state.e_prescriptions.entry(args.kbv_bundle.id.clone()) {
+    let e_prescription = match state.e_prescriptions.entry(kbv_bundle.id.clone()) {
         Entry::Occupied(_) => return Ok(HttpResponse::BadRequest().finish()),
-        Entry::Vacant(entry) => entry.insert(args.kbv_bundle).id.clone(),
+        Entry::Vacant(entry) => entry.insert(kbv_bundle).id.clone(),
     };
 
     let mut task = match state.tasks.get_mut(&id) {
@@ -158,8 +168,8 @@ pub async fn activate(
 
     task.for_ = Some(kvnr);
     task.status = Status::Ready;
-    task.input.e_prescription = Some(e_prescription.into());
-    task.input.patient_receipt = Some(patient_receipt.into());
+    task.input.e_prescription = Some(e_prescription);
+    task.input.patient_receipt = Some(patient_receipt);
 
     response_with_task(task, accept)
 }

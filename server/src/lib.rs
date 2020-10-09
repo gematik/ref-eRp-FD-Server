@@ -28,7 +28,6 @@ extern crate lazy_static;
 #[macro_use]
 mod macros;
 
-mod asn1;
 mod fhir;
 
 pub mod error;
