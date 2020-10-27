@@ -73,9 +73,9 @@ pub const IDENTIFIER_SYSTEM_SECRET: &str = "https://gematik.de/fhir/Namingsystem
 pub const IDENTIFIER_SYSTEM_PRF: &str = "https://fhir.kbv.de/NamingSystem/KBV_NS_FOR_Pruefnummer";
 
 /* Resource Profiles */
-pub const RESOURCE_PROFILE_TASK: &str = "https://gematik.de/fhir/StructureDefinition/eRxTask";
+pub const RESOURCE_PROFILE_TASK: &str = "https://gematik.de/fhir/StructureDefinition/erxTask";
 pub const RESOURCE_PROFILE_COMPOSITION: &str =
-    "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Composition|1.00.000";
+    "https://gematik.de/fhir/StructureDefinition/erxComposition";
 pub const RESOURCE_PROFILE_KBV_BUNDLE: &str =
     "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Bundle|1.00.000";
 pub const RESOURCE_PROFILE_MEDICATION_REQUEST: &str =
@@ -99,7 +99,7 @@ pub const RESOURCE_PROFILE_COVERAGE: &str =
 pub const RESOURCE_PROFILE_PRACTITIONER_ROLE: &str =
     "https://fhir.kbv.de/StructureDefinition/KBV_PR_FOR_PractitionerRole|1.0.1";
 pub const RESOURCE_PROFILE_COMMUNICATION: &str =
-    "https://gematik.de/fhir/StructureDefinition/erxCommunication";
+    "http://hl7.org/fhir/StructureDefinition/Communication";
 pub const RESOURCE_PROFILE_COMMUNICATION_INFO_REQ: &str =
     "https://gematik.de/fhir/StructureDefinition/erxCommunicationInfoReq";
 pub const RESOURCE_PROFILE_COMMUNICATION_REPLY: &str =
@@ -247,14 +247,14 @@ pub const ORGANIZATION_IDENTIFIER_CODE_ZANR: &str = "ZANR";
 
 /* Operations */
 pub const OPERATION_TASK_CREATE: &str =
-    "https://simplifier.net/erezept-workflow/CreateOperationDefinition";
+    "http://gematik.de/fhir/OperationDefinition/CreateOperationDefinition";
 pub const OPERATION_TASK_ACCEPT: &str =
-    "https://simplifier.net/erezept-workflow/AcceptOperationDefinition";
+    "http://gematik.de/fhir/OperationDefinition/AcceptOperationDefinition";
 pub const OPERATION_TASK_ACTIVATE: &str =
-    "https://simplifier.net/erezept-workflow/ActivateOperationDefinition";
+    "http://gematik.de/fhir/OperationDefinition/ActivateOperationDefinition";
 pub const OPERATION_TASK_ABORT: &str =
-    "https://simplifier.net/erezept-workflow/AbortOperationDefinition";
+    "http://gematik.de/fhir/OperationDefinition/AbortOperationDefinition";
 pub const OPERATION_TASK_CLOSE: &str =
-    "https://simplifier.net/erezept-workflow/CloseOperationDefinition";
+    "http://gematik.de/fhir/OperationDefinition/CloseOperationDefinition";
 pub const OPERATION_TASK_REJECT: &str =
-    "https://simplifier.net/erezept-workflow/RejectOperationDefinition";
+    "http://gematik.de/fhir/OperationDefinition/RejectOperationDefinition";

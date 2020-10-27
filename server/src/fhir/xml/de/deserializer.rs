@@ -16,6 +16,7 @@
  */
 
 use std::io::BufRead;
+use std::matches;
 use std::mem::take;
 
 use quick_xml::{
@@ -170,10 +171,9 @@ impl<R: BufRead> Deserializer<R> {
                     }
                     Event::End(end) if end.name() == e.name() => {
                         if take(&mut self.is_value_tag) {
-                            let attrib = e.attributes().find(|attrib| match attrib {
-                                Ok(attrib) if attrib.key == b"value" => true,
-                                _ => false,
-                            });
+                            let attrib = e.attributes().find(
+                                |attrib| matches!(attrib, Ok(attrib) if attrib.key == b"value"),
+                            );
 
                             dbg!(&attrib);
 

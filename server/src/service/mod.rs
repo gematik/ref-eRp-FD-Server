@@ -46,7 +46,7 @@ use state::State;
 pub struct Service {
     key: PathBuf,
     cert: PathBuf,
-    kbv_cert: PathBuf,
+    qes_cert: PathBuf,
     puk_token: Url,
     tsl: Arc<ArcSwapOption<Tsl>>,
     addresses: Vec<SocketAddr>,
@@ -56,14 +56,14 @@ impl Service {
     pub fn new(
         key: PathBuf,
         cert: PathBuf,
-        kbv_cert: PathBuf,
+        qes_cert: PathBuf,
         puk_token: Url,
         tsl: Arc<ArcSwapOption<Tsl>>,
     ) -> Self {
         Self {
             key,
             cert,
-            kbv_cert,
+            qes_cert,
             puk_token,
             tsl,
             addresses: Vec::new(),
@@ -90,11 +90,11 @@ impl Service {
         let cert = read(&self.cert)?;
         let cert = X509::from_pem(&cert)?;
 
-        let kbv_cert = read(&self.kbv_cert)?;
-        let kbv_cert = X509::from_pem(&kbv_cert)?;
-        let cms = Cms::new(kbv_cert)?;
+        let qes_cert = read(&self.qes_cert)?;
+        let qes_cert = X509::from_pem(&qes_cert)?;
+        let cms = Cms::new(qes_cert)?;
 
-        let puk_token = PukToken::from_url(&self.puk_token)?;
+        let puk_token = PukToken::from_url(self.puk_token.clone())?;
 
         let tsl = self.tsl.clone();
 

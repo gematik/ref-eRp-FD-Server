@@ -45,9 +45,6 @@ pub struct CapabilityStatementCow<'a>(
 #[serde(rename = "CapabilityStatement")]
 #[serde(rename_all = "camelCase")]
 struct CapabilityStatementHelper {
-    #[serde(with = "FhirVersionDef")]
-    fhir_version: FhirVersion,
-
     #[serde(alias = "name")]
     #[serde(rename = "value-tag=name")]
     name: String,
@@ -65,6 +62,9 @@ struct CapabilityStatementHelper {
     kind: KindDef,
 
     implementation: ImplementationDef,
+
+    #[serde(with = "FhirVersionDef")]
+    fhir_version: FhirVersion,
 
     format: Vec<FormatDef>,
 
@@ -159,10 +159,10 @@ enum KindDef {
 #[derive(Debug, Serialize)]
 #[serde(rename = "value-tag=Format")]
 enum FormatDef {
-    #[serde(rename = "application/fhir+xml")]
+    #[serde(rename = "xml")]
     XML,
 
-    #[serde(rename = "application/fhir+json")]
+    #[serde(rename = "json")]
     JSON,
 }
 

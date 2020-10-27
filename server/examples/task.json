@@ -2,7 +2,7 @@
     "resourceType":"Task",
     "meta":{
         "profile":[
-            "https://gematik.de/fhir/StructureDefinition/eRxTask"
+            "https://gematik.de/fhir/StructureDefinition/erxTask"
         ]
     },
     "extension":[

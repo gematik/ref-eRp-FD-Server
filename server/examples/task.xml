@@ -1,6 +1,6 @@
 <Task xmlns="http://hl7.org/fhir">
     <meta>
-        <profile value="https://gematik.de/fhir/StructureDefinition/eRxTask"/>
+        <profile value="https://gematik.de/fhir/StructureDefinition/erxTask"/>
     </meta>
     <extension url="https://gematik.de/fhir/StructureDefinition/PrescriptionType">
         <valueCoding>

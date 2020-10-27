@@ -19,12 +19,12 @@ use super::primitives::DateTime;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct CapabilityStatement {
-    pub fhir_version: FhirVersion,
     pub name: String,
     pub title: String,
-    pub description: String,
     pub status: Status,
     pub date: DateTime,
+    pub description: String,
+    pub fhir_version: FhirVersion,
     pub format: Vec<Format>,
     pub rest: Vec<Rest>,
 }

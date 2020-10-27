@@ -17,6 +17,7 @@
 
 use std::fmt::Display;
 use std::io::Write;
+use std::matches;
 use std::mem::{replace, take};
 
 use quick_xml::{
@@ -87,11 +88,7 @@ impl<W: Write> Serializer<W> {
     }
 
     pub fn has_pending_tag(&self) -> bool {
-        if let Some(StartTag::Pending(_, _)) = self.tags.last() {
-            true
-        } else {
-            false
-        }
+        matches!(self.tags.last(), Some(StartTag::Pending(_, _)))
     }
 
     pub fn current_tag_id(&self) -> usize {

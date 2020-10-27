@@ -1,3 +1,8 @@
+# Release 0.5.0
+Implemented features:
+* Fetch public key from IDP to verify ACCESS_TOKEN
+* Fixed cipher algorithm used for ACCESS_TOKEN verification
+
 # Release 0.4.0
 Implemented features:
 * Verify KBV Bundle Signature on Task activate

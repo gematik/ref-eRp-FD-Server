@@ -1,5 +1,4 @@
 <CapabilityStatement xmlns="http://hl7.org/fhir">
-    <fhirVersion value="4.0.0"/>
     <name value="Gem_erxCapabilityStatement"/>
     <title value="E-Rezept Workflow CapabilityStatement"/>
     <status value="draft"/>
@@ -8,28 +7,29 @@
     <implementation>
         <description value="E-Rezept Fachdienst Server Referenzimplementierung"/>
     </implementation>
-    <format value="application/fhir+xml"/>
-    <format value="application/fhir+json"/>
+    <fhirVersion value="4.0.0"/>
+    <format value="xml"/>
+    <format value="json"/>
     <rest>
         <mode value="server"/>
         <resource>
             <type value="Task"/>
-            <profile value="https://gematik.de/fhir/StructureDefinition/eRxTask"/>
+            <profile value="https://gematik.de/fhir/StructureDefinition/erxTask"/>
             <interaction>
                 <code value="read"/>
             </interaction>
             <operation>
                 <name value="create"/>
-                <definition value="https://simplifier.net/erezept-workflow/CreateOperationDefinition"/>
+                <definition value="http://gematik.de/fhir/OperationDefinition/CreateOperationDefinition"/>
             </operation>
             <operation>
                 <name value="activate"/>
-                <definition value="https://simplifier.net/erezept-workflow/ActivateOperationDefinition"/>
+                <definition value="http://gematik.de/fhir/OperationDefinition/ActivateOperationDefinition"/>
             </operation>
         </resource>
         <resource>
             <type value="Communication"/>
-            <profile value="https://gematik.de/fhir/StructureDefinition/erxCommunication"/>
+            <profile value="http://hl7.org/fhir/StructureDefinition/Communication"/>
             <supportedProfile value="https://gematik.de/fhir/StructureDefinition/erxCommunicationInfoReq"/>
             <supportedProfile value="https://gematik.de/fhir/StructureDefinition/erxCommunicationReply"/>
             <supportedProfile value="https://gematik.de/fhir/StructureDefinition/erxCommunicationDispReq"/>

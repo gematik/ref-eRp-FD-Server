@@ -16,7 +16,7 @@
  */
 
 use chrono::{DateTime, Utc};
-use jwt::{Error as JwtError, PKeyWithDigest, VerifyWithKey};
+use jwt::{Error as JwtError, FromBase64, PKeyWithDigest, VerifyingAlgorithm};
 use openssl::{
     hash::MessageDigest,
     pkey::{PKey, Public},
@@ -27,31 +27,37 @@ use thiserror::Error;
 use resources::misc::{Kvnr, TelematikId};
 
 #[derive(Deserialize, Serialize)]
-#[serde(deny_unknown_fields, rename_all = "camelCase")]
+#[serde(rename_all = "camelCase")]
 pub struct AccessToken {
     pub iss: String,
     pub sub: String,
     pub aud: String,
     pub acr: String,
-    pub nonce: String,
+    pub nonce: Option<String>,
 
     #[serde(with = "from_timtstamp")]
     pub exp: DateTime<Utc>,
+
     #[serde(with = "from_timtstamp")]
     pub iat: DateTime<Utc>,
-    #[serde(with = "from_timtstamp_opt")]
+
+    #[serde(default, with = "from_timtstamp_opt")]
     pub nbf: Option<DateTime<Utc>>,
 
     #[serde(rename = "professionOID")]
     pub profession: Profession,
+
     #[serde(rename = "given_name")]
     pub given_name: String,
+
     #[serde(rename = "family_name")]
     pub family_name: String,
+
+    #[serde(rename = "organizationName")]
     pub organization_name: String,
+
     #[serde(rename = "idNummer")]
     pub id_number: String,
-    pub jti: String,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, Eq, PartialEq)]
@@ -113,14 +119,71 @@ pub enum Profession {
     #[serde(rename = "1.2.276.0.76.4.49")]
     Versicherter,
 
+    #[serde(rename = "1.2.276.0.76.4.50")]
+    PraxisArzt,
+
+    #[serde(rename = "1.2.276.0.76.4.51")]
+    ZahnarztPraxis,
+
+    #[serde(rename = "1.2.276.0.76.4.52")]
+    PraxisPsychotherapeut,
+
+    #[serde(rename = "1.2.276.0.76.4.53")]
+    Krankenhaus,
+
     #[serde(rename = "1.2.276.0.76.4.54")]
     OeffentlicheApotheke,
 
     #[serde(rename = "1.2.276.0.76.4.55")]
     KrankenhausApotheke,
 
+    #[serde(rename = "1.2.276.0.76.4.56")]
+    BundeswehrApotheke,
+
+    #[serde(rename = "1.2.276.0.76.4.57")]
+    MobileEinrichtungRettungsdienst,
+
+    #[serde(rename = "1.2.276.0.76.4.58")]
+    Gematik,
+
+    #[serde(rename = "1.2.276.0.76.4.59")]
+    Kostentraeger,
+
     #[serde(rename = "1.2.276.0.76.4.178")]
     Notfallsanitaeter,
+
+    #[serde(rename = "1.2.276.0.76.4.190")]
+    AdvKtr,
+
+    #[serde(rename = "1.2.276.0.76.4.210")]
+    LeoKassenaerztlicheVereinigung,
+
+    #[serde(rename = "1.2.276.0.76.4.223")]
+    GkvSpitzenverband,
+
+    #[serde(rename = "1.2.276.0.76.4.224")]
+    LeoApothekerverband,
+
+    #[serde(rename = "1.2.276.0.76.4.225")]
+    LeoDav,
+
+    #[serde(rename = "1.2.276.0.76.4.226")]
+    LeoKrankenhausverband,
+
+    #[serde(rename = "1.2.276.0.76.4.227")]
+    LeoDktig,
+
+    #[serde(rename = "1.2.276.0.76.4.228")]
+    LeoDkg,
+
+    #[serde(rename = "1.2.276.0.76.4.229")]
+    LeoBaek,
+
+    #[serde(rename = "1.2.276.0.76.4.230")]
+    LeoAerztekammer,
+
+    #[serde(rename = "1.2.276.0.76.4.231")]
+    LeoZahnaerztekammer,
 
     #[serde(rename = "1.2.276.0.76.4.232")]
     PflegerHpc,
@@ -151,6 +214,57 @@ pub enum Profession {
 
     #[serde(rename = "1.2.276.0.76.4.241")]
     ZahnTechnikerHpc,
+
+    #[serde(rename = "1.2.276.0.76.4.242")]
+    LeoKbv,
+
+    #[serde(rename = "1.2.276.0.76.4.243")]
+    LeoBzaek,
+
+    #[serde(rename = "1.2.276.0.76.4.244")]
+    LeoKzbv,
+
+    #[serde(rename = "1.2.276.0.76.4.245")]
+    InstitutionPflege,
+
+    #[serde(rename = "1.2.276.0.76.4.246")]
+    InstitutionGeburtshilfe,
+
+    #[serde(rename = "1.2.276.0.76.4.247")]
+    PraxisPhysiotherapeut,
+
+    #[serde(rename = "1.2.276.0.76.4.248")]
+    InstitutionAugenoptiker,
+
+    #[serde(rename = "1.2.276.0.76.4.249")]
+    InstitutionHoerakustiker,
+
+    #[serde(rename = "1.2.276.0.76.4.250")]
+    InstitutionOrthopaedieschuhmacher,
+
+    #[serde(rename = "1.2.276.0.76.4.251")]
+    InstitutionOrthopaedietechniker,
+
+    #[serde(rename = "1.2.276.0.76.4.252")]
+    InstitutionZahntechniker,
+
+    #[serde(rename = "1.2.276.0.76.4.253")]
+    InstitutionRettungsleitstellen,
+
+    #[serde(rename = "1.2.276.0.76.4.254")]
+    SanitaetsdienstBundeswehr,
+
+    #[serde(rename = "1.2.276.0.76.4.255")]
+    InstitutionOegd,
+
+    #[serde(rename = "1.2.276.0.76.4.256")]
+    InstitutionArbeitsmedizin,
+
+    #[serde(rename = "1.2.276.0.76.4.257")]
+    InstitutionVorsorgeReha,
+
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Error, Debug)]
@@ -160,6 +274,9 @@ pub enum Error {
 
     #[error("Authorization header is missing!")]
     Missing,
+
+    #[error("PUK_TOKEN was not fetched yet!")]
+    NoPukToken,
 
     #[error("Authorization header has invalid value!")]
     InvalidValue,
@@ -183,18 +300,47 @@ pub enum Error {
     NoTelematikId,
 }
 
+#[derive(Deserialize)]
+struct Header {
+    alg: Algorithm,
+}
+
+#[derive(Deserialize)]
+enum Algorithm {
+    BP256R1,
+}
+
 impl AccessToken {
     pub fn verify(
         access_token: &str,
         key: PKey<Public>,
         now: DateTime<Utc>,
     ) -> Result<Self, Error> {
-        let key = PKeyWithDigest {
-            digest: MessageDigest::sha256(),
-            key,
-        };
+        let mut access_token = access_token.split('.');
+        let header_str = access_token.next().ok_or(JwtError::NoHeaderComponent)?;
+        let claims_str = access_token.next().ok_or(JwtError::NoClaimsComponent)?;
+        let signature_str = access_token.next().ok_or(JwtError::NoSignatureComponent)?;
 
-        let access_token: Self = access_token.verify_with_key(&key)?;
+        if access_token.next().is_some() {
+            return Err(JwtError::TooManyComponents.into());
+        }
+
+        let header = Header::from_base64(header_str)?;
+
+        match header.alg {
+            Algorithm::BP256R1 => {
+                let key = PKeyWithDigest {
+                    digest: MessageDigest::sha256(),
+                    key,
+                };
+
+                if !key.verify(header_str, claims_str, signature_str)? {
+                    return Err(JwtError::InvalidSignature.into());
+                }
+            }
+        }
+
+        let access_token = AccessToken::from_base64(claims_str)?;
         let nbf = access_token.nbf.unwrap_or(access_token.iat);
 
         if now > access_token.exp {
@@ -203,7 +349,7 @@ impl AccessToken {
             return Err(Error::NotValidYet);
         }
 
-        if access_token.acr != "1" {
+        if access_token.acr != "eidas-loa-high" {
             return Err(Error::InvalidAcr);
         }
 
@@ -298,16 +444,35 @@ mod from_timtstamp_opt {
 pub mod tests {
     use super::*;
 
-    use base64::decode;
+    use openssl::x509::X509;
 
     #[test]
     fn verify() {
-        let pub_key = "MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEVDUmq9/Ec5Sj8mRbDUhlGp86TUbYdAvjIpFRB/BQJQxzDKQLN+HcheCCtLsYG4hHvW0Poni65escBUdMmk4r7sKMlwvknBlJ8J6Wl5onelFIMOMqW53h7GirmfSS3TAK";
-        let pub_key = decode(&pub_key).unwrap();
-        let pub_key = PKey::public_key_from_der(&pub_key).unwrap();
+        let cert = r##"
+-----BEGIN CERTIFICATE-----
+MIIC+TCCAqCgAwIBAgIGQ2mWV7L/MAoGCCqGSM49BAMCMIGWMQswCQYDVQQGEwJE
+RTEfMB0GA1UECgwWZ2VtYXRpayBHbWJIIE5PVC1WQUxJRDFFMEMGA1UECww8RWxl
+a3Ryb25pc2NoZSBHZXN1bmRoZWl0c2thcnRlLUNBIGRlciBUZWxlbWF0aWtpbmZy
+YXN0cnVrdHVyMR8wHQYDVQQDDBZHRU0uRUdLLUNBMTAgVEVTVC1PTkxZMB4XDTE5
+MDUwNTIyMDAwMFoXDTI0MDUwNTIxNTk1OVowfTELMAkGA1UEBhMCREUxETAPBgNV
+BAoMCEFPSyBQbHVzMRIwEAYDVQQLDAkxMDk1MDA5NjkxEzARBgNVBAsMClgxMTQ0
+Mjg1MzAxDjAMBgNVBAQMBUZ1Y2hzMQ0wCwYDVQQqDARKdW5hMRMwEQYDVQQDDApK
+dW5hIEZ1Y2hzMFowFAYHKoZIzj0CAQYJKyQDAwIIAQEHA0IABHXNcEP/nIswh2yt
+iIbp7ac2ra9nJPaaMsdVGt+TCFQOnjLZrQbGwH8AHMr4d18UYoHSFYQunen2dCIo
+w3d7MgKjgfAwge0wIQYDVR0gBBowGDAKBggqghQATASBVDAKBggqghQATASBIzA4
+BggrBgEFBQcBAQQsMCowKAYIKwYBBQUHMAGGHGh0dHA6Ly9laGNhLmdlbWF0aWsu
+ZGUvb2NzcC8wHQYDVR0OBBYEFKreQaZyz1VjlRbEXW4kftivxwRmMDAGBSskCAMD
+BCcwJTAjMCEwHzAdMBAMDlZlcnNpY2hlcnRlLy1yMAkGByqCFABMBDEwDAYDVR0T
+AQH/BAIwADAOBgNVHQ8BAf8EBAMCB4AwHwYDVR0jBBgwFoAURLFMAVhUHtzZN77k
+sj8qbqRciR0wCgYIKoZIzj0EAwIDRwAwRAIgGJrZ8jQKSQST5SSl7O8uN9vLoI/n
+bTruoO+7I/dqnloCIAtzL2Vk1W3dHT+3Z5Qiaa3vWnAuaBELd6wj9oY9W5aA
+-----END CERTIFICATE-----"##;
+        let cert = X509::from_pem(cert.as_bytes()).unwrap();
 
-        let now = DateTime::parse_from_rfc3339("2020-03-27T19:25:00Z").unwrap();
-        let access_token = r##"eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY3IiOiIxIiwiYXVkIjoiaHR0cHM6Ly9lcnAudGVsZW1hdGlrLmRlL2xvZ2luIiwiZXhwIjoxNTg1MzM3MjU2LCJmYW1pbHlfbmFtZSI6ImRlciBOYWNobmFtZSIsImdpdmVuX25hbWUiOiJkZXIgVm9ybmFtZSIsImlhdCI6MTU4NTMzNjk1NiwiaWROdW1tZXIiOiIzLTE1LjEuMS4xMjM0NTY3ODkiLCJpc3MiOiJodHRwczovL2lkcDEudGVsZW1hdGlrLmRlL2p3dCIsImp0aSI6IjxJRFA-XzAxMjM0NTY3ODkwMTIzNDU2Nzg5IiwibmJmIjoxNTg1MzM2OTU2LCJub25jZSI6ImZ1dSBiYXIgYmF6Iiwib3JnYW5pemF0aW9uTmFtZSI6Ikluc3RpdHV0aW9ucy0gb2RlciBPcmdhbmlzYXRpb25zLUJlemVpY2hudW5nIiwicHJvZmVzc2lvbk9JRCI6IjEuMi4yNzYuMC43Ni40LjQ5Iiwic3ViIjoiUmFiY1VTdXVXS0taRUVIbXJjTm1fa1VET1cxM3VhR1U1Wms4T29Cd2lOayJ9.e244BReFrmlY86dLWi3wAFRWnIy764BAuLDIR7Lj5qjBwuZFq9IJ9YBkLl-1alAxDjh4Td8BeP5pEtFMTVwPh20roTOvz8byjS7_ugtESG7QLrEtyZso7W6zB4aJgSc3"##;
+        let pub_key = cert.public_key().unwrap();
+
+        let now = DateTime::parse_from_rfc3339("2020-10-20T12:39:59Z").unwrap();
+        let access_token = r##"eyJhbGciOiJCUDI1NlIxIn0.eyJzdWIiOiJzdWJqZWN0Iiwib3JnYW5pemF0aW9uTmFtZSI6ImdlbWF0aWsgR21iSCBOT1QtVkFMSUQiLCJwcm9mZXNzaW9uT0lEIjoiMS4yLjI3Ni4wLjc2LjQuNDkiLCJpZE51bW1lciI6IlgxMTQ0Mjg1MzAiLCJpc3MiOiJzZW5kZXIiLCJyZXNwb25zZV90eXBlIjoiY29kZSIsImNvZGVfY2hhbGxlbmdlX21ldGhvZCI6IlMyNTYiLCJnaXZlbl9uYW1lIjoiSnVuYSIsImNsaWVudF9pZCI6bnVsbCwiYXVkIjoiZXJwLnplbnRyYWwuZXJwLnRpLWRpZW5zdGUuZGUiLCJhY3IiOiJlaWRhcy1sb2EtaGlnaCIsInNjb3BlIjoib3BlbmlkIGUtcmV6ZXB0Iiwic3RhdGUiOiJhZjBpZmpzbGRraiIsInJlZGlyZWN0X3VyaSI6bnVsbCwiZXhwIjoxNjAzMTk3NjUyLCJmYW1pbHlfbmFtZSI6IkZ1Y2hzIiwiY29kZV9jaGFsbGVuZ2UiOm51bGwsImlhdCI6MTYwMzE5NzM1MiwiYXV0aF90aW1lIjoxNjAzMTk3MzUyfQ.XqPmrlF-6elvj6sAU0mH2GmBoggef-RYpTdJ3Ae9KiB3n7yvc3W27wH9hcTm4gSbdddNZ1_oZfP_Rc-U2Jb9Sg"##;
         AccessToken::verify(access_token, pub_key, now.into()).unwrap();
     }
 }

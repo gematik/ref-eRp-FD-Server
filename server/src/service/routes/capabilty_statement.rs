@@ -52,12 +52,12 @@ pub struct QueryArgs {
 
 pub fn create() -> CapabilityStatement {
     CapabilityStatement {
-        fhir_version: FhirVersion::V4_0_0,
         name: "Gem_erxCapabilityStatement".to_owned(),
         title: "E-Rezept Workflow CapabilityStatement".to_owned(),
-        description: "E-Rezept Fachdienst Server Referenzimplementierung".to_owned(),
-        date: "2020-01-01T00:00:00Z".try_into().unwrap(),
         status: Status::Draft,
+        date: "2020-01-01T00:00:00Z".try_into().unwrap(),
+        description: "E-Rezept Fachdienst Server Referenzimplementierung".to_owned(),
+        fhir_version: FhirVersion::V4_0_0,
         format: vec![
             #[cfg(feature = "support-xml")]
             Format::XML,

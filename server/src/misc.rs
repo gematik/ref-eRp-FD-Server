@@ -15,23 +15,22 @@
  *
  */
 
-#[cfg(not(any(feature = "interface-patient", feature = "interface-supplier")))]
-compile_error!(
-    r##"At least one of the following features must be defined:
-    - interface-patient
-    - interface-supplier"##
-);
+use std::env::var;
 
-#[macro_use]
-extern crate lazy_static;
+use reqwest::{Client, Error, Proxy};
 
-#[macro_use]
-mod macros;
+pub fn create_reqwest_client() -> Result<Client, Error> {
+    let mut client = Client::builder();
 
-mod fhir;
-mod misc;
+    if let Ok(http_proxy) = var("http_proxy") {
+        client = client.proxy(Proxy::http(&http_proxy)?);
+    }
 
-pub mod error;
-pub mod logging;
-pub mod service;
-pub mod tsl;
+    if let Ok(https_proxy) = var("https_proxy") {
+        client = client.proxy(Proxy::https(&https_proxy)?);
+    }
+
+    let client = client.build()?;
+
+    Ok(client)
+}

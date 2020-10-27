@@ -1,6 +1,5 @@
 {
     "resourceType":"CapabilityStatement",
-    "fhirVersion":"4.0.0",
     "name":"Gem_erxCapabilityStatement",
     "title":"E-Rezept Workflow CapabilityStatement",
     "status":"draft",
@@ -9,8 +8,9 @@
     "implementation":{
         "description":"E-Rezept Fachdienst Server Referenzimplementierung"
     },
+    "fhirVersion":"4.0.0",
     "format":[
-        "application/fhir+json"
+        "json"
     ],
     "rest":[
         {
@@ -18,7 +18,7 @@
             "resource":[
                 {
                     "type":"Task",
-                    "profile":"https://gematik.de/fhir/StructureDefinition/eRxTask",
+                    "profile":"https://gematik.de/fhir/StructureDefinition/erxTask",
                     "interaction":[
                         {
                             "code":"read"
@@ -27,7 +27,7 @@
                 },
                 {
                     "type":"Communication",
-                    "profile":"https://gematik.de/fhir/StructureDefinition/erxCommunication",
+                    "profile":"http://hl7.org/fhir/StructureDefinition/Communication",
                     "supportedProfile":[
                         "https://gematik.de/fhir/StructureDefinition/erxCommunicationInfoReq",
                         "https://gematik.de/fhir/StructureDefinition/erxCommunicationReply",

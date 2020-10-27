@@ -45,7 +45,7 @@ async fn run(opts: Options) -> Result<(), Error> {
     let local = LocalSet::new();
 
     let tsl = Arc::new(ArcSwapOption::from(None));
-    let handle = Service::new(opts.key, opts.cert, opts.kbv_cert, opts.token, tsl.clone())
+    let handle = Service::new(opts.key, opts.cert, opts.qes_cert, opts.token, tsl.clone())
         .listen(&opts.server_addr)?
         .run(&local)?;
 
@@ -109,8 +109,8 @@ struct Options {
     token: Url,
 
     /// Certificate to use for verifying CMS containers.
-    #[structopt(verbatim_doc_comment, long = "kbv-cert")]
-    kbv_cert: PathBuf,
+    #[structopt(verbatim_doc_comment, long = "qes-cert")]
+    qes_cert: PathBuf,
 
     /// URL to load TSL (Trust Status List) from.
     /// This is the base URL the FD will look for two files in:

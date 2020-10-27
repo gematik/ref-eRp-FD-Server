@@ -73,6 +73,15 @@ where
             }
         }
 
+        if !req.headers().contains_key("User-Agent") {
+            let (req, _payload) = req.into_parts();
+
+            return Either::Right(ok(ServiceResponse::new(
+                req,
+                HttpResponse::BadRequest().body("Missing header: User-Agent!"),
+            )));
+        }
+
         for header in UNSUPPORTED_HEADERS {
             if req.headers().contains_key(*header) {
                 let (req, _payload) = req.into_parts();

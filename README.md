@@ -11,7 +11,7 @@ referenced by \[gemSpec\_FD\_eRP\].
 
 This server offers a FHIR interface according to [HL7 FHIR](https://hl7.org/FHIR/) standard,
 profiled to e-prescription needs. Profiling information are available at
-[Simplifier](https://simplifier.net/erezept-workflow/).
+[Simplifier](http://gematik.de/fhir/).
 
 In order to run the server in a trusted execution environment (VAU), it also implements a separate
 protocol on top of http (eRp VAU protocol).
@@ -146,6 +146,16 @@ To generate the needed key you can use the following Open SSL commands:
     $ openssl req -new -key fd_id > cert.csr
     $ openssl x509 -in cert.csr -out fd.cert -req -signkey fd_id -days 1001
 
+    # Generate private key for QES signing
+    $ openssl ecparam -name brainpoolP256r1 -genkey -noout -out qes_id
+
+    # Extract public key
+    $ openssl pkey -in qes_id -out qes_id.pub -pubout
+
+    # Create X509 certificate
+    $ openssl req -new -key qes_id > cert.csr
+    $ openssl x509 -in cert.csr -out qes.cert -req -signkey qes_id -days 1001
+
     # Generate private key for the IDP service (only used for access token generation)
     $ openssl ecparam -name prime256v1 -genkey -noout -out idp_id
 
@@ -175,12 +185,15 @@ with the generated IDP key pair and the following claims:
 ## Run the Service
 
 To run the service use the following command line. The service needs a
-private key and X.509 certificate for the VAU encryption. These two parameters
-are mandatory.
+private key and X.509 certificate for the VAU encryption, a X.509 certificate
+to verify the QES passed in the task activate operation, the public
+key of the IDP to verify the ACCESS\_TOKEN and a download URL of the TSL.
+The following parameters are mandatory.
 
     $ cargo run -p ref-erx-fd-server -- \
         --key ./path/to/fd_id \
         --cert ./path/to/fd.cert \
+        --qes-cert ./path/to/qes.cert \
         --token file://path/to/idp_id.pub \
         --tsl https://download.tsl.ti-dienste.de
 

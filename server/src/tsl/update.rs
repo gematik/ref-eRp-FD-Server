@@ -16,21 +16,22 @@
  */
 
 use std::cmp::min;
-use std::env::var;
 use std::sync::Arc;
 use std::time::Duration;
 
 use arc_swap::ArcSwapOption;
 use log::{error, info, warn};
-use reqwest::{Client, Error as ReqwestError, Proxy};
+use reqwest::{Client, Error as ReqwestError};
 use thiserror::Error;
 use tokio::time::delay_for;
 use url::{ParseError, Url};
 
+use crate::misc::create_reqwest_client;
+
 use super::{extract::extract, Tsl};
 
 pub async fn update(url: Url, tsl: Arc<ArcSwapOption<Tsl>>) {
-    let client = match create_client() {
+    let client = match create_reqwest_client() {
         Ok(client) => client,
         Err(err) => {
             error!("Unable to create http client for TSL updates: {}", err);
@@ -113,22 +114,6 @@ impl From<ReqwestError> for Error {
     fn from(err: ReqwestError) -> Error {
         Error::ReqwestError(err)
     }
-}
-
-fn create_client() -> Result<Client, Error> {
-    let mut client = Client::builder();
-
-    if let Ok(http_proxy) = var("http_proxy") {
-        client = client.proxy(Proxy::http(&http_proxy)?);
-    }
-
-    if let Ok(https_proxy) = var("https_proxy") {
-        client = client.proxy(Proxy::https(&https_proxy)?);
-    }
-
-    let client = client.build()?;
-
-    Ok(client)
 }
 
 async fn fetch_data(client: &Client, url: &Url, file: &str) -> Result<String, Error> {

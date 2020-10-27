@@ -67,8 +67,12 @@ fn parse_authorization(req: &HttpRequest) -> Result<Authorization, RequestError>
         return Err(AccessTokenError::InvalidValue.into());
     }
 
+    let pub_key = puk_token
+        .public_key()
+        .ok_or_else(|| AccessTokenError::NoPukToken)?;
+
     let access_token = &access_token[7..];
-    let access_token = AccessToken::verify(access_token, puk_token.0.clone(), Utc::now())?;
+    let access_token = AccessToken::verify(access_token, pub_key, Utc::now())?;
 
     Ok(Authorization(access_token))
 }
