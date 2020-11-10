@@ -17,14 +17,16 @@
 
 mod address;
 mod code;
+mod insurance_id;
 mod kvnr;
 mod name;
 mod prescription_id;
 mod telematik_id;
 
 pub use address::Address;
-pub use code::{Code, Decode, DecodeStr, Encode, EncodeStr};
+pub use code::Code;
+pub use insurance_id::InsuranceId;
 pub use kvnr::Kvnr;
-pub use name::Name;
+pub use name::{Family, Name, Prefix};
 pub use prescription_id::PrescriptionId;
 pub use telematik_id::TelematikId;

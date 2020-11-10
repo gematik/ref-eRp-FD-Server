@@ -17,28 +17,24 @@
 
 use std::collections::hash_map::Entry;
 use std::convert::TryInto;
-use std::str::from_utf8;
 
-use actix_web::FromRequest;
 use actix_web::{
+    error::PayloadError,
     web::{Data, Path, Payload},
-    HttpRequest, HttpResponse,
+    HttpResponse,
 };
-use resources::{primitives::Id, task::Status};
+use bytes::Bytes;
+use futures::{future::ready, stream::once};
+use resources::{
+    primitives::Id,
+    task::{Status, TaskActivateParameters},
+    KbvBundle,
+};
 
 #[cfg(feature = "support-json")]
-use crate::{
-    fhir::json::definitions::TaskActivateParametersRoot as JsonParameters,
-    service::misc::json::Data as Json,
-};
+use crate::fhir::decode::JsonDecode;
 #[cfg(feature = "support-xml")]
-use crate::{
-    fhir::xml::{
-        definitions::{KbvBundleRoot, TaskActivateParametersRoot as XmlParameters},
-        from_str as from_xml,
-    },
-    service::misc::xml::Data as Xml,
-};
+use crate::fhir::decode::XmlDecode;
 
 use crate::service::{
     error::RequestError,
@@ -53,15 +49,21 @@ use super::misc::response_with_task;
 pub async fn activate(
     state: Data<State>,
     cms: Data<Cms>,
-    request: HttpRequest,
     id: Path<Id>,
     accept: Accept,
     access_token: Authorization,
     content_type: ContentType,
     access_code: XAccessCode,
-    payload: Payload,
+    mut payload: Payload,
 ) -> Result<HttpResponse, RequestError> {
-    access_token.check_profession(|p| p == Profession::Versicherter)?;
+    access_token.check_profession(|p| {
+        p == Profession::Arzt
+            || p == Profession::Zahnarzt
+            || p == Profession::PraxisArzt
+            || p == Profession::ZahnarztPraxis
+            || p == Profession::PraxisPsychotherapeut
+            || p == Profession::Krankenhaus
+    })?;
 
     let data_type = DataType::from_mime(&content_type);
     let accept = DataType::from_accept(accept)
@@ -69,18 +71,12 @@ pub async fn activate(
         .replace_any(data_type)
         .check_supported()?;
 
-    let args = match data_type {
+    let args: TaskActivateParameters = match data_type {
         #[cfg(feature = "support-xml")]
-        DataType::Xml => Xml::<XmlParameters>::from_request(&request, &mut payload.into_inner())
-            .await?
-            .0
-            .into_inner(),
+        DataType::Xml => payload.xml().await?,
 
         #[cfg(feature = "support-json")]
-        DataType::Json => Json::<JsonParameters>::from_request(&request, &mut payload.into_inner())
-            .await?
-            .0
-            .into_inner(),
+        DataType::Json => payload.json().await?,
 
         DataType::Unknown | DataType::Any => {
             return Err(RequestError::ContentTypeNotSupported(
@@ -90,10 +86,9 @@ pub async fn activate(
     };
 
     let kbv_bundle = cms.verify(&args.data)?;
-    let kbv_bundle = from_utf8(&kbv_bundle)?;
-    let kbv_bundle = from_xml::<KbvBundleRoot>(&kbv_bundle)
-        .map_err(RequestError::DeserializeXml)?
-        .into_inner();
+    let kbv_bundle = kbv_bundle.into();
+    let kbv_bundle = Result::<Bytes, PayloadError>::Ok(kbv_bundle);
+    let kbv_bundle: KbvBundle = once(ready(kbv_bundle)).xml().await?;
 
     let kvnr = match kbv_bundle
         .entry

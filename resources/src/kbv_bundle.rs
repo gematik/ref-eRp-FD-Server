@@ -25,15 +25,9 @@ use super::{
 #[derive(Clone, PartialEq, Debug)]
 pub struct KbvBundle {
     pub id: Id,
-    pub meta: Meta,
     pub identifier: PrescriptionId,
     pub timestamp: Instant,
     pub entry: Entry,
-}
-
-#[derive(Clone, PartialEq, Debug)]
-pub struct Meta {
-    pub last_updated: Option<Instant>,
 }
 
 #[derive(Default, Clone, PartialEq, Debug)]

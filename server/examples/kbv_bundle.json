@@ -2,7 +2,6 @@
     "resourceType":"Bundle",
     "id":"281a985c-f25b-4aae-91a6-41ad744080b0",
     "meta":{
-        "lastUpdated":"2020-05-04T08:30:00+00:00",
         "profile":[
             "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Bundle|1.00.000"
         ]
@@ -69,7 +68,7 @@
                             "coding":[
                                 {
                                     "system":"https://fhir.kbv.de/CodeSystem/KBV_CS_FOR_Section_Type",
-                                    "code":"Verordnung"
+                                    "code":"Prescription"
                                 }
                             ]
                         },
@@ -124,19 +123,19 @@
                 },
                 "extension":[
                     {
+                        "url":"https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_StatusCoPayment",
+                        "valueCoding":{
+                            "system":"https://fhir.kbv.de/CodeSystem/KBV_CS_ERP_StatusCoPayment",
+                            "code":"0"
+                        }
+                    },
+                    {
                         "url":"https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_EmergencyServicesFee",
                         "valueBoolean":false
                     },
                     {
                         "url":"https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_BVG",
                         "valueBoolean":false
-                    },
-                    {
-                        "url":"https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_StatusCoPayment",
-                        "valueCoding":{
-                            "system":"https://fhir.kbv.de/CodeSystem/KBV_CS_ERP_StatusCoPayment",
-                            "code":"0"
-                        }
                     },
                     {
                         "url":"https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Accident",
@@ -149,12 +148,12 @@
                                 }
                             },
                             {
-                                "url":"unfalltag",
-                                "valueDate":"2020-05-01"
-                            },
-                            {
                                 "url":"unfallbetrieb",
                                 "valueString":"Dummy-Betrieb"
+                            },
+                            {
+                                "url":"unfalltag",
+                                "valueDate":"2020-05-01"
                             }
                         ]
                     }
@@ -191,7 +190,7 @@
                     "quantity":{
                         "value":1,
                         "system":"http://unitsofmeasure.org",
-                        "code":"{PACK}"
+                        "code":"{Package}"
                     }
                 },
                 "substitution":{
@@ -308,12 +307,12 @@
                             {
                                 "extension":[
                                     {
-                                        "url":"http://hl7.org/fhir/StructureDefinition/iso21090-ADXP-houseNumber",
-                                        "valueString":"1"
-                                    },
-                                    {
                                         "url":"http://hl7.org/fhir/StructureDefinition/iso21090-ADXP-streetName",
                                         "valueString":"Musterstr."
+                                    },
+                                    {
+                                        "url":"http://hl7.org/fhir/StructureDefinition/iso21090-ADXP-houseNumber",
+                                        "valueString":"1"
                                     }
                                 ]
                             }
@@ -438,12 +437,12 @@
                             {
                                 "extension":[
                                     {
-                                        "url":"http://hl7.org/fhir/StructureDefinition/iso21090-ADXP-houseNumber",
-                                        "valueString":"2"
-                                    },
-                                    {
                                         "url":"http://hl7.org/fhir/StructureDefinition/iso21090-ADXP-streetName",
                                         "valueString":"Musterstr."
+                                    },
+                                    {
+                                        "url":"http://hl7.org/fhir/StructureDefinition/iso21090-ADXP-houseNumber",
+                                        "valueString":"2"
                                     }
                                 ]
                             }

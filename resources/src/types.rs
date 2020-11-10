@@ -15,9 +15,8 @@
  *
  */
 
+use std::convert::TryFrom;
 use std::fmt::{Display, Formatter, Result as FmtResult};
-
-use super::misc::{Decode, Encode};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum FlowType {
@@ -36,25 +35,40 @@ pub enum DocumentType {
     Receipt,
 }
 
-impl Decode for FlowType {
-    type Code = usize;
-    type Auto = ();
-
-    fn decode(code: Self::Code) -> Result<Self, Self::Code> {
-        match code {
-            160 => Ok(Self::PharmaceuticalDrugs),
-            _ => Err(code),
+impl Into<usize> for FlowType {
+    fn into(self) -> usize {
+        match self {
+            Self::PharmaceuticalDrugs => 160,
         }
     }
 }
 
-impl Encode for FlowType {
-    type Code = usize;
-    type Auto = ();
-
-    fn encode(&self) -> Self::Code {
+impl Into<u64> for FlowType {
+    fn into(self) -> u64 {
         match self {
             Self::PharmaceuticalDrugs => 160,
+        }
+    }
+}
+
+impl TryFrom<usize> for FlowType {
+    type Error = usize;
+
+    fn try_from(value: usize) -> Result<Self, Self::Error> {
+        match value {
+            160 => Ok(Self::PharmaceuticalDrugs),
+            value => Err(value),
+        }
+    }
+}
+
+impl TryFrom<u64> for FlowType {
+    type Error = u64;
+
+    fn try_from(value: u64) -> Result<Self, Self::Error> {
+        match value {
+            160 => Ok(Self::PharmaceuticalDrugs),
+            value => Err(value),
         }
     }
 }
@@ -67,60 +81,10 @@ impl Display for FlowType {
     }
 }
 
-impl Decode for PerformerType {
-    type Code = String;
-    type Auto = bool;
-
-    fn decode(code: Self::Code) -> Result<Self, Self::Code> {
-        match code.as_str() {
-            "urn:oid:1.2.276.0.76.4.54" => Ok(Self::PublicPharmacy),
-            _ => Err(code),
-        }
-    }
-}
-
-impl Encode for PerformerType {
-    type Code = &'static str;
-    type Auto = ();
-
-    fn encode(&self) -> Self::Code {
-        match self {
-            Self::PublicPharmacy => "urn:oid:1.2.276.0.76.4.54",
-        }
-    }
-}
-
 impl Display for PerformerType {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         match self {
             Self::PublicPharmacy => write!(f, "Apotheke"),
-        }
-    }
-}
-
-impl Decode for DocumentType {
-    type Code = String;
-    type Auto = bool;
-
-    fn decode(code: Self::Code) -> Result<Self, Self::Code> {
-        match code.as_str() {
-            "1" => Ok(Self::EPrescription),
-            "2" => Ok(Self::PatientReceipt),
-            "3" => Ok(Self::Receipt),
-            _ => Err(code),
-        }
-    }
-}
-
-impl Encode for DocumentType {
-    type Code = &'static str;
-    type Auto = ();
-
-    fn encode(&self) -> &'static str {
-        match self {
-            Self::EPrescription => "1",
-            Self::PatientReceipt => "2",
-            Self::Receipt => "3",
         }
     }
 }

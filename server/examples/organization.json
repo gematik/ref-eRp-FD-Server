@@ -37,12 +37,12 @@
                 {
                     "extension":[
                         {
-                            "url":"http://hl7.org/fhir/StructureDefinition/iso21090-ADXP-houseNumber",
-                            "valueString":"2"
-                        },
-                        {
                             "url":"http://hl7.org/fhir/StructureDefinition/iso21090-ADXP-streetName",
                             "valueString":"Musterstr."
+                        },
+                        {
+                            "url":"http://hl7.org/fhir/StructureDefinition/iso21090-ADXP-houseNumber",
+                            "valueString":"2"
                         }
                     ]
                 }

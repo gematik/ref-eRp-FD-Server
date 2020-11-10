@@ -15,13 +15,14 @@
  *
  */
 
+use std::convert::TryInto;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::str::FromStr;
 
 use regex::Regex;
 use thiserror::Error;
 
-use super::{super::types::FlowType, Decode, Encode};
+use super::super::types::FlowType;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct PrescriptionId {
@@ -73,15 +74,15 @@ impl FromStr for PrescriptionId {
             .collect::<Result<Vec<u64>, _>>()
             .map_err(|_| FromStrError::ParseError)?;
 
-        let flow_type =
-            FlowType::decode(numbers[0] as usize).map_err(|_| FromStrError::InvalidFlowType)?;
+        let flow_type: FlowType = numbers[0]
+            .try_into()
+            .map_err(|_| FromStrError::InvalidFlowType)?;
         let number =
             numbers[1] * 1000000000 + numbers[2] * 1000000 + numbers[3] * 1000 + numbers[4];
         let checksum = numbers[5];
 
-        if !verify_iso_7064_checksum(
-            100000000000000 * flow_type.encode() as u64 + 100 * number + checksum,
-        ) {
+        let tmp: u64 = flow_type.into();
+        if !verify_iso_7064_checksum(100000000000000u64 * tmp + 100u64 * number + checksum) {
             return Err(FromStrError::InvalidChecksum);
         }
 
@@ -91,7 +92,7 @@ impl FromStr for PrescriptionId {
 
 impl Display for PrescriptionId {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        let code = self.flow_type.encode() as u64;
+        let code: u64 = self.flow_type.into();
         let number = self.number as u64;
         let checksum = calc_iso_7064_checksum(1000000000000 * code + number).unwrap();
 

@@ -16,6 +16,7 @@
  */
 
 use std::convert::TryInto;
+use std::str::from_utf8;
 
 use actix_web::{
     http::header::{Quality, QualityItem},
@@ -28,19 +29,9 @@ use resources::capability_statement::{
 use serde::Deserialize;
 
 #[cfg(feature = "support-json")]
-use crate::{
-    fhir::json::{
-        definitions::CapabilityStatementRoot as JsonCapabilityStatement, to_string as to_json,
-    },
-    service::constants::MIME_FHIR_JSON,
-};
+use crate::{fhir::encode::JsonEncode, service::constants::MIME_FHIR_JSON};
 #[cfg(feature = "support-xml")]
-use crate::{
-    fhir::xml::{
-        definitions::CapabilityStatementRoot as XmlCapabilityStatement, to_string as to_xml,
-    },
-    service::constants::MIME_FHIR_XML,
-};
+use crate::{fhir::encode::XmlEncode, service::constants::MIME_FHIR_XML};
 
 use crate::service::{header::Accept, misc::DataType, RequestError};
 
@@ -145,18 +136,22 @@ pub async fn get(accept: Accept, query: Query<QueryArgs>) -> Result<HttpResponse
 
 #[cfg(feature = "support-xml")]
 lazy_static! {
-    static ref XML: String = to_xml(&XmlCapabilityStatement::new(
-        super::ROUTES.capability_statement()
-    ))
-    .unwrap();
+    static ref XML: String = {
+        let b = super::ROUTES.capability_statement().xml().unwrap();
+        let s = from_utf8(&b).unwrap();
+
+        s.into()
+    };
 }
 
 #[cfg(feature = "support-json")]
 lazy_static! {
-    static ref JSON: String = to_json(&JsonCapabilityStatement::new(
-        super::ROUTES.capability_statement()
-    ))
-    .unwrap();
+    static ref JSON: String = {
+        let b = super::ROUTES.capability_statement().json().unwrap();
+        let s = from_utf8(&b).unwrap();
+
+        s.into()
+    };
 }
 
 #[cfg(test)]
@@ -166,9 +161,9 @@ pub mod tests {
     use std::fs::read_to_string;
 
     #[cfg(feature = "support-json")]
-    use crate::fhir::test::trim_json_str;
+    use crate::fhir::tests::trim_json_str;
     #[cfg(feature = "support-xml")]
-    use crate::fhir::test::trim_xml_str;
+    use crate::fhir::tests::trim_xml_str;
 
     #[test]
     #[cfg(feature = "support-xml")]

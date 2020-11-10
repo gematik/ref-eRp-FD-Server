@@ -23,6 +23,12 @@
                         {
                             "code":"read"
                         }
+                    ],
+                    "operation":[
+                        {
+                            "name":"abort",
+                            "definition":"http://gematik.de/fhir/OperationDefinition/AbortOperationDefinition"
+                        }
                     ]
                 },
                 {

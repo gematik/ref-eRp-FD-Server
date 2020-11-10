@@ -25,13 +25,8 @@ compile_error!(
 #[macro_use]
 extern crate lazy_static;
 
-#[macro_use]
-mod macros;
-
-mod fhir;
-mod misc;
-
 pub mod error;
+pub mod fhir;
 pub mod logging;
 pub mod service;
-pub mod tsl;
+pub mod tasks;

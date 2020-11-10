@@ -15,10 +15,7 @@
  *
  */
 
-use super::{
-    misc::{Decode, Encode, EncodeStr},
-    primitives::Id,
-};
+use super::primitives::Id;
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct Medication {
@@ -116,72 +113,4 @@ pub enum StandardSize {
     KA,
     NB,
     Other,
-}
-
-impl Decode for Category {
-    type Code = usize;
-    type Auto = ();
-
-    fn decode(code: Self::Code) -> Result<Self, Self::Code> {
-        match code {
-            0 => Ok(Self::Medicine),
-            1 => Ok(Self::BTM),
-            2 => Ok(Self::AMVV),
-            _ => Err(code),
-        }
-    }
-}
-
-impl Encode for Category {
-    type Code = usize;
-    type Auto = bool;
-
-    fn encode(&self) -> Self::Code {
-        match self {
-            Self::Medicine => 0,
-            Self::BTM => 1,
-            Self::AMVV => 2,
-        }
-    }
-}
-
-impl EncodeStr for Category {
-    fn encode_str(&self) -> String {
-        format!("{:02}", self.encode())
-    }
-}
-
-impl Decode for StandardSize {
-    type Code = String;
-    type Auto = bool;
-
-    fn decode(code: Self::Code) -> Result<Self, Self::Code> {
-        match code.as_str() {
-            "N1" => Ok(Self::N1),
-            "N2" => Ok(Self::N2),
-            "N3" => Ok(Self::N3),
-            "KTP" => Ok(Self::KTP),
-            "KA" => Ok(Self::KA),
-            "NB" => Ok(Self::NB),
-            "Sonstiges" => Ok(Self::Other),
-            _ => Err(code),
-        }
-    }
-}
-
-impl Encode for StandardSize {
-    type Code = &'static str;
-    type Auto = ();
-
-    fn encode(&self) -> Self::Code {
-        match self {
-            Self::N1 => "N1",
-            Self::N2 => "N2",
-            Self::N3 => "N3",
-            Self::KTP => "KTP",
-            Self::KA => "KA",
-            Self::NB => "NB",
-            Self::Other => "Sonstiges",
-        }
-    }
 }

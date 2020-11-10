@@ -33,7 +33,9 @@ pub struct Patient {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Identifier {
-    GKV(Kvnr),
+    GKV {
+        value: Kvnr,
+    },
     PKV {
         system: Option<String>,
         value: String,
@@ -48,7 +50,7 @@ impl TryInto<Kvnr> for Identifier {
 
     fn try_into(self) -> Result<Kvnr, Self::Error> {
         match self {
-            Self::GKV(kvnr) => Ok(kvnr),
+            Self::GKV { value } => Ok(value),
             _ => Err(()),
         }
     }

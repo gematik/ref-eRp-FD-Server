@@ -15,6 +15,7 @@
  *
  */
 
+use std::convert::TryFrom;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::ops::{Deref, DerefMut};
 
@@ -32,6 +33,17 @@ impl From<DateTime<Utc>> for Instant {
 impl From<DateTime<FixedOffset>> for Instant {
     fn from(v: DateTime<FixedOffset>) -> Self {
         Self(v.into())
+    }
+}
+
+impl TryFrom<&str> for Instant {
+    type Error = ();
+
+    fn try_from(v: &str) -> Result<Self, ()> {
+        match DateTime::parse_from_rfc3339(v) {
+            Ok(value) => Ok(Self(value.into())),
+            Err(_) => Err(()),
+        }
     }
 }
 

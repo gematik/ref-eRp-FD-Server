@@ -19,16 +19,16 @@ use actix_web::HttpResponse;
 use resources::Task;
 
 #[cfg(feature = "support-json")]
-use crate::fhir::json::{definitions::TaskRoot as JsonTask, to_string as to_json};
+use crate::fhir::encode::JsonEncode;
 #[cfg(feature = "support-xml")]
-use crate::fhir::xml::{definitions::TaskRoot as XmlTask, to_string as to_xml};
+use crate::fhir::encode::XmlEncode;
 use crate::service::{misc::DataType, RequestError};
 
 pub fn response_with_task(task: &Task, data_type: DataType) -> Result<HttpResponse, RequestError> {
     match data_type {
         #[cfg(feature = "support-xml")]
         DataType::Xml => {
-            let xml = to_xml(&XmlTask::new(&task)).map_err(RequestError::SerializeXml)?;
+            let xml = task.xml()?;
 
             Ok(HttpResponse::Ok()
                 .content_type(DataType::Xml.as_mime().to_string())
@@ -37,7 +37,7 @@ pub fn response_with_task(task: &Task, data_type: DataType) -> Result<HttpRespon
 
         #[cfg(feature = "support-json")]
         DataType::Json => {
-            let json = to_json(&JsonTask::new(&task)).map_err(RequestError::SerializeJson)?;
+            let json = task.json()?;
 
             Ok(HttpResponse::Ok()
                 .content_type(DataType::Json.as_mime().to_string())

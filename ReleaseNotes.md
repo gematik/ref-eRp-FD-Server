@@ -1,3 +1,14 @@
+# Release 0.6.0
+Implemented features:
+* Load PUK_TOKEN certificate from IDP
+* Verify ACCESS_TOKEN of VAU protocol
+* Added tool to support developers
+* Implemented support for NO_PROXY environment variable
+* Implemented Task $abort operation
+* Implemented MedicationDispense resource
+* Implemented paging, sorting and filtering for Task resources
+* Refactored XML/JSON parsing to support streaming
+
 # Release 0.5.0
 Implemented features:
 * Fetch public key from IDP to verify ACCESS_TOKEN

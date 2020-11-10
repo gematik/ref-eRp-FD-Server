@@ -15,6 +15,7 @@
  *
  */
 
+mod abort;
 #[cfg(feature = "interface-supplier")]
 mod activate;
 #[cfg(feature = "interface-supplier")]
@@ -22,21 +23,22 @@ mod create;
 mod get;
 mod misc;
 
-#[cfg(feature = "interface-supplier")]
-use activate::activate;
-#[cfg(feature = "interface-supplier")]
-use create::create;
-use get::{get_all, get_one};
-
+use abort::abort;
 #[cfg(feature = "interface-supplier")]
 use actix_web::web::post;
 use actix_web::web::{get, resource, ServiceConfig};
 use proc_macros::capability_statement_resource;
 use resources::capability_statement::{Interaction, Type};
 
-use crate::fhir::constants::RESOURCE_PROFILE_TASK;
+use crate::fhir::definitions::{
+    OPERATION_TASK_ABORT, OPERATION_TASK_ACTIVATE, OPERATION_TASK_CREATE, RESOURCE_PROFILE_TASK,
+};
+
 #[cfg(feature = "interface-supplier")]
-use crate::fhir::constants::{OPERATION_TASK_ACTIVATE, OPERATION_TASK_CREATE};
+use activate::activate;
+#[cfg(feature = "interface-supplier")]
+use create::create;
+use get::{get_all, get_one};
 
 #[derive(Default)]
 pub struct TaskRoutes;
@@ -54,8 +56,10 @@ impl TaskRoutes {
     }
 
     #[interaction(Interaction::Read)]
+    #[operation(name="abort", definition = OPERATION_TASK_ABORT)]
     fn configure_all(&self, cfg: &mut ServiceConfig) {
         cfg.service(resource("/Task").route(get().to(get_all)));
         cfg.service(resource("/Task/{id}").route(get().to(get_one)));
+        cfg.service(resource("/Task/{id}/$abort").route(post().to(abort)));
     }
 }

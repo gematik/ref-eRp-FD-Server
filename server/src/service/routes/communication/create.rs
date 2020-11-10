@@ -22,37 +22,31 @@ use std::str::FromStr;
 
 use actix_web::{
     web::{Data, Payload},
-    FromRequest, HttpRequest, HttpResponse,
+    HttpResponse,
 };
 use chrono::Utc;
 use resources::{primitives::Id, task::Status, Communication};
 use url::Url;
 
+#[cfg(feature = "support-json")]
+use crate::fhir::decode::JsonDecode;
+#[cfg(feature = "support-xml")]
+use crate::fhir::decode::XmlDecode;
 use crate::service::{
     error::RequestError,
     header::{Accept, Authorization, ContentType, XAccessCode},
     misc::{access_token::Profession, DataType},
     State,
 };
-#[cfg(feature = "support-json")]
-use crate::{
-    fhir::json::definitions::CommunicationRoot as JsonCommunication,
-    service::misc::json::Data as Json,
-};
-#[cfg(feature = "support-xml")]
-use crate::{
-    fhir::xml::definitions::CommunicationRoot as XmlCommunication, service::misc::xml::Data as Xml,
-};
 
 use super::misc::response_with_communication;
 
 pub async fn create(
     state: Data<State>,
-    request: HttpRequest,
     accept: Accept,
     access_token: Authorization,
     content_type: ContentType,
-    payload: Payload,
+    mut payload: Payload,
 ) -> Result<HttpResponse, RequestError> {
     access_token.check_profession(|p| match p {
         Profession::Versicherter => true,
@@ -62,20 +56,12 @@ pub async fn create(
     })?;
 
     let data_type = DataType::from_mime(&content_type);
-    let mut communication = match data_type {
+    let mut communication: Communication = match data_type {
         #[cfg(feature = "support-xml")]
-        DataType::Xml => Xml::<XmlCommunication>::from_request(&request, &mut payload.into_inner())
-            .await?
-            .0
-            .into_inner(),
+        DataType::Xml => payload.xml().await?,
 
         #[cfg(feature = "support-json")]
-        DataType::Json => {
-            Json::<JsonCommunication>::from_request(&request, &mut payload.into_inner())
-                .await?
-                .0
-                .into_inner()
-        }
+        DataType::Json => payload.json().await?,
 
         DataType::Unknown | DataType::Any => {
             return Err(RequestError::ContentTypeNotSupported(

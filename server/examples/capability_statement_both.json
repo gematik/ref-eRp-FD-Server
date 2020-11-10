@@ -33,6 +33,10 @@
                         {
                             "name":"activate",
                             "definition":"http://gematik.de/fhir/OperationDefinition/ActivateOperationDefinition"
+                        },
+                        {
+                            "name":"abort",
+                            "definition":"http://gematik.de/fhir/OperationDefinition/AbortOperationDefinition"
                         }
                     ]
                 },
@@ -54,6 +58,15 @@
                         },
                         {
                             "code":"delete"
+                        }
+                    ]
+                },
+                {
+                    "type":"MedicationDispense",
+                    "profile":"https://gematik.de/fhir/StructureDefinition/ERxMedicationDispense",
+                    "interaction":[
+                        {
+                            "code":"read"
                         }
                     ]
                 }

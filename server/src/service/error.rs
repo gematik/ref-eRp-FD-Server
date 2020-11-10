@@ -32,6 +32,11 @@ use serde_json::Error as JsonError;
 use thiserror::Error;
 use vau::Error as VauError;
 
+use crate::fhir::{
+    decode::{DecodeError, JsonError as JsonDecodeError, XmlError as XmlDecodeError},
+    encode::{EncodeError, JsonError as JsonEncodeError, XmlError as XmlEncodeError},
+};
+
 use super::misc::AccessTokenError;
 
 #[derive(Error, Debug)]
@@ -44,9 +49,6 @@ pub enum Error {
 
     #[error("VAU Error: {0}")]
     VauError(VauError),
-
-    #[error("Unsupported Scheme {0}!")]
-    UnsupportedScheme(String),
 }
 
 #[derive(Error, Debug)]
@@ -59,6 +61,18 @@ pub enum RequestError {
 
     #[error("Unauthorized: {0}!")]
     Unauthorized(String),
+
+    #[error("Error while decoding XML: {0}!")]
+    DecodeXml(DecodeError<XmlDecodeError<PayloadError>>),
+
+    #[error("Error while decoding JSON: {0}!")]
+    DecodeJson(DecodeError<JsonDecodeError<PayloadError>>),
+
+    #[error("Error while encoding XML: {0}!")]
+    EncodeXml(EncodeError<XmlEncodeError>),
+
+    #[error("Error while encoding JSON: {0}!")]
+    EncodeJson(EncodeError<JsonEncodeError>),
 
     #[cfg(feature = "support-xml")]
     #[error("Error while reading XML: {0}!")]
@@ -150,6 +164,14 @@ impl ResponseError for RequestError {
 
             Self::Unauthorized(_) => res.status(StatusCode::UNAUTHORIZED),
 
+            Self::DecodeXml(_) => res.status(StatusCode::BAD_REQUEST),
+
+            Self::DecodeJson(_) => res.status(StatusCode::BAD_REQUEST),
+
+            Self::EncodeXml(_) => res.status(StatusCode::INTERNAL_SERVER_ERROR),
+
+            Self::EncodeJson(_) => res.status(StatusCode::INTERNAL_SERVER_ERROR),
+
             #[cfg(feature = "support-xml")]
             Self::DeserializeXml(_) => res.status(StatusCode::BAD_REQUEST),
 
@@ -222,5 +244,29 @@ impl From<PayloadError> for RequestError {
 impl From<Utf8Error> for RequestError {
     fn from(err: Utf8Error) -> Self {
         Self::Utf8Error(err)
+    }
+}
+
+impl From<DecodeError<XmlDecodeError<PayloadError>>> for RequestError {
+    fn from(err: DecodeError<XmlDecodeError<PayloadError>>) -> Self {
+        Self::DecodeXml(err)
+    }
+}
+
+impl From<DecodeError<JsonDecodeError<PayloadError>>> for RequestError {
+    fn from(err: DecodeError<JsonDecodeError<PayloadError>>) -> Self {
+        Self::DecodeJson(err)
+    }
+}
+
+impl From<EncodeError<XmlEncodeError>> for RequestError {
+    fn from(err: EncodeError<XmlEncodeError>) -> Self {
+        Self::EncodeXml(err)
+    }
+}
+
+impl From<EncodeError<JsonEncodeError>> for RequestError {
+    fn from(err: EncodeError<JsonEncodeError>) -> Self {
+        Self::EncodeJson(err)
     }
 }

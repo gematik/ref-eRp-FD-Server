@@ -54,7 +54,7 @@
                     <code>
                         <coding>
                             <system value="https://fhir.kbv.de/CodeSystem/KBV_CS_FOR_Section_Type"/>
-                            <code value="Verordnung"/>
+                            <code value="Prescription"/>
                         </coding>
                     </code>
                     <entry>
@@ -145,7 +145,7 @@
                     <quantity>
                         <value value="1"/>
                         <system value="http://unitsofmeasure.org"/>
-                        <code value="{PACK}"/>
+                        <code value="{Package}"/>
                     </quantity>
                 </dispenseRequest>
                 <substitution>
@@ -232,11 +232,11 @@
                 <address>
                     <type value="both"/>
                     <line value="Musterstr. 1">
-                        <extension url="http://hl7.org/fhir/StructureDefinition/iso21090-ADXP-houseNumber">
-                            <valueString value="1"/>
-                        </extension>
                         <extension url="http://hl7.org/fhir/StructureDefinition/iso21090-ADXP-streetName">
                             <valueString value="Musterstr."/>
+                        </extension>
+                        <extension url="http://hl7.org/fhir/StructureDefinition/iso21090-ADXP-houseNumber">
+                            <valueString value="1"/>
                         </extension>
                     </line>
                     <city value="Berlin"/>
@@ -319,11 +319,11 @@
                 <address>
                     <type value="both"/>
                     <line value="Musterstr. 2">
-                        <extension url="http://hl7.org/fhir/StructureDefinition/iso21090-ADXP-houseNumber">
-                            <valueString value="2"/>
-                        </extension>
                         <extension url="http://hl7.org/fhir/StructureDefinition/iso21090-ADXP-streetName">
                             <valueString value="Musterstr."/>
+                        </extension>
+                        <extension url="http://hl7.org/fhir/StructureDefinition/iso21090-ADXP-houseNumber">
+                            <valueString value="2"/>
                         </extension>
                     </line>
                     <city value="Berlin"/>

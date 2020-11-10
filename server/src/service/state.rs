@@ -22,7 +22,7 @@ use resources::{
     communication::{Communication, Inner as CommunicationInner},
     misc::{Kvnr, TelematikId},
     primitives::Id,
-    KbvBundle, Task,
+    KbvBundle, MedicationDispense, Task,
 };
 use tokio::sync::{Mutex, MutexGuard};
 
@@ -37,6 +37,7 @@ pub struct Inner {
     pub e_prescriptions: HashMap<Id, KbvBundle>,
     pub patient_receipts: HashMap<Id, KbvBundle>,
     pub communications: HashMap<Id, Communication>,
+    pub medication_dispense: HashMap<Id, MedicationDispense>,
 }
 
 pub enum CommunicationMatch<'a> {
@@ -60,6 +61,24 @@ impl Inner {
         access_code: &Option<XAccessCode>,
     ) -> Option<Result<&Task, ()>> {
         let task = match self.tasks.get(&id) {
+            Some(task) => task,
+            None => return None,
+        };
+
+        if task_matches(task, kvnr, access_code) {
+            Some(Ok(task))
+        } else {
+            Some(Err(()))
+        }
+    }
+
+    pub fn get_task_mut(
+        &mut self,
+        id: &Id,
+        kvnr: &Option<Kvnr>,
+        access_code: &Option<XAccessCode>,
+    ) -> Option<Result<&mut Task, ()>> {
+        let task = match self.tasks.get_mut(&id) {
             Some(task) => task,
             None => return None,
         };

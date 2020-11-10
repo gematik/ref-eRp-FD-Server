@@ -26,6 +26,10 @@
                 <name value="activate"/>
                 <definition value="http://gematik.de/fhir/OperationDefinition/ActivateOperationDefinition"/>
             </operation>
+            <operation>
+                <name value="abort"/>
+                <definition value="http://gematik.de/fhir/OperationDefinition/AbortOperationDefinition"/>
+            </operation>
         </resource>
         <resource>
             <type value="Communication"/>
@@ -42,6 +46,13 @@
             </interaction>
             <interaction>
                 <code value="delete"/>
+            </interaction>
+        </resource>
+        <resource>
+            <type value="MedicationDispense"/>
+            <profile value="https://gematik.de/fhir/StructureDefinition/ERxMedicationDispense"/>
+            <interaction>
+                <code value="read"/>
             </interaction>
         </resource>
     </rest>

@@ -20,7 +20,7 @@ use std::convert::TryInto;
 
 use actix_web::{
     web::{Data, Payload},
-    FromRequest, HttpRequest, HttpResponse,
+    HttpResponse,
 };
 use chrono::Utc;
 use log::debug;
@@ -28,52 +28,46 @@ use rand::{distributions::Standard, thread_rng, Rng};
 use resources::{
     misc::PrescriptionId,
     primitives::Id,
-    task::{Extension, Identifier, Status, Task},
+    task::{Extension, Identifier, Status, Task, TaskCreateParameters},
     types::{FlowType, PerformerType},
 };
 
+#[cfg(feature = "support-json")]
+use crate::fhir::decode::JsonDecode;
+#[cfg(feature = "support-xml")]
+use crate::fhir::decode::XmlDecode;
 use crate::service::{
     error::RequestError,
     header::{Accept, Authorization, ContentType},
     misc::{DataType, Profession},
     State,
 };
-#[cfg(feature = "support-json")]
-use crate::{
-    fhir::json::definitions::TaskCreateParametersRoot as JsonParameters,
-    service::misc::json::Data as Json,
-};
-#[cfg(feature = "support-xml")]
-use crate::{
-    fhir::xml::definitions::TaskCreateParametersRoot as XmlParameters,
-    service::misc::xml::Data as Xml,
-};
 
 use super::misc::response_with_task;
 
 pub async fn create(
     state: Data<State>,
-    request: HttpRequest,
     accept: Accept,
     access_token: Authorization,
     content_type: ContentType,
-    payload: Payload,
+    mut payload: Payload,
 ) -> Result<HttpResponse, RequestError> {
-    access_token.check_profession(|p| p == Profession::Versicherter)?;
+    access_token.check_profession(|p| {
+        p == Profession::Arzt
+            || p == Profession::Zahnarzt
+            || p == Profession::PraxisArzt
+            || p == Profession::ZahnarztPraxis
+            || p == Profession::PraxisPsychotherapeut
+            || p == Profession::Krankenhaus
+    })?;
 
     let data_type = DataType::from_mime(&content_type);
-    let args = match data_type {
+    let args: TaskCreateParameters = match data_type {
         #[cfg(feature = "support-xml")]
-        DataType::Xml => Xml::<XmlParameters>::from_request(&request, &mut payload.into_inner())
-            .await?
-            .0
-            .into_inner(),
+        DataType::Xml => payload.xml().await?,
 
         #[cfg(feature = "support-json")]
-        DataType::Json => Json::<JsonParameters>::from_request(&request, &mut payload.into_inner())
-            .await?
-            .0
-            .into_inner(),
+        DataType::Json => payload.json().await?,
 
         DataType::Unknown | DataType::Any => {
             return Err(RequestError::ContentTypeNotSupported(

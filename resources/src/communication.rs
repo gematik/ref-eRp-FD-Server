@@ -16,7 +16,7 @@
  */
 
 use super::{
-    misc::{Decode, Encode, Kvnr, TelematikId},
+    misc::{InsuranceId, Kvnr, TelematikId},
     primitives::{DateTime, Id},
     types::FlowType,
     Medication,
@@ -55,7 +55,7 @@ pub struct Payload<E: Clone + PartialEq> {
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct InfoReqExtensions {
-    pub insurance_provider: String,
+    pub insurance_provider: InsuranceId,
     pub substitution_allowed: bool,
     pub prescription_type: FlowType,
     pub preferred_supply_options: Option<SupplyOptions>,
@@ -69,7 +69,7 @@ pub struct ReplyExtensions {
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct DispenseReqExtensions {
-    pub insurance_provider: Option<String>,
+    pub insurance_provider: Option<InsuranceId>,
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -186,39 +186,6 @@ impl Communication {
             Communication::Reply(inner) => inner.received = Some(value),
             Communication::DispenseReq(inner) => inner.received = Some(value),
             Communication::Representative(inner) => inner.received = Some(value),
-        }
-    }
-}
-
-impl Decode for Availability {
-    type Code = usize;
-    type Auto = ();
-
-    fn decode(code: Self::Code) -> Result<Self, Self::Code> {
-        match code {
-            10 => Ok(Self::Now),
-            20 => Ok(Self::Today),
-            30 => Ok(Self::MorningNextDay),
-            40 => Ok(Self::AfternoonNextDay),
-            50 => Ok(Self::Unavailable),
-            90 => Ok(Self::Unknown),
-            _ => Err(code),
-        }
-    }
-}
-
-impl Encode for Availability {
-    type Code = usize;
-    type Auto = ();
-
-    fn encode(&self) -> Self::Code {
-        match self {
-            Self::Now => 10,
-            Self::Today => 20,
-            Self::MorningNextDay => 30,
-            Self::AfternoonNextDay => 40,
-            Self::Unavailable => 50,
-            Self::Unknown => 90,
         }
     }
 }

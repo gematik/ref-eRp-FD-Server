@@ -16,14 +16,11 @@
  */
 
 use chrono::{DateTime, Utc};
-use jwt::{Error as JwtError, FromBase64, PKeyWithDigest, VerifyingAlgorithm};
-use openssl::{
-    hash::MessageDigest,
-    pkey::{PKey, Public},
-};
+use openssl::pkey::{PKey, Public};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use miscellaneous::jwt::{verify, Error as JwtError};
 use resources::misc::{Kvnr, TelematikId};
 
 #[derive(Deserialize, Serialize)]
@@ -62,62 +59,14 @@ pub struct AccessToken {
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, Eq, PartialEq)]
 pub enum Profession {
+    #[serde(rename = "1.2.276.0.76.4.49")]
+    Versicherter,
+
     #[serde(rename = "1.2.276.0.76.4.30")]
     Arzt,
 
     #[serde(rename = "1.2.276.0.76.4.31")]
     Zahnarzt,
-
-    #[serde(rename = "1.2.276.0.76.4.32")]
-    Apotheker,
-
-    #[serde(rename = "1.2.276.0.76.4.33")]
-    ApothekerAssistent,
-
-    #[serde(rename = "1.2.276.0.76.4.34")]
-    PharmazieIngenieur,
-
-    #[serde(rename = "1.2.276.0.76.4.35")]
-    PharmTechnAssistent,
-
-    #[serde(rename = "1.2.276.0.76.4.36")]
-    PharmKaufmAngestellter,
-
-    #[serde(rename = "1.2.276.0.76.4.37")]
-    ApothekenHelfer,
-
-    #[serde(rename = "1.2.276.0.76.4.38")]
-    ApothekenAssistent,
-
-    #[serde(rename = "1.2.276.0.76.4.39")]
-    PharmAssistent,
-
-    #[serde(rename = "1.2.276.0.76.4.40")]
-    ApothekenFacharbeiter,
-
-    #[serde(rename = "1.2.276.0.76.4.41")]
-    PharmaziePraktikant,
-
-    #[serde(rename = "1.2.276.0.76.4.42")]
-    Famulant,
-
-    #[serde(rename = "1.2.276.0.76.4.43")]
-    PtaPraktikant,
-
-    #[serde(rename = "1.2.276.0.76.4.44")]
-    PkaAuszubildender,
-
-    #[serde(rename = "1.2.276.0.76.4.46")]
-    Psychotherapeut,
-
-    #[serde(rename = "1.2.276.0.76.4.47")]
-    KujPsychotherapeut,
-
-    #[serde(rename = "1.2.276.0.76.4.48")]
-    Rettungsassistent,
-
-    #[serde(rename = "1.2.276.0.76.4.49")]
-    Versicherter,
 
     #[serde(rename = "1.2.276.0.76.4.50")]
     PraxisArzt,
@@ -136,132 +85,6 @@ pub enum Profession {
 
     #[serde(rename = "1.2.276.0.76.4.55")]
     KrankenhausApotheke,
-
-    #[serde(rename = "1.2.276.0.76.4.56")]
-    BundeswehrApotheke,
-
-    #[serde(rename = "1.2.276.0.76.4.57")]
-    MobileEinrichtungRettungsdienst,
-
-    #[serde(rename = "1.2.276.0.76.4.58")]
-    Gematik,
-
-    #[serde(rename = "1.2.276.0.76.4.59")]
-    Kostentraeger,
-
-    #[serde(rename = "1.2.276.0.76.4.178")]
-    Notfallsanitaeter,
-
-    #[serde(rename = "1.2.276.0.76.4.190")]
-    AdvKtr,
-
-    #[serde(rename = "1.2.276.0.76.4.210")]
-    LeoKassenaerztlicheVereinigung,
-
-    #[serde(rename = "1.2.276.0.76.4.223")]
-    GkvSpitzenverband,
-
-    #[serde(rename = "1.2.276.0.76.4.224")]
-    LeoApothekerverband,
-
-    #[serde(rename = "1.2.276.0.76.4.225")]
-    LeoDav,
-
-    #[serde(rename = "1.2.276.0.76.4.226")]
-    LeoKrankenhausverband,
-
-    #[serde(rename = "1.2.276.0.76.4.227")]
-    LeoDktig,
-
-    #[serde(rename = "1.2.276.0.76.4.228")]
-    LeoDkg,
-
-    #[serde(rename = "1.2.276.0.76.4.229")]
-    LeoBaek,
-
-    #[serde(rename = "1.2.276.0.76.4.230")]
-    LeoAerztekammer,
-
-    #[serde(rename = "1.2.276.0.76.4.231")]
-    LeoZahnaerztekammer,
-
-    #[serde(rename = "1.2.276.0.76.4.232")]
-    PflegerHpc,
-
-    #[serde(rename = "1.2.276.0.76.4.233")]
-    AltenpflegerHpc,
-
-    #[serde(rename = "1.2.276.0.76.4.234")]
-    PflegefachkraftHpc,
-
-    #[serde(rename = "1.2.276.0.76.4.235")]
-    HebammeHpc,
-
-    #[serde(rename = "1.2.276.0.76.4.236")]
-    PhysiotherapeutHpc,
-
-    #[serde(rename = "1.2.276.0.76.4.237")]
-    AugenoptikerHpc,
-
-    #[serde(rename = "1.2.276.0.76.4.238")]
-    HoerakustikerHpc,
-
-    #[serde(rename = "1.2.276.0.76.4.239")]
-    OrthopaedieSchuhmacherHpc,
-
-    #[serde(rename = "1.2.276.0.76.4.240")]
-    OrthopaedieTechnikerHpc,
-
-    #[serde(rename = "1.2.276.0.76.4.241")]
-    ZahnTechnikerHpc,
-
-    #[serde(rename = "1.2.276.0.76.4.242")]
-    LeoKbv,
-
-    #[serde(rename = "1.2.276.0.76.4.243")]
-    LeoBzaek,
-
-    #[serde(rename = "1.2.276.0.76.4.244")]
-    LeoKzbv,
-
-    #[serde(rename = "1.2.276.0.76.4.245")]
-    InstitutionPflege,
-
-    #[serde(rename = "1.2.276.0.76.4.246")]
-    InstitutionGeburtshilfe,
-
-    #[serde(rename = "1.2.276.0.76.4.247")]
-    PraxisPhysiotherapeut,
-
-    #[serde(rename = "1.2.276.0.76.4.248")]
-    InstitutionAugenoptiker,
-
-    #[serde(rename = "1.2.276.0.76.4.249")]
-    InstitutionHoerakustiker,
-
-    #[serde(rename = "1.2.276.0.76.4.250")]
-    InstitutionOrthopaedieschuhmacher,
-
-    #[serde(rename = "1.2.276.0.76.4.251")]
-    InstitutionOrthopaedietechniker,
-
-    #[serde(rename = "1.2.276.0.76.4.252")]
-    InstitutionZahntechniker,
-
-    #[serde(rename = "1.2.276.0.76.4.253")]
-    InstitutionRettungsleitstellen,
-
-    #[serde(rename = "1.2.276.0.76.4.254")]
-    SanitaetsdienstBundeswehr,
-
-    #[serde(rename = "1.2.276.0.76.4.255")]
-    InstitutionOegd,
-
-    #[serde(rename = "1.2.276.0.76.4.256")]
-    InstitutionArbeitsmedizin,
-
-    #[serde(rename = "1.2.276.0.76.4.257")]
-    InstitutionVorsorgeReha,
 
     #[serde(other)]
     Unknown,
@@ -298,16 +121,9 @@ pub enum Error {
 
     #[error("Access Token does not contain a valid Telematik ID!")]
     NoTelematikId,
-}
 
-#[derive(Deserialize)]
-struct Header {
-    alg: Algorithm,
-}
-
-#[derive(Deserialize)]
-enum Algorithm {
-    BP256R1,
+    #[error("Access Token from VAU request and inner HTTP request does not match!")]
+    Mismatch,
 }
 
 impl AccessToken {
@@ -316,31 +132,7 @@ impl AccessToken {
         key: PKey<Public>,
         now: DateTime<Utc>,
     ) -> Result<Self, Error> {
-        let mut access_token = access_token.split('.');
-        let header_str = access_token.next().ok_or(JwtError::NoHeaderComponent)?;
-        let claims_str = access_token.next().ok_or(JwtError::NoClaimsComponent)?;
-        let signature_str = access_token.next().ok_or(JwtError::NoSignatureComponent)?;
-
-        if access_token.next().is_some() {
-            return Err(JwtError::TooManyComponents.into());
-        }
-
-        let header = Header::from_base64(header_str)?;
-
-        match header.alg {
-            Algorithm::BP256R1 => {
-                let key = PKeyWithDigest {
-                    digest: MessageDigest::sha256(),
-                    key,
-                };
-
-                if !key.verify(header_str, claims_str, signature_str)? {
-                    return Err(JwtError::InvalidSignature.into());
-                }
-            }
-        }
-
-        let access_token = AccessToken::from_base64(claims_str)?;
+        let access_token = verify::<Self>(access_token, Some(key))?;
         let nbf = access_token.nbf.unwrap_or(access_token.iat);
 
         if now > access_token.exp {
@@ -381,6 +173,11 @@ impl AccessToken {
         } else {
             Err(Error::InvalidProfession)
         }
+    }
+
+    pub fn is_pharmacy(&self) -> bool {
+        self.profession == Profession::OeffentlicheApotheke
+            || self.profession == Profession::KrankenhausApotheke
     }
 }
 

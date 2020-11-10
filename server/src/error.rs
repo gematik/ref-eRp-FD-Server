@@ -21,7 +21,7 @@ use log::SetLoggerError;
 use log4rs::config::Errors as Log4RsError;
 use thiserror::Error;
 
-use crate::service::Error as ServiceError;
+use crate::{service::Error as ServiceError, tasks::puk_token::Error as PukTokenError};
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -39,6 +39,9 @@ pub enum Error {
 
     #[error("Service Error: {0}")]
     ServiceError(ServiceError),
+
+    #[error("PUK_TOKEN Error: {0}")]
+    PukTokenError(PukTokenError),
 }
 
 impl From<String> for Error {
@@ -68,5 +71,11 @@ impl From<Log4RsError> for Error {
 impl From<ServiceError> for Error {
     fn from(v: ServiceError) -> Self {
         Self::ServiceError(v)
+    }
+}
+
+impl From<PukTokenError> for Error {
+    fn from(v: PukTokenError) -> Self {
+        Self::PukTokenError(v)
     }
 }

@@ -1,0 +1,9 @@
+[package]
+name = "miscellaneous"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+jwt = { version = "0.10", features = [ "openssl" ]}
+openssl = "0.10"
+serde = { version = "1.0", features = [ "derive" ] }

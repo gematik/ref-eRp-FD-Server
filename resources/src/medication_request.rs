@@ -15,10 +15,7 @@
  *
  */
 
-use super::{
-    misc::{Decode, Encode},
-    primitives::{Date, DateTime, Id},
-};
+use super::primitives::{Date, DateTime, Id};
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct MedicationRequest {
@@ -76,58 +73,4 @@ pub enum AccidentCause {
     Accident,
     WorkAccident,
     SupplyProblem,
-}
-
-impl Decode for CoPayment {
-    type Code = usize;
-    type Auto = ();
-
-    fn decode(code: Self::Code) -> Result<Self, Self::Code> {
-        match code {
-            0 => Ok(Self::NotExceptFrom),
-            1 => Ok(Self::ExceptFrom),
-            2 => Ok(Self::ArtificialFertilization),
-            _ => Err(code),
-        }
-    }
-}
-
-impl Encode for CoPayment {
-    type Code = usize;
-    type Auto = ();
-
-    fn encode(&self) -> Self::Code {
-        match self {
-            Self::NotExceptFrom => 0,
-            Self::ExceptFrom => 1,
-            Self::ArtificialFertilization => 2,
-        }
-    }
-}
-
-impl Decode for AccidentCause {
-    type Code = usize;
-    type Auto = ();
-
-    fn decode(code: Self::Code) -> Result<Self, Self::Code> {
-        match code {
-            1 => Ok(Self::Accident),
-            2 => Ok(Self::WorkAccident),
-            3 => Ok(Self::SupplyProblem),
-            _ => Err(code),
-        }
-    }
-}
-
-impl Encode for AccidentCause {
-    type Code = usize;
-    type Auto = ();
-
-    fn encode(&self) -> Self::Code {
-        match self {
-            Self::Accident => 1,
-            Self::WorkAccident => 2,
-            Self::SupplyProblem => 3,
-        }
-    }
 }

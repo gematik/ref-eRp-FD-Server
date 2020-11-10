@@ -21,6 +21,6 @@ mod content_type;
 mod x_access_code;
 
 pub use accept::{Accept, ACCEPT};
-pub use authorization::{Authorization, AUTHORIZATION};
+pub use authorization::Authorization;
 pub use content_type::{ContentType, CONTENT_TYPE};
 pub use x_access_code::{XAccessCode, X_ACCESS_CODE};

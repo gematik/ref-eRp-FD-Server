@@ -15,20 +15,17 @@
  *
  */
 
-use std::path::PathBuf;
-use std::sync::Arc;
-
-use arc_swap::ArcSwapOption;
 use futures::{future::FutureExt, select};
+use std::path::PathBuf;
 use structopt::StructOpt;
-use tokio::{
-    runtime::Builder,
-    task::{spawn, LocalSet},
-};
+use tokio::{runtime::Builder, task::LocalSet};
 use url::Url;
 
 use ref_erx_fd_server::{
-    error::Error, logging::init_logger, service::Service, tsl::update as update_tsl,
+    error::Error,
+    logging::init_logger,
+    service::Service,
+    tasks::{PukToken, Tsl},
 };
 
 fn main() -> Result<(), Error> {
@@ -44,14 +41,12 @@ fn main() -> Result<(), Error> {
 async fn run(opts: Options) -> Result<(), Error> {
     let local = LocalSet::new();
 
-    let tsl = Arc::new(ArcSwapOption::from(None));
-    let handle = Service::new(opts.key, opts.cert, opts.qes_cert, opts.token, tsl.clone())
+    let tsl = Tsl::from_url(opts.tsl);
+    let puk_token = PukToken::from_url(opts.token)?;
+
+    let handle = Service::new(opts.key, opts.cert, opts.qes_cert, puk_token, tsl)
         .listen(&opts.server_addr)?
         .run(&local)?;
-
-    if let Some(url) = opts.tsl {
-        spawn(update_tsl(url, tsl));
-    }
 
     local
         .run_until(async move {

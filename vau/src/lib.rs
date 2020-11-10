@@ -24,7 +24,6 @@ mod encode;
 mod encrypt;
 mod error;
 mod misc;
-mod priority_future;
 mod user_pseudonym;
 
 pub use decode::{decode, Decoded};
@@ -33,5 +32,4 @@ pub use encode::encode;
 pub use encrypt::Encrypter;
 pub use error::Error;
 pub use misc::{hex_decode, hex_encode};
-pub use priority_future::PriorityFuture;
 pub use user_pseudonym::UserPseudonymGenerator;

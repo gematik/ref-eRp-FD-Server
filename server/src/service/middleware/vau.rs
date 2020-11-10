@@ -36,11 +36,11 @@ use futures::{
 };
 use log::error;
 use openssl::{ec::EcKey, pkey::Private, x509::X509};
-use vau::{
-    decode, encode, Decrypter, Encrypter, Error as VauError, PriorityFuture, UserPseudonymGenerator,
-};
+use vau::{decode, encode, Decrypter, Encrypter, Error as VauError, UserPseudonymGenerator};
 
-use crate::service::{Error, RequestError};
+use crate::service::{misc::AccessTokenError, Error, RequestError};
+
+use super::extract_access_token::extract_access_token;
 
 pub struct Vau {
     pkey: EcKey<Private>,
@@ -139,19 +139,17 @@ where
         match parts.next() {
             Some("VAU") => match parts.next() {
                 Some(np) => {
-                    let (np, is_valid) = {
+                    let np = {
                         let this = self.0.borrow_mut();
+
                         if !this.user_pseudonym_generator.verify(np).await {
-                            (this.user_pseudonym_generator.generate().await?, false)
+                            this.user_pseudonym_generator.generate().await?
                         } else {
-                            (np.to_owned(), true)
+                            np.to_owned()
                         }
                     };
 
-                    let fut = self.handle_vau_request(req, np);
-                    let fut = PriorityFuture::new(fut, is_valid);
-
-                    fut.await
+                    self.handle_vau_request(req, np).await
                 }
                 None => Ok(not_found(req)),
             },
@@ -187,6 +185,16 @@ where
         let payload = this.decrypter.decrypt(payload)?;
 
         let (decoded, next, req) = decode(req, &payload)?;
+
+        let (next, payload) = next.into_parts();
+        let access_token = extract_access_token(&next)?;
+        if access_token != decoded.access_token {
+            return Err(RequestError::AccessTokenError(AccessTokenError::Mismatch).into());
+        }
+
+        let next = ServiceRequest::from_parts(next, payload)
+            .map_err(|_| ())
+            .unwrap();
 
         let inner_res = this.service.call(next).await?;
         let inner_res = encode(decoded.request_id, inner_res).await?;

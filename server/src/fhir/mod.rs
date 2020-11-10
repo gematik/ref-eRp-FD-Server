@@ -15,15 +15,12 @@
  *
  */
 
-#[allow(dead_code)]
-pub mod constants;
-#[cfg(feature = "support-json")]
-pub mod json;
-#[cfg(feature = "support-xml")]
-pub mod xml;
+pub mod decode;
+pub mod definitions;
+pub mod encode;
 
 #[cfg(test)]
-pub mod test {
+pub mod tests {
     #[cfg(feature = "support-xml")]
     pub fn trim_xml_str(s: &str) -> String {
         trim_string(s)

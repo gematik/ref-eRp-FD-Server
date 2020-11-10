@@ -23,6 +23,8 @@ pub struct Bundle<T> {
     pub meta: Option<Meta>,
     pub identifier: Option<Identifier>,
     pub timestamp: Option<Instant>,
+    pub total: Option<usize>,
+    pub link: Vec<(Relation, String)>,
     pub type_: Type,
     pub entries: Vec<Entry<T>>,
 }
@@ -58,6 +60,15 @@ pub enum Type {
     Collection,
 }
 
+#[derive(Clone, PartialEq, Debug)]
+pub enum Relation {
+    Self_,
+    First,
+    Previous,
+    Next,
+    Last,
+}
+
 impl<T> Bundle<T> {
     pub fn new(type_: Type) -> Self {
         Self {
@@ -65,6 +76,8 @@ impl<T> Bundle<T> {
             meta: None,
             identifier: None,
             timestamp: None,
+            total: None,
+            link: Vec::new(),
             type_,
             entries: Vec::new(),
         }

@@ -15,7 +15,10 @@
  *
  */
 
-use super::{misc::Name, primitives::Id};
+use super::{
+    misc::{Code, Name},
+    primitives::Id,
+};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Practitioner {
@@ -27,8 +30,7 @@ pub struct Practitioner {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Qualification {
-    pub type_system: String,
-    pub type_code: String,
+    pub type_: Code,
     pub job_title: String,
 }
 

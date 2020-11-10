@@ -26,6 +26,10 @@
                 <name value="activate"/>
                 <definition value="http://gematik.de/fhir/OperationDefinition/ActivateOperationDefinition"/>
             </operation>
+            <operation>
+                <name value="abort"/>
+                <definition value="http://gematik.de/fhir/OperationDefinition/AbortOperationDefinition"/>
+            </operation>
         </resource>
         <resource>
             <type value="Communication"/>

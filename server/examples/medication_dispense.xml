@@ -1,0 +1,31 @@
+<MedicationDispense xmlns="http://hl7.org/fhir">
+    <meta>
+        <profile value="https://gematik.de/fhir/StructureDefinition/ERxMedicationDispense"/>
+    </meta>
+    <identifier>
+        <system value="https://gematik.de/fhir/Namingsystem/PrescriptionID"/>
+        <value value="160.123.456.789.123.58"/>
+    </identifier>
+    <status value="completed"/>
+    <medicationReference>
+        <reference value="Medication/1234"/>
+    </medicationReference>
+    <subject>
+        <identifier>
+            <system value="http://fhir.de/NamingSystem/gkv/kvid-10"/>
+            <value value="X234567890"/>
+        </identifier>
+    </subject>
+    <performer>
+        <actor>
+            <identifier>
+                <system value="https://gematik.de/fhir/Namingsystem/TelematikID"/>
+                <value value="606358757"/>
+            </identifier>
+        </actor>
+    </performer>
+    <whenHandedOver value="2020-03-20T07:13:00+05:00"/>
+    <dosageInstruction>
+        <text value="1-0-1-0"/>
+    </dosageInstruction>
+</MedicationDispense>

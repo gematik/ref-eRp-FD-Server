@@ -33,6 +33,10 @@
                         {
                             "name":"activate",
                             "definition":"http://gematik.de/fhir/OperationDefinition/ActivateOperationDefinition"
+                        },
+                        {
+                            "name":"abort",
+                            "definition":"http://gematik.de/fhir/OperationDefinition/AbortOperationDefinition"
                         }
                     ]
                 },

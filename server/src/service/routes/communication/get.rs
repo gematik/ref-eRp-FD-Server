@@ -15,19 +15,28 @@
  *
  */
 
+use std::str::FromStr;
+
 use actix_web::{
     web::{Data, Path, Query},
     HttpResponse,
 };
 use chrono::{DateTime, Utc};
-use resources::{primitives::Id, Communication};
+use resources::{
+    bundle::{Bundle, Entry, Type},
+    primitives::Id,
+    Communication,
+};
 use serde::Deserialize;
 
-use crate::service::{
-    header::{Accept, Authorization},
-    misc::{DataType, Profession, Search},
-    state::{CommunicationMatch, State},
-    RequestError,
+use crate::{
+    fhir::encode::{JsonEncode, XmlEncode},
+    service::{
+        header::{Accept, Authorization},
+        misc::{DataType, Profession, Search, Sort},
+        state::{CommunicationMatch, State},
+        RequestError,
+    },
 };
 
 use super::misc::response_with_communication;
@@ -38,6 +47,26 @@ pub struct QueryArgs {
     received: Option<Search<DateTime<Utc>>>,
     recipient: Option<Search<String>>,
     sender: Option<Search<String>>,
+
+    #[serde(rename = "_sort")]
+    sort: Option<Sort<SortArgs>>,
+}
+
+pub enum SortArgs {
+    Sent,
+    Received,
+}
+
+impl FromStr for SortArgs {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "sent" => Ok(Self::Sent),
+            "received" => Ok(Self::Received),
+            _ => Err(()),
+        }
+    }
 }
 
 pub async fn get_all(
@@ -62,21 +91,14 @@ pub async fn get_all(
     let telematik_id = access_token.telematik_id().ok();
 
     let mut state = state.lock().await;
-    let mut bundle: Box<dyn BundleHelper> = match accept {
-        #[cfg(feature = "support-xml")]
-        DataType::Xml => Box::new(xml::BundleHelper::new()),
 
-        #[cfg(feature = "support-json")]
-        DataType::Json => Box::new(json::BundleHelper::new()),
-
-        DataType::Unknown | DataType::Any => unreachable!(),
-    };
-
+    // Find all communications
+    let mut communications: Vec<&Communication> = Vec::new();
     for communication in state.iter_communications(kvnr, telematik_id) {
         match communication {
             CommunicationMatch::Sender(c) => {
                 if check_query(&query, c) {
-                    bundle.add(c);
+                    communications.push(c);
                 }
             }
             CommunicationMatch::Recipient(c) => {
@@ -85,14 +107,60 @@ pub async fn get_all(
                         c.set_received(Utc::now().into());
                     }
 
-                    bundle.add(c);
+                    communications.push(c);
                 }
             }
             _ => unreachable!(),
         }
     }
 
-    bundle.to_response()
+    // Sort the result
+    if let Some(sort) = &query.sort {
+        communications.sort_by(|a, b| {
+            sort.cmp(|arg| match arg {
+                SortArgs::Sent => {
+                    let a: Option<DateTime<Utc>> = a.sent().clone().map(Into::into);
+                    let b: Option<DateTime<Utc>> = b.sent().clone().map(Into::into);
+
+                    a.cmp(&b)
+                }
+                SortArgs::Received => {
+                    let a: Option<DateTime<Utc>> = a.received().clone().map(Into::into);
+                    let b: Option<DateTime<Utc>> = b.received().clone().map(Into::into);
+
+                    a.cmp(&b)
+                }
+            })
+        });
+    }
+
+    // Generate the response
+    let mut bundle = Bundle::new(Type::Searchset);
+    for c in communications {
+        bundle.entries.push(Entry::new(c));
+    }
+
+    match accept {
+        #[cfg(feature = "support-xml")]
+        DataType::Xml => {
+            let xml = bundle.xml()?;
+
+            Ok(HttpResponse::Ok()
+                .content_type(DataType::Xml.as_mime().to_string())
+                .body(xml))
+        }
+
+        #[cfg(feature = "support-json")]
+        DataType::Json => {
+            let json = bundle.json()?;
+
+            Ok(HttpResponse::Ok()
+                .content_type(DataType::Json.as_mime().to_string())
+                .body(json))
+        }
+
+        DataType::Any | DataType::Unknown => panic!("Data type of response was not specified"),
+    }
 }
 
 pub async fn get_one(
@@ -175,115 +243,4 @@ fn check_query(query: &Query<QueryArgs>, communication: &Communication) -> bool 
     }
 
     true
-}
-
-trait BundleHelper<'a> {
-    fn add(&mut self, communication: &'a Communication);
-    fn to_response(&self) -> Result<HttpResponse, RequestError>;
-}
-
-#[cfg(feature = "support-xml")]
-mod xml {
-    use super::*;
-
-    use std::borrow::Cow;
-
-    use resources::bundle::{Bundle, Entry, Type};
-    use serde::Serialize;
-
-    use crate::fhir::xml::{
-        definitions::{BundleRoot as XmlBundle, CommunicationCow as XmlCommunication},
-        to_string as to_xml,
-    };
-
-    use super::BundleHelper as BundleHelperTrait;
-
-    pub struct BundleHelper<'a> {
-        bundle: Bundle<Resource<'a>>,
-    }
-
-    #[derive(Clone, Serialize)]
-    pub enum Resource<'a> {
-        Communication(XmlCommunication<'a>),
-    }
-
-    impl BundleHelper<'_> {
-        pub fn new() -> Self {
-            Self {
-                bundle: Bundle::new(Type::Collection),
-            }
-        }
-    }
-
-    impl<'a> BundleHelperTrait<'a> for BundleHelper<'a> {
-        fn add(&mut self, communication: &'a Communication) {
-            let communication = XmlCommunication(Cow::Borrowed(communication));
-            let resource = Resource::Communication(communication);
-            let entry = Entry::new(resource);
-
-            self.bundle.entries.push(entry);
-        }
-
-        fn to_response(&self) -> Result<HttpResponse, RequestError> {
-            let xml = to_xml(&XmlBundle::new(&self.bundle)).map_err(RequestError::SerializeXml)?;
-
-            Ok(HttpResponse::Ok()
-                .content_type(DataType::Xml.as_mime().to_string())
-                .body(xml))
-        }
-    }
-}
-
-#[cfg(feature = "support-json")]
-mod json {
-    use super::*;
-
-    use std::borrow::Cow;
-
-    use resources::bundle::{Bundle, Entry, Type};
-    use serde::Serialize;
-
-    use crate::fhir::json::{
-        definitions::{BundleRoot as JsonBundle, CommunicationCow as JsonCommunication},
-        to_string as to_json,
-    };
-
-    use super::BundleHelper as BundleHelperTrait;
-
-    pub struct BundleHelper<'a> {
-        bundle: Bundle<Resource<'a>>,
-    }
-
-    #[derive(Clone, Serialize)]
-    #[serde(tag = "resourceType")]
-    pub enum Resource<'a> {
-        Communication(JsonCommunication<'a>),
-    }
-
-    impl BundleHelper<'_> {
-        pub fn new() -> Self {
-            Self {
-                bundle: Bundle::new(Type::Collection),
-            }
-        }
-    }
-
-    impl<'a> BundleHelperTrait<'a> for BundleHelper<'a> {
-        fn add(&mut self, communication: &'a Communication) {
-            let communication = JsonCommunication(Cow::Borrowed(communication));
-            let resource = Resource::Communication(communication);
-            let entry = Entry::new(resource);
-
-            self.bundle.entries.push(entry);
-        }
-
-        fn to_response(&self) -> Result<HttpResponse, RequestError> {
-            let json =
-                to_json(&JsonBundle::new(&self.bundle)).map_err(RequestError::SerializeJson)?;
-
-            Ok(HttpResponse::Ok()
-                .content_type(DataType::Json.as_mime().to_string())
-                .body(json))
-        }
-    }
 }

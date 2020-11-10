@@ -15,6 +15,7 @@
  *
  */
 
+use std::convert::TryFrom;
 use std::fmt::Display;
 use std::ops::Deref;
 
@@ -35,6 +36,18 @@ impl Kvnr {
 impl Into<String> for Kvnr {
     fn into(self) -> String {
         self.0
+    }
+}
+
+impl TryFrom<String> for Kvnr {
+    type Error = String;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        if value.len() == KVID_LEN {
+            Ok(Self(value))
+        } else {
+            Err(value)
+        }
     }
 }
 

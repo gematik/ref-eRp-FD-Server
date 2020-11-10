@@ -26,11 +26,11 @@
     <address>
         <type value="both"/>
         <line value="Musterstr. 1">
-            <extension url="http://hl7.org/fhir/StructureDefinition/iso21090-ADXP-houseNumber">
-                <valueString value="1"/>
-            </extension>
             <extension url="http://hl7.org/fhir/StructureDefinition/iso21090-ADXP-streetName">
                 <valueString value="Musterstr."/>
+            </extension>
+            <extension url="http://hl7.org/fhir/StructureDefinition/iso21090-ADXP-houseNumber">
+                <valueString value="1"/>
             </extension>
         </line>
         <city value="Berlin"/>

@@ -19,11 +19,9 @@ use actix_web::HttpResponse;
 use resources::Communication;
 
 #[cfg(feature = "support-json")]
-use crate::fhir::json::{
-    definitions::CommunicationRoot as JsonCommunication, to_string as to_json,
-};
+use crate::fhir::encode::JsonEncode;
 #[cfg(feature = "support-xml")]
-use crate::fhir::xml::{definitions::CommunicationRoot as XmlCommunication, to_string as to_xml};
+use crate::fhir::encode::XmlEncode;
 use crate::service::{misc::DataType, RequestError};
 
 pub fn response_with_communication(
@@ -33,8 +31,7 @@ pub fn response_with_communication(
     match data_type {
         #[cfg(feature = "support-xml")]
         DataType::Xml => {
-            let xml = to_xml(&XmlCommunication::new(&communication))
-                .map_err(RequestError::SerializeXml)?;
+            let xml = communication.xml()?;
 
             Ok(HttpResponse::Ok()
                 .content_type(DataType::Xml.as_mime().to_string())
@@ -43,8 +40,7 @@ pub fn response_with_communication(
 
         #[cfg(feature = "support-json")]
         DataType::Json => {
-            let json = to_json(&JsonCommunication::new(&communication))
-                .map_err(RequestError::SerializeJson)?;
+            let json = communication.json()?;
 
             Ok(HttpResponse::Ok()
                 .content_type(DataType::Json.as_mime().to_string())

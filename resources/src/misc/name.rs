@@ -18,10 +18,20 @@
 #[derive(Clone, Debug, PartialEq)]
 pub struct Name {
     pub given: String,
-    pub name: String,
+    pub family: Family,
+    pub prefix: Option<Prefix>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Prefix {
+    pub value: String,
+    pub qualifier: bool,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Family {
+    pub value: String,
     pub prefix: Option<String>,
-    pub prefix_qualifier: bool,
     pub family: Option<String>,
-    pub family_ext: Option<String>,
-    pub family_prefix: Option<String>,
+    pub extension: Option<String>,
 }

@@ -26,20 +26,17 @@ mod state;
 use std::fs::read;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::path::PathBuf;
-use std::sync::Arc;
 
 use actix_rt::System;
 use actix_web::{dev::Server, App, HttpServer};
-use arc_swap::ArcSwapOption;
 use openssl::{ec::EcKey, x509::X509};
 use tokio::task::LocalSet;
-use url::Url;
 
-use crate::tsl::Tsl;
+use crate::tasks::{PukToken, Tsl};
 
 pub use error::{Error, RequestError};
-use middleware::{HeaderCheck, Logging, Vau};
-use misc::{Cms, PukToken};
+use middleware::{ExtractAccessToken, HeaderCheck, Logging, Vau};
+use misc::Cms;
 use routes::configure_routes;
 use state::State;
 
@@ -47,8 +44,8 @@ pub struct Service {
     key: PathBuf,
     cert: PathBuf,
     qes_cert: PathBuf,
-    puk_token: Url,
-    tsl: Arc<ArcSwapOption<Tsl>>,
+    puk_token: PukToken,
+    tsl: Tsl,
     addresses: Vec<SocketAddr>,
 }
 
@@ -57,8 +54,8 @@ impl Service {
         key: PathBuf,
         cert: PathBuf,
         qes_cert: PathBuf,
-        puk_token: Url,
-        tsl: Arc<ArcSwapOption<Tsl>>,
+        puk_token: PukToken,
+        tsl: Tsl,
     ) -> Self {
         Self {
             key,
@@ -94,12 +91,12 @@ impl Service {
         let qes_cert = X509::from_pem(&qes_cert)?;
         let cms = Cms::new(qes_cert)?;
 
-        let puk_token = PukToken::from_url(self.puk_token.clone())?;
-
+        let puk_token = self.puk_token.clone();
         let tsl = self.tsl.clone();
 
         let mut server = HttpServer::new(move || {
             App::new()
+                .wrap(ExtractAccessToken)
                 .wrap(Vau::new(key.clone(), cert.clone()).unwrap())
                 .wrap(HeaderCheck)
                 .wrap(Logging)

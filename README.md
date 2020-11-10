@@ -157,30 +157,10 @@ To generate the needed key you can use the following Open SSL commands:
     $ openssl x509 -in cert.csr -out qes.cert -req -signkey qes_id -days 1001
 
     # Generate private key for the IDP service (only used for access token generation)
-    $ openssl ecparam -name prime256v1 -genkey -noout -out idp_id
+    $ openssl ecparam -name brainpoolP256r1 -genkey -noout -out idp_id
 
     # Extract public key
     $ openssl pkey -in idp_id -out idp_id.pub -pubout
-
-You can than use the official [JWT tool](https://jwt.io/) to generate a ES265 access token
-with the generated IDP key pair and the following claims:
-
-    {
-        "acr": "1",
-        "aud": "https://erp.telematik.de/login",
-        "exp": 2524608000,
-        "family_name": "Mustermann",
-        "given_name": "Max",
-        "iat": 1585336956,
-        "idNummer": "X123456789",
-        "iss": "https://idp1.telematik.de/jwt",
-        "jti": "<IDP>_01234567890123456789",
-        "nbf": 1585336956,
-        "nonce": "fuu bar baz",
-        "organizationName": "Institutions- oder Organisations-Bezeichnung",
-        "professionOID": "1.2.276.0.76.4.49",
-        "sub": "RabcUSuuWKKZEEHmrcNm_kUDOW13uaGU5Zk8OoBwiNk"
-    }
 
 ## Run the Service
 
@@ -207,3 +187,60 @@ You can also execute the binary of the service directly without using cargo.
 The binary can be found in the target directory
 
     $ ./ref-erx-fd-server --help
+
+## Create ACCESS\_TOKEN
+
+You can use the following command to generate a BP256R1 access token with the generated IDP key pair and the claims provided in [claims\_patient.json](server/examples/claims_patient.json):
+
+    $ cargo run -p tool -- \
+        create-access-token \
+            --key idp_id \
+            --claims server/examples/claims_patient.json
+
+## Send Task $create Request to Server using the VAU tunnel
+
+To send requests to the encrypted VAU tunnel of the server you can use plain text request provided in [task\_create.plain](server/examples/task_create.plain) and the following commands.
+
+    # Create encrypted VAU payload
+    $ cargo run -p tool -- \
+        vau-encrypt \
+            --cert fd.cert \
+            --input server/examples/task_create.plain \
+            --output task_create.cipher
+
+    # Send the encrypted request to the VAU tunnel
+    curl \
+        --data-binary @server/examples/task_create.cipher \
+        --header "Content-Type: application/octet-stream" \
+        --output response.cipher \
+        http://localhost:3000/VAU/0
+
+    # Decrypt the response
+    cargo run -p tool -- \
+        aes-decrypt \
+            --input response.cipher \
+            --key 0123456789ABCDEF0123456789ABCDEF \
+            --output response.plain
+
+## Create Encrypted QES Container for Task $activate Operation
+
+The Task $create operation expects a signed QES container that contains the KBV bundle for the activation of the task. This example shows how to create the QES container and send it to the server.
+
+Hint: The request would normally be send through the VAU tunnel, but for this example that is skiped. Please refere to the example above to see how VAU requests are generated.
+
+    # Create PKCS#7 file with the KBV Bundle as Content
+    $ cargo run -p tool -- \
+        pkcs7-sign \
+            --key qes_id \
+            --cert qes.crt \
+            --input server/examples/kbv_bundle.xml
+
+    # Put the generated PKCS#7 file into the data field of the task activate operations payload
+    $ sed -i 's/"data":".*"/"data":"MIJVIwYJK..."/g' server/examples/task_activate_parameters.json
+
+    # Send the payload to the server
+    curl \
+        --data-binary @server/examples/task_activate_parameters.json \
+        --header "Content-Type: application/json" \
+        --header "Authorization: Bearer eyJhbG..." \
+        http://localhost:3000/Task/{id}/$create

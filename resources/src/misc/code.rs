@@ -15,56 +15,8 @@
  *
  */
 
-use std::fmt::Display;
-use std::str::FromStr;
-
 #[derive(Clone, PartialEq, Debug)]
 pub struct Code {
     pub system: String,
     pub code: String,
-}
-
-pub trait Decode: Sized {
-    type Code;
-    type Auto;
-
-    fn decode(code: Self::Code) -> Result<Self, Self::Code>;
-}
-
-pub trait Encode: Sized {
-    type Code;
-    type Auto;
-
-    fn encode(&self) -> Self::Code;
-}
-
-pub trait DecodeStr: Sized {
-    fn decode_str(s: &str) -> Result<Self, &str>;
-}
-
-pub trait EncodeStr: Sized {
-    fn encode_str(&self) -> String;
-}
-
-impl<T> DecodeStr for T
-where
-    T: Decode<Auto = ()>,
-    <T as Decode>::Code: FromStr,
-{
-    fn decode_str(s: &str) -> Result<Self, &str> {
-        match s.parse() {
-            Ok(code) => Self::decode(code).map_err(|_| s),
-            Err(_) => Err(s),
-        }
-    }
-}
-
-impl<T> EncodeStr for T
-where
-    T: Encode<Auto = ()>,
-    <T as Encode>::Code: Display,
-{
-    fn encode_str(&self) -> String {
-        self.encode().to_string()
-    }
 }

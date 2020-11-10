@@ -47,9 +47,9 @@ pub struct TaskActivateParameters {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Extension {
+    pub flow_type: FlowType,
     pub accept_date: Option<DateTime>,
     pub expiry_date: Option<DateTime>,
-    pub flow_type: FlowType,
 }
 
 #[derive(Clone, Default, Debug, PartialEq)]

@@ -1,7 +1,6 @@
 <Bundle xmlns="http://hl7.org/fhir">
     <id value="281a985c-f25b-4aae-91a6-41ad744080b0"/>
     <meta>
-        <lastUpdated value="2020-05-04T08:30:00+00:00"/>
         <profile value="https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Bundle|1.00.000"/>
     </meta>
     <identifier>
@@ -54,7 +53,7 @@
                     <code>
                         <coding>
                             <system value="https://fhir.kbv.de/CodeSystem/KBV_CS_FOR_Section_Type"/>
-                            <code value="Verordnung"/>
+                            <code value="Prescription"/>
                         </coding>
                     </code>
                     <entry>
@@ -94,17 +93,17 @@
                 <meta>
                     <profile value="https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Prescription|1.00.000"/>
                 </meta>
-                <extension url="https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_EmergencyServicesFee">
-                    <valueBoolean value="false"/>
-                </extension>
-                <extension url="https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_BVG">
-                    <valueBoolean value="false"/>
-                </extension>
                 <extension url="https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_StatusCoPayment">
                     <valueCoding>
                         <system value="https://fhir.kbv.de/CodeSystem/KBV_CS_ERP_StatusCoPayment"/>
                         <code value="0"/>
                     </valueCoding>
+                </extension>
+                <extension url="https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_EmergencyServicesFee">
+                    <valueBoolean value="false"/>
+                </extension>
+                <extension url="https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_BVG">
+                    <valueBoolean value="false"/>
                 </extension>
                 <extension url="https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Accident">
                     <extension url="unfallkennzeichen">
@@ -113,11 +112,11 @@
                             <code value="2"/>
                         </valueCoding>
                     </extension>
-                    <extension url="unfalltag">
-                        <valueDate value="2020-05-01"/>
-                    </extension>
                     <extension url="unfallbetrieb">
                         <valueString value="Dummy-Betrieb"/>
+                    </extension>
+                    <extension url="unfalltag">
+                        <valueDate value="2020-05-01"/>
                     </extension>
                 </extension>
                 <status value="active"/>
@@ -145,7 +144,7 @@
                     <quantity>
                         <value value="1"/>
                         <system value="http://unitsofmeasure.org"/>
-                        <code value="{PACK}"/>
+                        <code value="{Package}"/>
                     </quantity>
                 </dispenseRequest>
                 <substitution>
@@ -232,11 +231,11 @@
                 <address>
                     <type value="both"/>
                     <line value="Musterstr. 1">
-                        <extension url="http://hl7.org/fhir/StructureDefinition/iso21090-ADXP-houseNumber">
-                            <valueString value="1"/>
-                        </extension>
                         <extension url="http://hl7.org/fhir/StructureDefinition/iso21090-ADXP-streetName">
                             <valueString value="Musterstr."/>
+                        </extension>
+                        <extension url="http://hl7.org/fhir/StructureDefinition/iso21090-ADXP-houseNumber">
+                            <valueString value="1"/>
                         </extension>
                     </line>
                     <city value="Berlin"/>
@@ -319,11 +318,11 @@
                 <address>
                     <type value="both"/>
                     <line value="Musterstr. 2">
-                        <extension url="http://hl7.org/fhir/StructureDefinition/iso21090-ADXP-houseNumber">
-                            <valueString value="2"/>
-                        </extension>
                         <extension url="http://hl7.org/fhir/StructureDefinition/iso21090-ADXP-streetName">
                             <valueString value="Musterstr."/>
+                        </extension>
+                        <extension url="http://hl7.org/fhir/StructureDefinition/iso21090-ADXP-houseNumber">
+                            <valueString value="2"/>
                         </extension>
                     </line>
                     <city value="Berlin"/>

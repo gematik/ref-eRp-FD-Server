@@ -34,7 +34,7 @@ use futures::stream::Stream;
 use super::{misc::hex_decode, Error};
 
 pub struct Decoded<'a> {
-    pub jwt_token: String,
+    pub access_token: String,
     pub request_id: &'a str,
     pub response_key: Vec<u8>,
 }
@@ -96,8 +96,8 @@ impl<'a> Decoded<'a> {
 
         let version = it.next().ok_or(Error::DecodeError)?;
 
-        let jwt_token = it.next().ok_or(Error::DecodeError)?;
-        let jwt_token = from_utf8(&jwt_token)
+        let access_token = it.next().ok_or(Error::DecodeError)?;
+        let access_token = from_utf8(&access_token)
             .map_err(|_| Error::DecodeError)?
             .into();
 
@@ -116,7 +116,7 @@ impl<'a> Decoded<'a> {
 
         Ok((
             Self {
-                jwt_token,
+                access_token,
                 request_id,
                 response_key,
             },

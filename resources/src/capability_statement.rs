@@ -86,6 +86,7 @@ pub enum Type {
     Task,
     Operation,
     Communication,
+    MedicationDispense,
 }
 
 #[allow(dead_code)]

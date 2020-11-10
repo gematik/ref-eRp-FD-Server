@@ -28,7 +28,7 @@ use actix_web::web::{delete, get, post, resource, ServiceConfig};
 use proc_macros::capability_statement_resource;
 use resources::capability_statement::{Interaction, Type};
 
-use crate::fhir::constants::{
+use crate::fhir::definitions::{
     RESOURCE_PROFILE_COMMUNICATION, RESOURCE_PROFILE_COMMUNICATION_DISPENSE_REQ,
     RESOURCE_PROFILE_COMMUNICATION_INFO_REQ, RESOURCE_PROFILE_COMMUNICATION_REPLY,
     RESOURCE_PROFILE_COMMUNICATION_REPRESENTATIVE,

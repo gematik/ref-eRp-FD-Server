@@ -16,22 +16,17 @@
  */
 
 use std::ops::Deref;
+use std::rc::Rc;
 
-use actix_web::{dev::Payload, http::header::HeaderName, FromRequest, HttpRequest};
-use chrono::Utc;
+use actix_web::{dev::Payload, FromRequest, HttpRequest};
 use futures::future::{ready, Ready};
 
 use crate::service::{
-    misc::{AccessToken, AccessTokenError, PukToken},
+    misc::{AccessToken, AccessTokenError},
     RequestError,
 };
 
-lazy_static! {
-    pub static ref AUTHORIZATION: HeaderName =
-        HeaderName::from_lowercase(b"authorization").unwrap();
-}
-
-pub struct Authorization(pub AccessToken);
+pub struct Authorization(Rc<AccessToken>);
 
 impl FromRequest for Authorization {
     type Error = RequestError;
@@ -39,7 +34,10 @@ impl FromRequest for Authorization {
     type Config = ();
 
     fn from_request(req: &HttpRequest, _payload: &mut Payload) -> Self::Future {
-        ready(parse_authorization(req))
+        ready(match req.extensions_mut().get_mut::<Rc<AccessToken>>() {
+            Some(access_token) => Ok(Authorization(access_token.clone())),
+            None => Err(AccessTokenError::Missing.into()),
+        })
     }
 }
 
@@ -49,30 +47,4 @@ impl Deref for Authorization {
     fn deref(&self) -> &Self::Target {
         &self.0
     }
-}
-
-fn parse_authorization(req: &HttpRequest) -> Result<Authorization, RequestError> {
-    let puk_token = req
-        .app_data::<PukToken>()
-        .ok_or_else(|| RequestError::internal("Shared data 'PukToken' is missing!"))?;
-
-    let access_token = req
-        .headers()
-        .get(&*AUTHORIZATION)
-        .ok_or_else(|| AccessTokenError::Missing)?
-        .to_str()
-        .map_err(|_| AccessTokenError::InvalidValue)?;
-
-    if !access_token.starts_with("Bearer ") {
-        return Err(AccessTokenError::InvalidValue.into());
-    }
-
-    let pub_key = puk_token
-        .public_key()
-        .ok_or_else(|| AccessTokenError::NoPukToken)?;
-
-    let access_token = &access_token[7..];
-    let access_token = AccessToken::verify(access_token, pub_key, Utc::now())?;
-
-    Ok(Authorization(access_token))
 }
