@@ -1,3 +1,10 @@
+# Release 0.7.0
+Implemented features:
+* Implemented FD signature for KBV bundle
+* Load CA Certificats form BNetz-A VL to verify QES container
+* Added version information (from git repository) to capability statement
+* Added simple script to generate test data
+
 # Release 0.6.0
 Implemented features:
 * Load PUK_TOKEN certificate from IDP

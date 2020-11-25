@@ -29,40 +29,46 @@ use std::path::PathBuf;
 
 use actix_rt::System;
 use actix_web::{dev::Server, App, HttpServer};
-use openssl::{ec::EcKey, x509::X509};
+use openssl::{ec::EcKey, pkey::PKey, x509::X509};
 use tokio::task::LocalSet;
 
 use crate::tasks::{PukToken, Tsl};
 
 pub use error::{Error, RequestError};
 use middleware::{ExtractAccessToken, HeaderCheck, Logging, Vau};
-use misc::Cms;
+use misc::{Cms, SigCert, SigKey};
 use routes::configure_routes;
 use state::State;
 
 pub struct Service {
-    key: PathBuf,
-    cert: PathBuf,
-    qes_cert: PathBuf,
+    enc_key: PathBuf,
+    enc_cert: PathBuf,
+    sig_key: PathBuf,
+    sig_cert: PathBuf,
     puk_token: PukToken,
     tsl: Tsl,
+    bnetza: Tsl,
     addresses: Vec<SocketAddr>,
 }
 
 impl Service {
     pub fn new(
-        key: PathBuf,
-        cert: PathBuf,
-        qes_cert: PathBuf,
+        enc_key: PathBuf,
+        enc_cert: PathBuf,
+        sig_key: PathBuf,
+        sig_cert: PathBuf,
         puk_token: PukToken,
         tsl: Tsl,
+        bnetza: Tsl,
     ) -> Self {
         Self {
-            key,
-            cert,
-            qes_cert,
+            enc_key,
+            enc_cert,
+            sig_key,
+            sig_cert,
             puk_token,
             tsl,
+            bnetza,
             addresses: Vec::new(),
         }
     }
@@ -81,28 +87,34 @@ impl Service {
 
         local.spawn_local(system);
 
-        let key = read(&self.key)?;
-        let key = EcKey::private_key_from_pem(&key).map_err(Error::OpenSslError)?;
+        let enc_key = read(&self.enc_key)?;
+        let enc_key = EcKey::private_key_from_pem(&enc_key).map_err(Error::OpenSslError)?;
 
-        let cert = read(&self.cert)?;
-        let cert = X509::from_pem(&cert)?;
+        let enc_cert = read(&self.enc_cert)?;
+        let enc_cert = X509::from_pem(&enc_cert)?;
 
-        let qes_cert = read(&self.qes_cert)?;
-        let qes_cert = X509::from_pem(&qes_cert)?;
-        let cms = Cms::new(qes_cert)?;
+        let sig_key = read(&self.sig_key)?;
+        let sig_key = EcKey::private_key_from_pem(&sig_key).map_err(Error::OpenSslError)?;
+        let sig_key = PKey::from_ec_key(sig_key)?;
+
+        let sig_cert = read(&self.sig_cert)?;
+        let sig_cert = X509::from_pem(&sig_cert)?;
 
         let puk_token = self.puk_token.clone();
         let tsl = self.tsl.clone();
+        let cms = Cms::new(self.bnetza.clone());
 
         let mut server = HttpServer::new(move || {
             App::new()
                 .wrap(ExtractAccessToken)
-                .wrap(Vau::new(key.clone(), cert.clone()).unwrap())
+                .wrap(Vau::new(enc_key.clone(), enc_cert.clone()).unwrap())
                 .wrap(HeaderCheck)
                 .wrap(Logging)
                 .data(state.clone())
                 .data(tsl.clone())
                 .data(cms.clone())
+                .data(SigKey(sig_key.clone()))
+                .data(SigCert(sig_cert.clone()))
                 .app_data(puk_token.clone())
                 .configure(configure_routes)
         });

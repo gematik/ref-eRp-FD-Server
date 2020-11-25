@@ -26,6 +26,8 @@ use resources::{
 };
 use tokio::sync::{Mutex, MutexGuard};
 
+use crate::fhir::security::Signed;
+
 use super::header::XAccessCode;
 
 #[derive(Default, Clone)]
@@ -35,7 +37,7 @@ pub struct State(Arc<Mutex<Inner>>);
 pub struct Inner {
     pub tasks: HashMap<Id, Task>,
     pub e_prescriptions: HashMap<Id, KbvBundle>,
-    pub patient_receipts: HashMap<Id, KbvBundle>,
+    pub patient_receipts: HashMap<Id, Signed<KbvBundle>>,
     pub communications: HashMap<Id, Communication>,
     pub medication_dispense: HashMap<Id, MedicationDispense>,
 }

@@ -19,6 +19,7 @@ use std::borrow::Cow;
 use std::iter::once;
 
 use async_trait::async_trait;
+use miscellaneous::str::icase_eq;
 use resources::composition::{Author, Composition, Extension, LegalBasis, Section};
 
 use crate::fhir::{
@@ -92,7 +93,7 @@ impl Decode for Composition {
 
         stream.end().await?;
 
-        if !meta.profiles.iter().any(|p| p == PROFILE) {
+        if !meta.profiles.iter().any(|p| icase_eq(p, PROFILE)) {
             return Err(DecodeError::InvalidProfile {
                 actual: meta.profiles,
                 expected: vec![PROFILE.into()],
@@ -127,7 +128,7 @@ impl Decode for Extension {
             let mut fields = Fields::new(&["url", "valueCoding"]);
             let url = stream.decode::<String, _>(&mut fields, decode_any).await?;
 
-            if url == URL_LEGAL_BASIS {
+            if icase_eq(url, URL_LEGAL_BASIS) {
                 legal_basis = Some(stream.decode(&mut fields, decode_coding).await?);
             }
 
@@ -172,7 +173,7 @@ impl Decode for Author {
 
                     let mut fields = Fields::new(&["system", "value"]);
 
-                    let _system = stream.fixed(&mut fields, SYSTEM_PRF).await?;
+                    let _system = stream.ifixed(&mut fields, SYSTEM_PRF).await?;
                     prf = Some(stream.decode(&mut fields, decode_any).await?);
 
                     stream.end().await?;
@@ -469,7 +470,7 @@ impl Coding for CompositionType {
 
         stream.element().await?;
 
-        let _system = stream.fixed(&mut fields, SYSTEM_TYPE).await?;
+        let _system = stream.ifixed(&mut fields, SYSTEM_TYPE).await?;
         let _code = stream.fixed(&mut fields, "e16A").await?;
 
         stream.end().await?;
@@ -573,7 +574,7 @@ impl CodeEx for SectionItem<'_> {
     }
 }
 
-const PROFILE: &str = "https://gematik.de/fhir/StructureDefinition/erxComposition";
+const PROFILE: &str = "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Composition|1.0.0";
 
 const URL_LEGAL_BASIS: &str = "https://fhir.kbv.de/StructureDefinition/KBV_EX_FOR_Legal_basis";
 

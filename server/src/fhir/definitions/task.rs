@@ -16,6 +16,7 @@
  */
 
 use async_trait::async_trait;
+use miscellaneous::str::icase_eq;
 use resources::{
     misc::Kvnr,
     task::{Extension, Identifier, Input, Output, Status, Task},
@@ -77,7 +78,7 @@ impl Decode for Task {
 
         stream.end().await?;
 
-        if !meta.profiles.iter().any(|p| p == PROFILE) {
+        if !meta.profiles.iter().any(|p| icase_eq(p, PROFILE)) {
             return Err(DecodeError::InvalidProfile {
                 actual: meta.profiles,
                 expected: vec![PROFILE.into()],
@@ -116,17 +117,17 @@ impl Decode for Extension {
             let url = stream.value(Search::Exact("url")).await?.unwrap();
 
             match url.as_str() {
-                URL_FLOW_TYPE => {
+                x if icase_eq(x, URL_FLOW_TYPE) => {
                     let mut fields = Fields::new(&["valueCoding"]);
 
                     flow_type = Some(stream.decode(&mut fields, decode_coding).await?);
                 }
-                URL_ACCEPT_DATE => {
+                x if icase_eq(x, URL_ACCEPT_DATE) => {
                     let mut fields = Fields::new(&["valueDateTime"]);
 
                     accept_date = Some(stream.decode(&mut fields, decode_any).await?)
                 }
-                URL_EXPIRY_DATE => {
+                x if icase_eq(x, URL_EXPIRY_DATE) => {
                     let mut fields = Fields::new(&["valueDateTime"]);
 
                     expiry_date = Some(stream.decode(&mut fields, decode_any).await?)
@@ -169,13 +170,13 @@ impl Decode for Identifier {
             let system: String = stream.decode(&mut fields, decode_any).await?;
 
             match system.as_str() {
-                SYSTEM_PRESCRIPTION_ID => {
+                x if icase_eq(x, SYSTEM_PRESCRIPTION_ID) => {
                     prescription_id = Some(stream.decode(&mut fields, decode_any).await?);
                 }
-                SYSTEM_ACCESS_CODE => {
+                x if icase_eq(x, SYSTEM_ACCESS_CODE) => {
                     access_code = Some(stream.decode(&mut fields, decode_any).await?);
                 }
-                SYSTEM_SECRET => {
+                x if icase_eq(x, SYSTEM_SECRET) => {
                     secret = Some(stream.decode(&mut fields, decode_any).await?);
                 }
                 _ => {

@@ -16,6 +16,7 @@
  */
 
 use async_trait::async_trait;
+use miscellaneous::str::icase_eq;
 use resources::misc::Address;
 
 use crate::fhir::{
@@ -52,22 +53,22 @@ impl Decode for Address {
                 let url = stream.value(Search::Exact("url")).await?.unwrap();
 
                 match url.as_str() {
-                    URL_STREET => {
+                    x if icase_eq(x, URL_STREET) => {
                         let mut fields = Fields::new(&["valueString"]);
 
                         street = Some(stream.decode(&mut fields, decode_any).await?);
                     }
-                    URL_NUMBER => {
+                    x if icase_eq(x, URL_NUMBER) => {
                         let mut fields = Fields::new(&["valueString"]);
 
                         number = Some(stream.decode(&mut fields, decode_any).await?);
                     }
-                    URL_ADDITION => {
+                    x if icase_eq(x, URL_ADDITION) => {
                         let mut fields = Fields::new(&["valueString"]);
 
                         addition = Some(stream.decode(&mut fields, decode_any).await?);
                     }
-                    URL_POSTBOX => {
+                    x if icase_eq(x, URL_POSTBOX) => {
                         let mut fields = Fields::new(&["valueString"]);
 
                         post_box = Some(stream.decode(&mut fields, decode_any).await?);

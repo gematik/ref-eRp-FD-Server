@@ -44,7 +44,7 @@ use super::misc::response_with_communication;
 #[derive(Deserialize)]
 pub struct QueryArgs {
     sent: Option<Search<DateTime<Utc>>>,
-    received: Option<Search<DateTime<Utc>>>,
+    received: Option<Search<Option<DateTime<Utc>>>>,
     recipient: Option<Search<String>>,
     sender: Option<Search<String>>,
 
@@ -199,7 +199,7 @@ pub async fn get_one(
         }
     };
 
-    response_with_communication(communication, accept)
+    response_with_communication(communication, accept, false)
 }
 
 fn check_query(query: &Query<QueryArgs>, communication: &Communication) -> bool {
@@ -215,12 +215,8 @@ fn check_query(query: &Query<QueryArgs>, communication: &Communication) -> bool 
     }
 
     if let Some(qreceived) = &query.received {
-        if let Some(creceived) = communication.received() {
-            let creceived = creceived.clone().into();
-            if !qreceived.matches(&creceived) {
-                return false;
-            }
-        } else {
+        let creceived = communication.received().clone().map(Into::into);
+        if !qreceived.matches(&creceived) {
             return false;
         }
     }

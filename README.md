@@ -136,15 +136,25 @@ The cryptographic algorithms used in this example may change in the future.
 
 To generate the needed key you can use the following Open SSL commands:
 
-    # Generate private key for the service
-    $ openssl ecparam -name brainpoolP256r1 -genkey -noout -out fd_id
+    # Generate private key of the service used for encryption
+    $ openssl ecparam -name brainpoolP256r1 -genkey -noout -out fd_id_enc
 
     # Extract public key
-    $ openssl pkey -in fd_id -out fd_id.pub -pubout
+    $ openssl pkey -in fd_id_enc -out fd_id_enc.pub -pubout
 
     # Create X509 certificate
-    $ openssl req -new -key fd_id > cert.csr
-    $ openssl x509 -in cert.csr -out fd.cert -req -signkey fd_id -days 1001
+    $ openssl req -new -key fd_id_enc > cert.csr
+    $ openssl x509 -in cert.csr -out fd_id_enc.cert -req -signkey fd_id_enc -days 1001
+
+    # Generate private key of the service used for signing
+    $ openssl ecparam -name brainpoolP256r1 -genkey -noout -out fd_id_sig
+
+    # Extract public key
+    $ openssl pkey -in fd_id_sig -out fd_id_sig.pub -pubout
+
+    # Create X509 certificate
+    $ openssl req -new -key fd_id_sig > cert.csr
+    $ openssl x509 -in cert.csr -out fd_id_sig.cert -req -signkey fd_id_sig -days 1001
 
     # Generate private key for QES signing
     $ openssl ecparam -name brainpoolP256r1 -genkey -noout -out qes_id
@@ -154,7 +164,7 @@ To generate the needed key you can use the following Open SSL commands:
 
     # Create X509 certificate
     $ openssl req -new -key qes_id > cert.csr
-    $ openssl x509 -in cert.csr -out qes.cert -req -signkey qes_id -days 1001
+    $ openssl x509 -in cert.csr -out qes_id.cert -req -signkey qes_id -days 1001
 
     # Generate private key for the IDP service (only used for access token generation)
     $ openssl ecparam -name brainpoolP256r1 -genkey -noout -out idp_id
@@ -171,9 +181,11 @@ key of the IDP to verify the ACCESS\_TOKEN and a download URL of the TSL.
 The following parameters are mandatory.
 
     $ cargo run -p ref-erx-fd-server -- \
-        --key ./path/to/fd_id \
-        --cert ./path/to/fd.cert \
-        --qes-cert ./path/to/qes.cert \
+        --enc-key ./path/to/fd_id_enc \
+        --enc-cert ./path/to/fd_id_enc.cert \
+        --sig-key ./path/to/fd_id_sig \
+        --sig-cert ./path/to/fd_id_sig.cert \
+        --bnetza file://path/to/bnetzavl.xml \
         --token file://path/to/idp_id.pub \
         --tsl https://download.tsl.ti-dienste.de
 
@@ -190,6 +202,8 @@ The binary can be found in the target directory
 
 ## Create ACCESS\_TOKEN
 
+ACCESS\_TOKEN enables the user of the service to execute different operations. The provided example generates an ACCESS\_TOKEN for a patient but patients are not allowed to create or activate Tasks (which is shown in the examples below). To successfully execute the other examples, you may need an ACCESS\_TOKEN with a different profession.
+
 You can use the following command to generate a BP256R1 access token with the generated IDP key pair and the claims provided in [claims\_patient.json](server/examples/claims_patient.json):
 
     $ cargo run -p tool -- \
@@ -204,7 +218,7 @@ To send requests to the encrypted VAU tunnel of the server you can use plain tex
     # Create encrypted VAU payload
     $ cargo run -p tool -- \
         vau-encrypt \
-            --cert fd.cert \
+            --cert fd_id_enc.cert \
             --input server/examples/task_create.plain \
             --output task_create.cipher
 
@@ -232,7 +246,7 @@ Hint: The request would normally be send through the VAU tunnel, but for this ex
     $ cargo run -p tool -- \
         pkcs7-sign \
             --key qes_id \
-            --cert qes.crt \
+            --cert qes_id.cert \
             --input server/examples/kbv_bundle.xml
 
     # Put the generated PKCS#7 file into the data field of the task activate operations payload

@@ -16,15 +16,17 @@
  */
 
 use async_trait::async_trait;
+use miscellaneous::str::icase_eq;
 use resources::{
     kbv_bundle::{Entry, KbvBundle},
     Composition, Coverage, Medication, MedicationRequest, Organization, Patient, Practitioner,
-    PractitionerRole,
+    PractitionerRole, SignatureFormat,
 };
 
 use crate::fhir::{
     decode::{decode_any, DataStream, Decode, DecodeError, DecodeStream, Fields},
     encode::{encode_any, DataStorage, Encode, EncodeError, EncodeStream},
+    Format,
 };
 
 use super::{
@@ -51,16 +53,15 @@ impl Decode for KbvBundle {
     where
         S: DataStream,
     {
-        let mut composition = None;
-        let mut medication_request = None;
-        let mut medication = None;
-        let mut patient = None;
-        let mut practitioner = None;
-        let mut organization = None;
-        let mut coverage = None;
-        let mut practitioner_role = None;
-
-        let mut fields = Fields::new(&["id", "meta", "identifier", "type", "timestamp", "entry"]);
+        let mut fields = Fields::new(&[
+            "id",
+            "meta",
+            "identifier",
+            "type",
+            "timestamp",
+            "entry",
+            "signature",
+        ]);
 
         stream.root("Bundle").await?;
 
@@ -69,32 +70,56 @@ impl Decode for KbvBundle {
         let identifier = stream.decode(&mut fields, decode_identifier).await?;
         let _type = stream.fixed(&mut fields, "document").await?;
         let timestamp = stream.decode(&mut fields, decode_any).await?;
+        let entry = {
+            let mut composition = None;
+            let mut medication_request = None;
+            let mut medication = None;
+            let mut patient = None;
+            let mut practitioner = None;
+            let mut organization = None;
+            let mut coverage = None;
+            let mut practitioner_role = None;
 
-        while stream.begin_substream_vec(&mut fields).await? {
-            stream.element().await?;
+            loop {
+                if stream.begin_substream_vec(&mut fields).await? {
+                    stream.element().await?;
 
-            let mut fields = Fields::new(&["fullUrl", "resource"]);
-            let url = stream.decode(&mut fields, decode_any).await?;
-            let resource = stream.resource(&mut fields, decode_any).await?;
+                    let mut fields = Fields::new(&["fullUrl", "resource"]);
+                    let url = stream.decode(&mut fields, decode_any).await?;
+                    let resource = stream.resource(&mut fields, decode_any).await?;
 
-            match resource {
-                Resource::Composition(v) => composition = Some((url, v)),
-                Resource::MedicationRequest(v) => medication_request = Some((url, v)),
-                Resource::Medication(v) => medication = Some((url, v)),
-                Resource::Patient(v) => patient = Some((url, v)),
-                Resource::Practitioner(v) => practitioner = Some((url, v)),
-                Resource::Organization(v) => organization = Some((url, v)),
-                Resource::Coverage(v) => coverage = Some((url, v)),
-                Resource::PractitionerRole(v) => practitioner_role = Some((url, v)),
+                    match resource {
+                        Resource::Composition(v) => composition = Some((url, v)),
+                        Resource::MedicationRequest(v) => medication_request = Some((url, v)),
+                        Resource::Medication(v) => medication = Some((url, v)),
+                        Resource::Patient(v) => patient = Some((url, v)),
+                        Resource::Practitioner(v) => practitioner = Some((url, v)),
+                        Resource::Organization(v) => organization = Some((url, v)),
+                        Resource::Coverage(v) => coverage = Some((url, v)),
+                        Resource::PractitionerRole(v) => practitioner_role = Some((url, v)),
+                    }
+
+                    stream.end().await?;
+                    stream.end_substream().await?;
+                } else {
+                    break Entry {
+                        composition,
+                        medication_request,
+                        medication,
+                        patient,
+                        practitioner,
+                        organization,
+                        coverage,
+                        practitioner_role,
+                    };
+                }
             }
-
-            stream.end().await?;
-            stream.end_substream().await?;
-        }
+        };
+        let signature = stream.decode_vec(&mut fields, decode_any).await?;
 
         stream.end().await?;
 
-        if !meta.profiles.iter().any(|p| p == PROFILE) {
+        if !meta.profiles.iter().any(|p| icase_eq(p, PROFILE)) {
             return Err(DecodeError::InvalidProfile {
                 actual: meta.profiles,
                 expected: vec![PROFILE.into()],
@@ -105,16 +130,8 @@ impl Decode for KbvBundle {
             id,
             identifier,
             timestamp,
-            entry: Entry {
-                composition,
-                medication_request,
-                medication,
-                patient,
-                practitioner,
-                organization,
-                coverage,
-                practitioner_role,
-            },
+            entry,
+            signature,
         })
     }
 }
@@ -171,6 +188,14 @@ impl Encode for &KbvBundle {
             profiles: vec![PROFILE.into()],
         };
 
+        let signature =
+            self.signature
+                .iter()
+                .find(|s| match (s.format.as_ref(), stream.format()) {
+                    (Some(SignatureFormat::Json), Some(Format::Json)) => true,
+                    (_, _) => false,
+                });
+
         stream
             .root("Bundle")?
             .encode("id", &self.id, encode_any)?
@@ -189,6 +214,7 @@ impl Encode for &KbvBundle {
             .inline_opt(&self.entry.coverage, encode_any)?
             .inline_opt(&self.entry.practitioner_role, encode_any)?
             .end()?
+            .encode_opt("signature", signature, encode_any)?
             .end()?;
 
         Ok(())
@@ -311,6 +337,7 @@ pub mod tests {
                 coverage: Some((coverage_url, test_coverage())),
                 practitioner_role: Some((practitioner_role_url, test_practitioner_role())),
             },
+            signature: vec![],
         }
     }
 }

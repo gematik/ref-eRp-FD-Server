@@ -27,26 +27,31 @@ use crate::service::{misc::DataType, RequestError};
 pub fn response_with_communication(
     communication: &Communication,
     data_type: DataType,
+    created: bool,
 ) -> Result<HttpResponse, RequestError> {
-    match data_type {
+    let (body, content_type) = match data_type {
         #[cfg(feature = "support-xml")]
         DataType::Xml => {
             let xml = communication.xml()?;
 
-            Ok(HttpResponse::Ok()
-                .content_type(DataType::Xml.as_mime().to_string())
-                .body(xml))
+            (xml, DataType::Xml.as_mime().to_string())
         }
 
         #[cfg(feature = "support-json")]
         DataType::Json => {
             let json = communication.json()?;
 
-            Ok(HttpResponse::Ok()
-                .content_type(DataType::Json.as_mime().to_string())
-                .body(json))
+            (json, DataType::Json.as_mime().to_string())
         }
 
         DataType::Any | DataType::Unknown => panic!("Data type of response was not specified"),
-    }
+    };
+
+    let mut res = if created {
+        HttpResponse::Created()
+    } else {
+        HttpResponse::Ok()
+    };
+
+    Ok(res.content_type(content_type).body(body))
 }

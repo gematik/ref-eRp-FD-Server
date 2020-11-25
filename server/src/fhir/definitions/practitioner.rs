@@ -18,6 +18,7 @@
 use std::iter::once;
 
 use async_trait::async_trait;
+use miscellaneous::str::icase_eq;
 use resources::practitioner::{Identifier, Practitioner, Qualification};
 
 use crate::fhir::{
@@ -53,7 +54,7 @@ impl Decode for Practitioner {
 
         stream.end().await?;
 
-        if !meta.profiles.iter().any(|p| p == PROFILE) {
+        if !meta.profiles.iter().any(|p| icase_eq(p, PROFILE)) {
             return Err(DecodeError::InvalidProfile {
                 actual: meta.profiles,
                 expected: vec![PROFILE.into()],
@@ -176,11 +177,11 @@ impl IdentifierTrait for Identifier {
         let mut ret = stream.decode(&mut fields, decode_codeable_concept).await?;
         match &mut ret {
             Identifier::ANR(value) => {
-                let _system = stream.fixed(&mut fields, SYSTEM_ANR).await?;
+                let _system = stream.ifixed(&mut fields, SYSTEM_ANR).await?;
                 *value = stream.decode(&mut fields, decode_any).await?;
             }
             Identifier::ZANR(value) => {
-                let _system = stream.fixed(&mut fields, SYSTEM_ZANR).await?;
+                let _system = stream.ifixed(&mut fields, SYSTEM_ZANR).await?;
                 *value = stream.decode(&mut fields, decode_any).await?;
             }
         }
@@ -264,8 +265,8 @@ impl Coding for Identifier {
         stream.end().await?;
 
         match (system.as_str(), code.as_str()) {
-            (SYSTEM_V2_0203, "LANR") => Ok(Identifier::ANR(Default::default())),
-            (SYSTEM_DE_BASIS, "ZANR") => Ok(Identifier::ZANR(Default::default())),
+            (x, "LANR") if icase_eq(x, SYSTEM_V2_0203) => Ok(Identifier::ANR(Default::default())),
+            (x, "ZANR") if icase_eq(x, SYSTEM_DE_BASIS) => Ok(Identifier::ZANR(Default::default())),
             (system, code) => Err(DecodeError::InvalidFixedValue {
                 actual: format!("{} {}", system, code).into(),
                 expected: format!(

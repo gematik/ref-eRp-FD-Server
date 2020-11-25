@@ -19,6 +19,7 @@ use std::convert::TryInto;
 use std::iter::once;
 
 use async_trait::async_trait;
+use miscellaneous::str::icase_eq;
 use resources::patient::{Identifier, Patient};
 
 use crate::fhir::{
@@ -55,7 +56,7 @@ impl Decode for Patient {
 
         stream.end().await?;
 
-        if !meta.profiles.iter().any(|p| p == PROFILE) {
+        if !meta.profiles.iter().any(|p| icase_eq(p, PROFILE)) {
             return Err(DecodeError::InvalidProfile {
                 actual: meta.profiles,
                 expected: vec![PROFILE.into()],
@@ -115,7 +116,7 @@ impl IdentifierTrait for Identifier {
 
         match &mut identifier {
             Identifier::GKV { value } => {
-                let _system = stream.fixed(&mut fields, SYSTEM_KVID).await?;
+                let _system = stream.ifixed(&mut fields, SYSTEM_KVID).await?;
                 *value = stream.decode(&mut fields, decode_any).await?;
             }
             Identifier::PKV { system, value } => {
@@ -123,7 +124,7 @@ impl IdentifierTrait for Identifier {
                 *value = stream.decode(&mut fields, decode_any).await?;
             }
             Identifier::KVK { value } => {
-                let _system = stream.fixed(&mut fields, SYSTEM_KVK).await?;
+                let _system = stream.ifixed(&mut fields, SYSTEM_KVK).await?;
                 *value = stream.decode(&mut fields, decode_any).await?;
             }
         }

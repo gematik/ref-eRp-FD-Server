@@ -17,8 +17,8 @@
 
 use async_trait::async_trait;
 use resources::capability_statement::{
-    CapabilityStatement, FhirVersion, Format, Interaction, Mode, Operation, Resource, Rest, Status,
-    Type,
+    CapabilityStatement, FhirVersion, Format, Interaction, Mode, Operation, Resource, Rest,
+    Software, Status, Type,
 };
 
 use crate::fhir::{
@@ -42,6 +42,7 @@ impl Decode for CapabilityStatement {
             "status",
             "date",
             "kind",
+            "software",
             "implementation",
             "fhirVersion",
             "format",
@@ -55,6 +56,7 @@ impl Decode for CapabilityStatement {
         let status = stream.decode(&mut fields, decode_any).await?;
         let date = stream.decode(&mut fields, decode_any).await?;
         let _kind = stream.fixed(&mut fields, "instance").await?;
+        let software = stream.decode(&mut fields, decode_any).await?;
         let description = stream.decode(&mut fields, decode_description).await?;
         let fhir_version = stream.decode(&mut fields, decode_any).await?;
         let format = stream.decode_vec(&mut fields, decode_any).await?;
@@ -67,10 +69,35 @@ impl Decode for CapabilityStatement {
             title,
             status,
             date,
+            software,
             description,
             fhir_version,
             format,
             rest,
+        })
+    }
+}
+
+#[async_trait(?Send)]
+impl Decode for Software {
+    async fn decode<S>(stream: &mut DecodeStream<S>) -> Result<Self, DecodeError<S::Error>>
+    where
+        S: DataStream,
+    {
+        let mut fields = Fields::new(&["name", "version", "releaseDate"]);
+
+        stream.element().await?;
+
+        let name = stream.decode(&mut fields, decode_any).await?;
+        let version = stream.decode(&mut fields, decode_any).await?;
+        let release_date = stream.decode(&mut fields, decode_any).await?;
+
+        stream.end().await?;
+
+        Ok(Software {
+            name,
+            version,
+            release_date,
         })
     }
 }
@@ -277,10 +304,27 @@ impl Encode for &CapabilityStatement {
             .encode("status", &self.status, encode_any)?
             .encode("date", &self.date, encode_any)?
             .encode("kind", "instance", encode_any)?
+            .encode("software", &self.software, encode_any)?
             .encode("implementation", &self.description, encode_description)?
             .encode("fhirVersion", &self.fhir_version, encode_any)?
             .encode_vec("format", &self.format, encode_any)?
             .encode_vec("rest", &self.rest, encode_any)?
+            .end()?;
+
+        Ok(())
+    }
+}
+
+impl Encode for &Software {
+    fn encode<S>(self, stream: &mut EncodeStream<S>) -> Result<(), EncodeError<S::Error>>
+    where
+        S: DataStorage,
+    {
+        stream
+            .element()?
+            .encode("name", &self.name, encode_any)?
+            .encode("version", &self.version, encode_any)?
+            .encode("releaseDate", &self.release_date, encode_any)?
             .end()?;
 
         Ok(())
@@ -544,6 +588,11 @@ pub mod tests {
             description: "E-Rezept Fachdienst Server Referenzimplementierung".into(),
             status: Status::Draft,
             date: "2020-01-01T00:00:00Z".try_into().unwrap(),
+            software: Software {
+                name: "ref-erx-fd-server".into(),
+                version: "0.5.0".into(),
+                release_date: "2018-08-09T15:15:57.282334589+00:00".try_into().unwrap(),
+            },
             fhir_version: FhirVersion::V4_0_0,
             format: vec![
                 Format::XML,

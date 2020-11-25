@@ -18,6 +18,7 @@
 use std::iter::once;
 
 use async_trait::async_trait;
+use miscellaneous::str::icase_eq;
 use resources::misc::{Family, Name, Prefix};
 
 use crate::fhir::{
@@ -71,17 +72,17 @@ impl Decode for Family {
             let url = stream.value(Search::Exact("url")).await?.unwrap();
 
             match url.as_str() {
-                URL_FAMILY_PREFIX => {
+                x if icase_eq(x, URL_FAMILY_PREFIX) => {
                     let mut fields = Fields::new(&["valueString"]);
 
                     prefix = Some(stream.decode(&mut fields, decode_any).await?);
                 }
-                URL_FAMILY_FAMILY => {
+                x if icase_eq(x, URL_FAMILY_FAMILY) => {
                     let mut fields = Fields::new(&["valueString"]);
 
                     family = Some(stream.decode(&mut fields, decode_any).await?);
                 }
-                URL_FAMILY_EXTENSION => {
+                x if icase_eq(x, URL_FAMILY_EXTENSION) => {
                     let mut fields = Fields::new(&["valueString"]);
 
                     extension = Some(stream.decode(&mut fields, decode_any).await?);
@@ -120,7 +121,7 @@ impl Decode for Prefix {
 
             let url = stream.value(Search::Exact("url")).await?.unwrap();
 
-            if url == URL_PREFIX_QUALIFIER {
+            if icase_eq(url, URL_PREFIX_QUALIFIER) {
                 let mut fields = Fields::new(&["valueCode"]);
 
                 stream.fixed(&mut fields, "AC").await?;

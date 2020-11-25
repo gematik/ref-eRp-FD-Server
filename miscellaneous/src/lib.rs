@@ -16,3 +16,4 @@
  */
 
 pub mod jwt;
+pub mod str;

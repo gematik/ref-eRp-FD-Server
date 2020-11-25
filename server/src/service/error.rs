@@ -35,6 +35,7 @@ use vau::Error as VauError;
 use crate::fhir::{
     decode::{DecodeError, JsonError as JsonDecodeError, XmlError as XmlDecodeError},
     encode::{EncodeError, JsonError as JsonEncodeError, XmlError as XmlEncodeError},
+    security::SignedError,
 };
 
 use super::misc::AccessTokenError;
@@ -55,6 +56,9 @@ pub enum Error {
 pub enum RequestError {
     #[error("OpenSSL Error: {0}")]
     OpenSslError(OpenSslError),
+
+    #[error("Signed Error: {0}")]
+    SignedError(SignedError),
 
     #[error("Internal Error: {0}")]
     Internal(String),
@@ -160,6 +164,8 @@ impl ResponseError for RequestError {
         match self {
             Self::OpenSslError(_) => res.status(StatusCode::BAD_REQUEST),
 
+            Self::SignedError(_) => res.status(StatusCode::INTERNAL_SERVER_ERROR),
+
             Self::Internal(_) => res.status(StatusCode::INTERNAL_SERVER_ERROR),
 
             Self::Unauthorized(_) => res.status(StatusCode::UNAUTHORIZED),
@@ -226,6 +232,12 @@ impl ResponseError for RequestError {
 impl From<OpenSslError> for RequestError {
     fn from(err: OpenSslError) -> Self {
         Self::OpenSslError(err)
+    }
+}
+
+impl From<SignedError> for RequestError {
+    fn from(err: SignedError) -> Self {
+        Self::SignedError(err)
     }
 }
 

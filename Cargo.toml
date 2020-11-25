@@ -12,7 +12,7 @@ default-members = [
 ]
 
 [patch.crates-io]
-actix-web = { git = "https://github.com/Gematik-Entwicklung/actix-web.git", branch = "ref-erx-fd-server-v3.0.2" }
+actix-web = { git = "https://github.com/Gematik-Entwicklung/actix-web.git", branch = "ref-erx-fd-server-v3.3.0" }
 miscellaneous = { path = "./miscellaneous" }
 openssl = { git = "https://github.com/Gematik-Entwicklung/rust-openssl.git", branch = "ref-erx-fd-server-v0.10.30" }
 proc-macros = { path = "./proc-macros" }

@@ -18,6 +18,7 @@
 use std::iter::once;
 
 use async_trait::async_trait;
+use miscellaneous::str::icase_eq;
 use resources::medication_request::{
     AccidentCause, AccidentInformation, CoPayment, DispenseRequest, Dosage, Extension,
     MedicationRequest,
@@ -103,7 +104,7 @@ impl Decode for MedicationRequest {
 
         stream.end().await?;
 
-        if !meta.profiles.iter().any(|p| p == PROFILE) {
+        if !meta.profiles.iter().any(|p| icase_eq(p, PROFILE)) {
             return Err(DecodeError::InvalidProfile {
                 actual: meta.profiles,
                 expected: vec![PROFILE.into()],
@@ -144,22 +145,22 @@ impl Decode for Extension {
             let url = stream.value(Search::Exact("url")).await?.unwrap();
 
             match url.as_str() {
-                URL_CO_PAYMENT => {
+                x if icase_eq(x, URL_CO_PAYMENT) => {
                     let mut fields = Fields::new(&["valueCoding"]);
 
                     co_payment = Some(stream.decode(&mut fields, decode_coding).await?);
                 }
-                URL_EMERGENCY_SERVICE_FEE => {
+                x if icase_eq(x, URL_EMERGENCY_SERVICE_FEE) => {
                     let mut fields = Fields::new(&["valueBoolean"]);
 
                     emergency_service_fee = Some(stream.decode(&mut fields, decode_any).await?);
                 }
-                URL_BVG => {
+                x if icase_eq(x, URL_BVG) => {
                     let mut fields = Fields::new(&["valueBoolean"]);
 
                     bvg = Some(stream.decode(&mut fields, decode_any).await?);
                 }
-                URL_ACCIDENT_INFORMATION => {
+                x if icase_eq(x, URL_ACCIDENT_INFORMATION) => {
                     let mut fields = Fields::new(&["extension"]);
 
                     accident_information = Some(stream.decode(&mut fields, decode_any).await?);
@@ -325,7 +326,7 @@ impl Decode for DispenseRequest {
             let mut fields = Fields::new(&["value", "system", "code"]);
 
             let value = stream.decode(&mut fields, decode_any).await?;
-            let _system = stream.fixed(&mut fields, SYSTEM_QUANTITY).await?;
+            let _system = stream.ifixed(&mut fields, SYSTEM_QUANTITY).await?;
             let _code = stream.fixed(&mut fields, "{Package}").await?;
 
             stream.end().await?;

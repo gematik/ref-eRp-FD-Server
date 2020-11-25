@@ -28,7 +28,7 @@ use futures::{future::ready, stream::once};
 use resources::{
     primitives::Id,
     task::{Status, TaskActivateParameters},
-    KbvBundle,
+    KbvBundle, SignatureType,
 };
 
 #[cfg(feature = "support-json")]
@@ -36,11 +36,14 @@ use crate::fhir::decode::JsonDecode;
 #[cfg(feature = "support-xml")]
 use crate::fhir::decode::XmlDecode;
 
-use crate::service::{
-    error::RequestError,
-    header::{Accept, Authorization, ContentType, XAccessCode},
-    misc::{Cms, DataType, Profession},
-    state::State,
+use crate::{
+    fhir::security::Signed,
+    service::{
+        error::RequestError,
+        header::{Accept, Authorization, ContentType, XAccessCode},
+        misc::{Cms, DataType, Profession, SigCert, SigKey},
+        state::State,
+    },
 };
 
 use super::misc::response_with_task;
@@ -49,6 +52,8 @@ use super::misc::response_with_task;
 pub async fn activate(
     state: Data<State>,
     cms: Data<Cms>,
+    sig_key: Data<SigKey>,
+    sig_cert: Data<SigCert>,
     id: Path<Id>,
     accept: Accept,
     access_token: Authorization,
@@ -148,7 +153,17 @@ pub async fn activate(
                 patient_receipt.id
             )))
         }
-        Entry::Vacant(entry) => entry.insert(patient_receipt).id.clone(),
+        Entry::Vacant(entry) => {
+            let mut patient_receipt = Signed::new(patient_receipt);
+            patient_receipt.sign_json(
+                SignatureType::AuthorsSignature,
+                "Device/software".into(),
+                &sig_key.0,
+                &sig_cert.0,
+            )?;
+
+            entry.insert(patient_receipt).id.clone()
+        }
     };
 
     let e_prescription = match state.e_prescriptions.entry(kbv_bundle.id.clone()) {
@@ -166,5 +181,5 @@ pub async fn activate(
     task.input.e_prescription = Some(e_prescription);
     task.input.patient_receipt = Some(patient_receipt);
 
-    response_with_task(task, accept)
+    response_with_task(task, accept, false)
 }

@@ -19,6 +19,7 @@ use std::iter::once;
 
 use async_trait::async_trait;
 use futures::future::FutureExt;
+use miscellaneous::str::icase_eq;
 use resources::coverage::{Coverage, Extension, Payor};
 
 use crate::fhir::{
@@ -68,7 +69,7 @@ impl Decode for Coverage {
 
         stream.end().await?;
 
-        if !meta.profiles.iter().any(|p| p == PROFILE) {
+        if !meta.profiles.iter().any(|p| icase_eq(p, PROFILE)) {
             return Err(DecodeError::InvalidProfile {
                 actual: meta.profiles,
                 expected: vec![PROFILE.into()],
@@ -104,22 +105,22 @@ impl Decode for Extension {
             let url = stream.value(Search::Exact("url")).await?.unwrap();
 
             match url.as_str() {
-                URL_SPECIAL_GROUP => {
+                x if icase_eq(x, URL_SPECIAL_GROUP) => {
                     let mut fields = Fields::new(&["valueCoding"]);
 
                     special_group = Some(stream.decode(&mut fields, decode_coding).await?);
                 }
-                URL_DMP_MARK => {
+                x if icase_eq(x, URL_DMP_MARK) => {
                     let mut fields = Fields::new(&["valueCoding"]);
 
                     dmp_mark = Some(stream.decode(&mut fields, decode_coding).await?);
                 }
-                URL_INSURED_TYPE => {
+                x if icase_eq(x, URL_INSURED_TYPE) => {
                     let mut fields = Fields::new(&["valueCoding"]);
 
                     insured_type = Some(stream.decode(&mut fields, decode_coding).await?);
                 }
-                URL_WOP => {
+                x if icase_eq(x, URL_WOP) => {
                     let mut fields = Fields::new(&["valueCoding"]);
 
                     wop = Some(stream.decode(&mut fields, decode_coding).await?);
@@ -186,7 +187,7 @@ where
 
             let url = stream.value(Search::Exact("url")).await?.unwrap();
 
-            if url == URL_ALTERNATIVE_ID {
+            if icase_eq(url, URL_ALTERNATIVE_ID) {
                 let mut fields = Fields::new(&["valueIdentifier"]);
 
                 let (ext, _) = stream
@@ -200,7 +201,7 @@ where
             stream.end_substream().await?;
         }
 
-        let _system = stream.fixed(&mut fields, SYSTEM_PAYOR).await?;
+        let _system = stream.ifixed(&mut fields, SYSTEM_PAYOR).await?;
         let value = stream.decode(&mut fields, decode_any).await?;
 
         stream.end().await?;

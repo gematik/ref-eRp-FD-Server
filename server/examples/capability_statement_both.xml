@@ -4,6 +4,11 @@
     <status value="draft"/>
     <date value="2020-01-01T00:00:00Z"/>
     <kind value="instance"/>
+    <software>
+        <name value="ref-erx-fd-server"/>
+        <version value="0.5.0"/>
+        <releaseDate value="2018-08-09T15:15:57.282334589+00:00"/>
+    </software>
     <implementation>
         <description value="E-Rezept Fachdienst Server Referenzimplementierung"/>
     </implementation>

@@ -16,6 +16,7 @@
  */
 
 use async_trait::async_trait;
+use miscellaneous::str::icase_eq;
 use resources::misc::InsuranceId;
 
 use crate::fhir::{
@@ -42,7 +43,7 @@ impl Identifier for InsuranceId {
         stream.end().await?;
 
         match system.as_str() {
-            SYSTEM_IKNR => Ok(InsuranceId::Iknr(value)),
+            x if icase_eq(x, SYSTEM_IKNR) => Ok(InsuranceId::Iknr(value)),
             _ => Err(DecodeError::InvalidValue {
                 value: system,
                 path: stream.path().into(),

@@ -15,62 +15,24 @@
  *
  */
 
-use base64::{decode, DecodeError as Base64Error};
-use chrono::{DateTime, ParseError as ChronoError, Utc};
-use openssl::{error::ErrorStack as OpenSslError, x509::X509};
-use quick_xml::{de::from_str, DeError as XmlError};
+use base64::decode;
+use openssl::x509::X509;
+use quick_xml::de::from_str;
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 
-#[derive(Debug, Error)]
-pub enum Error {
-    #[error("XML Error: {0}")]
-    XmlError(XmlError),
+use super::{certs::Certs, error::Error};
 
-    #[error("Chrono Error: {0}")]
-    ChronoError(ChronoError),
+pub fn extract<F>(xml: &str, prepare: &F) -> Result<Certs, Error>
+where
+    F: Fn(&mut TrustServiceStatusList) + Send + Sync,
+{
+    let mut tsl: TrustServiceStatusList = from_str(xml)?;
+    prepare(&mut tsl);
 
-    #[error("Base64 Error: {0}")]
-    Base64Error(Base64Error),
-
-    #[error("OpenSSL Error: {0}")]
-    OpenSslError(OpenSslError),
-}
-
-pub fn extract(xml: &str) -> Result<Vec<X509>, Error> {
-    const IDENT: &str = "http://uri.etsi.org/TrstSvc/Svctype/CA/PKC";
-    const STATUS: &str = "http://uri.etsi.org/TrstSvc/Svcstatus/inaccord";
-    const EXT_OID: &str = "1.2.276.0.76.4.203";
-    const EXT_VALUE: &str = "oid_fd_sig";
-
-    let now = Utc::now();
-    let tsl: TrustServiceStatusList = from_str(xml)?;
-
-    let mut certs = Vec::new();
-
+    let mut certs = Certs::default();
     for provider in tsl.provider_list.provider {
         for service in provider.services.service {
             let info = &service.infos;
-
-            if info.ident != IDENT {
-                continue;
-            }
-
-            if info.status != STATUS {
-                continue;
-            }
-
-            let start_time = DateTime::parse_from_rfc3339(&info.starting_time)?;
-            if start_time > now {
-                continue;
-            }
-
-            let has_ext = info.extensions.extension.iter().any(|ex| {
-                ex.oid.as_deref() == Some(EXT_OID) && ex.value.as_deref() == Some(EXT_VALUE)
-            });
-            if !has_ext {
-                continue;
-            }
 
             for id in &info.identity.id {
                 if let Some(cert) = &id.cert {
@@ -78,7 +40,7 @@ pub fn extract(xml: &str) -> Result<Vec<X509>, Error> {
                     let cert = decode(&cert)?;
                     let cert = X509::from_der(&cert)?;
 
-                    certs.push(cert);
+                    let _ = certs.add_cert(cert);
                 }
             }
         }
@@ -88,102 +50,78 @@ pub fn extract(xml: &str) -> Result<Vec<X509>, Error> {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct TrustServiceStatusList {
+pub struct TrustServiceStatusList {
     #[serde(rename = "TrustServiceProviderList")]
-    provider_list: TrustServiceProviderList,
+    pub provider_list: TrustServiceProviderList,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct TrustServiceProviderList {
+pub struct TrustServiceProviderList {
     #[serde(rename = "TrustServiceProvider")]
-    provider: Vec<TrustServiceProvider>,
+    pub provider: Vec<TrustServiceProvider>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct TrustServiceProvider {
+pub struct TrustServiceProvider {
     #[serde(rename = "TSPServices")]
-    services: TSPServices,
+    pub services: TSPServices,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct TSPServices {
+pub struct TSPServices {
     #[serde(rename = "TSPService")]
-    service: Vec<TSPService>,
+    pub service: Vec<TSPService>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct TSPService {
+pub struct TSPService {
     #[serde(rename = "ServiceInformation")]
-    infos: ServiceInformation,
+    pub infos: ServiceInformation,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct ServiceInformation {
+pub struct ServiceInformation {
     #[serde(rename = "ServiceTypeIdentifier")]
-    ident: String,
+    pub ident: String,
 
     #[serde(rename = "ServiceStatus")]
-    status: String,
+    pub status: String,
 
     #[serde(rename = "StatusStartingTime")]
-    starting_time: String,
+    pub starting_time: String,
 
     #[serde(rename = "ServiceInformationExtensions")]
-    extensions: ServiceInformationExtensions,
+    pub extensions: Option<ServiceInformationExtensions>,
 
     #[serde(rename = "ServiceDigitalIdentity")]
-    identity: ServiceDigitalIdentity,
+    pub identity: ServiceDigitalIdentity,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct ServiceInformationExtensions {
+pub struct ServiceInformationExtensions {
     #[serde(rename = "Extension")]
-    extension: Vec<Extension>,
+    pub extension: Vec<Extension>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct Extension {
+pub struct Extension {
     #[serde(rename = "ExtensionOID")]
-    oid: Option<String>,
+    pub oid: Option<String>,
 
     #[serde(rename = "ExtensionValue")]
-    value: Option<String>,
+    pub value: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct ServiceDigitalIdentity {
+pub struct ServiceDigitalIdentity {
     #[serde(rename = "DigitalId")]
-    id: Vec<DigitalId>,
+    pub id: Vec<DigitalId>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct DigitalId {
+pub struct DigitalId {
     #[serde(rename = "X509Certificate")]
-    cert: Option<String>,
-}
-
-impl From<XmlError> for Error {
-    fn from(err: XmlError) -> Self {
-        Self::XmlError(err)
-    }
-}
-
-impl From<ChronoError> for Error {
-    fn from(err: ChronoError) -> Self {
-        Self::ChronoError(err)
-    }
-}
-
-impl From<Base64Error> for Error {
-    fn from(err: Base64Error) -> Self {
-        Self::Base64Error(err)
-    }
-}
-
-impl From<OpenSslError> for Error {
-    fn from(err: OpenSslError) -> Self {
-        Self::OpenSslError(err)
-    }
+    pub cert: Option<String>,
 }
 
 #[cfg(test)]
@@ -197,9 +135,11 @@ pub mod tests {
     #[test]
     fn extract_certs_from_tsl() {
         let xml = read_to_string("./examples/TSL.xml").unwrap();
-        let actual = extract(&xml)
+        let actual = extract(&xml, &|_| {})
             .unwrap()
-            .iter()
+            .entries()
+            .values()
+            .flatten()
             .map(|cert| cert.to_der().unwrap())
             .map(|cert| encode(&cert))
             .collect::<Vec<_>>();

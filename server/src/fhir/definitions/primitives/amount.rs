@@ -93,7 +93,7 @@ impl<T: AmountEx> Amount for T {
         let numerator = stream.decode(&mut fields_numerator, decode_any).await?;
         let unit = stream.decode(&mut fields_numerator, decode_any).await?;
         let _system = stream
-            .fixed_opt(&mut fields_numerator, Self::system())
+            .ifixed_opt(&mut fields_numerator, Self::system())
             .await?;
         let code = stream.decode_opt(&mut fields_numerator, decode_any).await?;
 

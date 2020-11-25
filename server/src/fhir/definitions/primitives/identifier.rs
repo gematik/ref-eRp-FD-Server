@@ -85,7 +85,7 @@ impl<T: IdentifierEx> Identifier for T {
 
         stream.element().await?;
 
-        let _system = stream.fixed_opt(&mut fields, Self::system()).await?;
+        let _system = stream.ifixed_opt(&mut fields, Self::system()).await?;
         let value = stream.decode(&mut fields, decode_any).await?;
 
         stream.end().await?;

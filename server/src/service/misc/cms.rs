@@ -15,33 +15,19 @@
  *
  */
 
-use openssl::{
-    pkcs7::{Pkcs7, Pkcs7Flags},
-    stack::Stack,
-    x509::{
-        store::{X509Store, X509StoreBuilder},
-        X509,
-    },
-};
+use openssl::pkcs7::Pkcs7;
 
-use super::super::error::{Error, RequestError};
+use crate::tasks::Tsl;
+
+use super::super::error::RequestError;
 
 pub struct Cms {
-    cert: X509,
-    certs: Stack<X509>,
-    store: X509Store,
+    bnetza: Tsl,
 }
 
 impl Cms {
-    pub fn new(cert: X509) -> Result<Self, Error> {
-        let mut certs = Stack::new()?;
-        certs.push(cert.clone())?;
-
-        let mut store = X509StoreBuilder::new()?;
-        store.add_cert(cert.clone())?;
-        let store = store.build();
-
-        Ok(Self { cert, certs, store })
+    pub fn new(bnetza: Tsl) -> Self {
+        Self { bnetza }
     }
 
     pub fn verify(&self, data: &str) -> Result<Vec<u8>, RequestError> {
@@ -56,22 +42,14 @@ impl Cms {
             Pkcs7::from_pem(data.as_bytes())?
         };
 
-        let mut ret = Vec::new();
-
-        pkcs7.verify(
-            &self.certs,
-            &self.store,
-            None,
-            Some(&mut ret),
-            Pkcs7Flags::empty(),
-        )?;
-
-        Ok(ret)
+        self.bnetza.verify_pkcs7(pkcs7).map_err(|err| {
+            RequestError::BadRequest(format!("Unable to verify CMS container: {}", err))
+        })
     }
 }
 
 impl Clone for Cms {
     fn clone(&self) -> Self {
-        Self::new(self.cert.clone()).unwrap()
+        Self::new(self.bnetza.clone())
     }
 }

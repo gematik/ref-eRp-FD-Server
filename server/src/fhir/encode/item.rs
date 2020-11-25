@@ -21,10 +21,15 @@ use std::task::{Context, Poll};
 
 use futures::stream::Stream;
 
+use crate::fhir::Format;
+
 use super::encode_stream::DataStorage;
 
 #[derive(Debug, Default)]
-pub struct ItemStream(VecDeque<Item>);
+pub struct ItemStream {
+    items: VecDeque<Item>,
+    format: Option<Format>,
+}
 
 #[allow(dead_code)]
 #[derive(Debug, PartialEq)]
@@ -56,7 +61,7 @@ where
     type Item = Item;
 
     fn poll_next(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        Poll::Ready(self.0.pop_front())
+        Poll::Ready(self.items.pop_front())
     }
 }
 
@@ -64,9 +69,13 @@ impl DataStorage for &mut ItemStream {
     type Error = String;
 
     fn put_item(&mut self, item: Item) -> Result<(), Self::Error> {
-        self.0.push_back(item);
+        self.items.push_back(item);
 
         Ok(())
+    }
+
+    fn format(&self) -> Option<Format> {
+        self.format
     }
 }
 

@@ -15,6 +15,7 @@
  *
  */
 
+use base64::encode;
 use jwt::{FromBase64, PKeyWithDigest, SigningAlgorithm, ToBase64, VerifyingAlgorithm};
 use openssl::{
     hash::MessageDigest,
@@ -38,7 +39,12 @@ enum Algorithm {
     BP256R1,
 }
 
-pub fn sign<T: ToBase64>(claims: &T, key: PKey<Private>) -> Result<String, Error> {
+pub fn sign<T: ToBase64>(
+    claims: &T,
+    key: PKey<Private>,
+    cert: Option<&X509>,
+    detached: bool,
+) -> Result<String, Error> {
     let key = PKeyWithDigest {
         digest: MessageDigest::sha256(),
         key,
@@ -46,14 +52,19 @@ pub fn sign<T: ToBase64>(claims: &T, key: PKey<Private>) -> Result<String, Error
 
     let header = Header {
         alg: Algorithm::BP256R1,
-        x5c: Vec::new(),
+        x5c: cert
+            .into_iter()
+            .map(cert_to_str)
+            .collect::<Result<Vec<_>, _>>()?,
     };
 
     let header = header.to_base64()?;
     let claims = claims.to_base64()?;
     let signature = key.sign(&header, &claims)?;
 
-    let jwt = [&*header, &*claims, &signature].join(".");
+    let claims = if detached { "" } else { &*claims };
+
+    let jwt = [&*header, claims, &signature].join(".");
 
     Ok(jwt)
 }
@@ -111,4 +122,11 @@ fn cert_to_key(cert: String) -> Result<PKey<Public>, Error> {
     let pub_key = cert.public_key()?;
 
     Ok(pub_key)
+}
+
+fn cert_to_str(cert: &X509) -> Result<String, Error> {
+    let bytes = cert.to_der()?;
+    let ret = encode(&bytes);
+
+    Ok(ret)
 }

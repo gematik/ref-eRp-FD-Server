@@ -18,6 +18,7 @@
 use std::iter::once;
 
 use async_trait::async_trait;
+use miscellaneous::str::icase_eq;
 use resources::organization::{Identifier, Organization, Telecom};
 
 use crate::fhir::{
@@ -54,7 +55,7 @@ impl Decode for Organization {
 
         stream.end().await?;
 
-        if !meta.profiles.iter().any(|p| p == PROFILE) {
+        if !meta.profiles.iter().any(|p| icase_eq(p, PROFILE)) {
             return Err(DecodeError::InvalidProfile {
                 actual: meta.profiles,
                 expected: vec![PROFILE.into()],
@@ -184,15 +185,15 @@ impl IdentifierTrait for Identifier {
         let mut ret = stream.decode(&mut fields, decode_codeable_concept).await?;
         match &mut ret {
             Identifier::IK(value) => {
-                let _system = stream.fixed(&mut fields, SYSTEM_IK).await?;
+                let _system = stream.ifixed(&mut fields, SYSTEM_IK).await?;
                 *value = stream.decode(&mut fields, decode_any).await?;
             }
             Identifier::BS(value) => {
-                let _system = stream.fixed(&mut fields, SYSTEM_BS).await?;
+                let _system = stream.ifixed(&mut fields, SYSTEM_BS).await?;
                 *value = stream.decode(&mut fields, decode_any).await?;
             }
             Identifier::KZV(value) => {
-                let _system = stream.fixed(&mut fields, SYSTEM_KZV).await?;
+                let _system = stream.ifixed(&mut fields, SYSTEM_KZV).await?;
                 *value = stream.decode(&mut fields, decode_any).await?;
             }
         }
@@ -277,9 +278,9 @@ impl Coding for Identifier {
         stream.end().await?;
 
         match (system.as_str(), code.as_str()) {
-            (SYSTEM_V2_0203, "XX") => Ok(Identifier::IK(Default::default())),
-            (SYSTEM_V2_0203, "BSNR") => Ok(Identifier::BS(Default::default())),
-            (SYSTEM_DE_BASIS, "ZANR") => Ok(Identifier::KZV(Default::default())),
+            (x, "XX") if icase_eq(x, SYSTEM_V2_0203) => Ok(Identifier::IK(Default::default())),
+            (x, "BSNR") if icase_eq(x, SYSTEM_V2_0203) => Ok(Identifier::BS(Default::default())),
+            (x, "ZANR") if icase_eq(x, SYSTEM_DE_BASIS) => Ok(Identifier::KZV(Default::default())),
             (system, code) => Err(DecodeError::InvalidFixedValue {
                 actual: format!("{} {}", system, code).into(),
                 expected: format!(

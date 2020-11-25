@@ -26,7 +26,10 @@ use futures::{
     ready,
     stream::{Stream, StreamExt, TryStreamExt},
 };
+use miscellaneous::str::icase_eq;
 use thiserror::Error;
+
+use crate::fhir::{Format, WithFormat};
 
 use super::Item;
 
@@ -109,6 +112,8 @@ pub trait DataStream: Unpin {
     type Error: Debug + Display + Unpin;
 
     fn as_stream(&mut self) -> &mut Self::Stream;
+
+    fn format(&self) -> Option<Format>;
 }
 
 #[derive(Debug, Default)]
@@ -190,6 +195,10 @@ where
             buffer: None,
             extensions: Vec::new(),
         }
+    }
+
+    pub fn format(&self) -> Option<Format> {
+        self.stream.format()
     }
 
     pub fn path(&self) -> Option<String> {
@@ -442,6 +451,43 @@ where
     ) -> Result<(), DecodeError<S::Error>> {
         if let Some(expected) = expected {
             self.fixed(fields, expected).await?;
+        } else {
+            fields.next();
+        }
+
+        Ok(())
+    }
+
+    pub async fn ifixed(
+        &mut self,
+        fields: &mut Fields,
+        expected: &str,
+    ) -> Result<(), DecodeError<S::Error>> {
+        let fields = fields.next();
+
+        self.substream_inner(&fields, false).await?;
+
+        let actual = self.value(Search::Any).await?.unwrap();
+        if !icase_eq(&actual, expected) {
+            return Err(DecodeError::InvalidFixedValue {
+                actual: actual.into(),
+                expected: expected.into(),
+                path: self.path().into(),
+            });
+        }
+
+        self.end_substream().await?;
+
+        Ok(())
+    }
+
+    pub async fn ifixed_opt(
+        &mut self,
+        fields: &mut Fields,
+        expected: Option<&str>,
+    ) -> Result<(), DecodeError<S::Error>> {
+        if let Some(expected) = expected {
+            self.ifixed(fields, expected).await?;
         } else {
             fields.next();
         }
@@ -751,7 +797,7 @@ where
 
 impl<S, E> DataStream for S
 where
-    S: Stream<Item = Result<Item, E>> + Unpin,
+    S: Stream<Item = Result<Item, E>> + WithFormat + Unpin,
     E: Debug + Display + Unpin,
 {
     type Stream = S;
@@ -759,6 +805,10 @@ where
 
     fn as_stream(&mut self) -> &mut Self::Stream {
         self
+    }
+
+    fn format(&self) -> Option<Format> {
+        WithFormat::format(self)
     }
 }
 

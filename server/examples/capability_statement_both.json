@@ -5,6 +5,11 @@
     "status":"draft",
     "date":"2020-01-01T00:00:00Z",
     "kind":"instance",
+    "software":{
+        "name":"ref-erx-fd-server",
+        "version":"0.5.0",
+        "releaseDate":"2018-08-09T15:15:57.282334589+00:00"
+    },
     "implementation":{
         "description":"E-Rezept Fachdienst Server Referenzimplementierung"
     },

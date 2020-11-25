@@ -39,10 +39,10 @@ async fn get_xml(tsl: Data<Tsl>) -> Result<HttpResponse, ActixError> {
 }
 
 async fn get_sha2(tsl: Data<Tsl>) -> Result<HttpResponse, ActixError> {
-    match &*tsl.load() {
-        Some(tsl) => Ok(HttpResponse::Ok()
+    match tsl.load().as_ref().and_then(|tsl| tsl.sha2.as_ref()) {
+        Some(sha2) => Ok(HttpResponse::Ok()
             .content_type(ContentType::plaintext().try_into()?)
-            .body(&tsl.sha2)),
+            .body(sha2)),
         None => Ok(HttpResponse::NotFound().finish()),
     }
 }

@@ -31,13 +31,13 @@ mod patient;
 mod practitioner;
 mod practitioner_role;
 mod primitives;
+mod signature;
 mod task;
 mod task_activate_parameters;
 mod task_create_parameters;
 mod types;
 
 pub use bundle::{DecodeBundleResource, EncodeBundleResource};
-
 pub use communication::{
     PROFILE_BASE as RESOURCE_PROFILE_COMMUNICATION,
     PROFILE_DISPENSE_REQ as RESOURCE_PROFILE_COMMUNICATION_DISPENSE_REQ,

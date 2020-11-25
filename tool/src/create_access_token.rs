@@ -21,8 +21,10 @@ use std::str::from_utf8;
 
 use miscellaneous::jwt::sign;
 use openssl::pkey::PKey;
-use serde_json::{from_str, to_string_pretty, Value};
+use serde_json::{from_str, Value};
 use structopt::StructOpt;
+
+use super::misc::read_input;
 
 #[derive(StructOpt)]
 /// Tool to create ACCESS_TOKEN with.pkcs7_sign
@@ -41,24 +43,19 @@ pub struct Opts {
     /// The claims that are encoded within the ACCESS_TOKEN can be any valid JSON file. The content
     /// of the file is not validated, so you can encode any information in the ACCESS_TOKEN.
     #[structopt(short, long)]
-    claims: PathBuf,
+    claims: Option<PathBuf>,
 }
 
 pub fn execute(opts: Opts) {
     let key = read(opts.key).expect("Unable to read private key!");
     let key = PKey::private_key_from_pem(&key).expect("Unable to interpret private key!");
 
-    let claims = read(opts.claims).expect("Unable to read claims!");
+    let claims = read_input(&opts.claims);
     let claims = from_utf8(&claims).expect("Unable to interpret claims: Invalid UTF-8 string!");
     let claims =
         from_str::<Value>(&claims).expect("Unable to interpret claims: Invalid JSON format!");
 
-    println!(
-        "\nRead the following claims:\n{}",
-        to_string_pretty(&claims).unwrap()
-    );
+    let access_token = sign(&claims, key, None, false).expect("Unable to crate ACCESS_TOKEN");
 
-    let access_token = sign(&claims, key).expect("Unable to crate ACCESS_TOKEN");
-
-    println!("\nGenerated the following access token:\n{}", access_token);
+    println!("{}", access_token);
 }

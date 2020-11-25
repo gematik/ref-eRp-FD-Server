@@ -19,6 +19,8 @@ use std::mem::{swap, take};
 
 use bytes::{BufMut, Bytes, BytesMut};
 
+use crate::fhir::Format;
+
 use super::{
     super::{
         encode_stream::DataStorage,
@@ -375,6 +377,10 @@ impl DataStorage for &mut Writer {
         self.write(Some(item))?;
 
         Ok(())
+    }
+
+    fn format(&self) -> Option<Format> {
+        Some(Format::Json)
     }
 }
 

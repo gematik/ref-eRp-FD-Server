@@ -16,18 +16,27 @@
  */
 
 use std::cmp::min;
+use std::fs::read_to_string;
 use std::sync::Arc;
 use std::time::Duration;
 
 use log::{error, info, warn};
-use reqwest::Error as ReqwestError;
-use thiserror::Error;
+use openssl::x509::store::X509StoreBuilder;
+use regex::{Regex, RegexBuilder};
 use tokio::time::delay_for;
-use url::{ParseError, Url};
+use url::Url;
 
-use super::{super::misc::Client, extract::extract, Inner, Tsl};
+use super::{
+    super::misc::Client,
+    error::Error,
+    extract::{extract, TrustServiceStatusList},
+    Inner, Tsl,
+};
 
-pub async fn update(url: Url, tsl: Tsl) {
+pub async fn update<F>(url: Url, tsl: Tsl, prepare: F, load_hash: bool)
+where
+    F: Fn(&mut TrustServiceStatusList) + Send + Sync,
+{
     let client = match Client::new() {
         Ok(client) => client,
         Err(err) => {
@@ -41,10 +50,10 @@ pub async fn update(url: Url, tsl: Tsl) {
         let mut retry_timeout = 30u64;
 
         let next = loop {
-            let xml = match fetch_data(&client, &url, "TSL.xml").await {
+            let xml = match fetch_data(&client, &url).await {
                 Ok(xml) => xml,
                 Err(err) => {
-                    warn!("Unable to fetch TSL.xml: {}", err);
+                    warn!("Unable to fetch TSL ({}): {}", &url, err);
 
                     delay_for(Duration::from_secs(retry_timeout)).await;
                     retry_timeout = min(15 * 60, (retry_timeout as f64 * 1.2) as u64);
@@ -53,22 +62,27 @@ pub async fn update(url: Url, tsl: Tsl) {
                 }
             };
 
-            let sha2 = match fetch_data(&client, &url, "TSL.sha2").await {
-                Ok(xml) => xml,
-                Err(err) => {
-                    warn!("Unable to fetch TSL.sha2: {}", err);
+            let sha_url = build_sha_url(&url);
+            let sha2 = if load_hash {
+                match fetch_data(&client, &sha_url).await {
+                    Ok(sha2) => Some(sha2),
+                    Err(err) => {
+                        warn!("Unable to fetch SHA ({}): {}", &sha_url, err);
 
-                    delay_for(Duration::from_secs(retry_timeout)).await;
-                    retry_timeout = min(15 * 60, (retry_timeout as f64 * 1.2) as u64);
+                        delay_for(Duration::from_secs(retry_timeout)).await;
+                        retry_timeout = min(15 * 60, (retry_timeout as f64 * 1.2) as u64);
 
-                    continue;
+                        continue;
+                    }
                 }
+            } else {
+                None
             };
 
-            let certs = match extract(&xml) {
+            let certs = match extract(&xml, &prepare) {
                 Ok(certs) => certs,
                 Err(err) => {
-                    warn!("Unable to extract certificats from TSL: {}", err);
+                    warn!("Unable to extract certificats from TSL ({}): {}", &url, err);
 
                     delay_for(Duration::from_secs(retry_timeout)).await;
                     retry_timeout = min(15 * 60, (retry_timeout as f64 * 1.2) as u64);
@@ -77,51 +91,69 @@ pub async fn update(url: Url, tsl: Tsl) {
                 }
             };
 
-            break Inner { xml, sha2, certs };
+            let store = match X509StoreBuilder::new() {
+                Ok(store) => store.build(),
+                Err(err) => {
+                    error!("Unable to create X509 store: {}", err);
+
+                    return;
+                }
+            };
+
+            break Inner {
+                xml,
+                sha2,
+                certs,
+                store,
+            };
         };
 
         tsl.0.store(Some(Arc::new(next)));
 
-        info!("TSL updated");
+        info!("TSL updated: {}", url);
 
         delay_for(Duration::from_secs(12 * 60 * 60)).await; // 12 h
     }
 }
 
-#[derive(Debug, Error)]
-#[allow(clippy::enum_variant_names)]
-enum Error {
-    #[error("Url Parse Error: {0}")]
-    ParseError(ParseError),
+async fn fetch_data(client: &Client, url: &Url) -> Result<String, Error> {
+    let body = if url.scheme() == "file" {
+        let filename = match url.host() {
+            Some(host) => format!("{}{}", host, url.path()),
+            None => url.path().into(),
+        };
 
-    #[error("Reqwest Error: {0}")]
-    ReqwestError(ReqwestError),
+        read_to_string(filename)?
+    } else {
+        let res = client.get(url.clone())?.send().await?;
 
-    #[error("Invalid Response (url={0})")]
-    InvalidResponse(String),
-}
+        if res.status() != 200 {
+            return Err(Error::InvalidResponse(url.to_string()));
+        }
 
-impl From<ParseError> for Error {
-    fn from(err: ParseError) -> Error {
-        Error::ParseError(err)
-    }
-}
-
-impl From<ReqwestError> for Error {
-    fn from(err: ReqwestError) -> Error {
-        Error::ReqwestError(err)
-    }
-}
-
-async fn fetch_data(client: &Client, url: &Url, file: &str) -> Result<String, Error> {
-    let url = url.join(file)?;
-    let res = client.get(url.clone())?.send().await?;
-
-    if res.status() != 200 {
-        return Err(Error::InvalidResponse(url.to_string()));
-    }
-
-    let body = res.text().await?;
+        res.text().await?
+    };
 
     Ok(body)
+}
+
+#[allow(clippy::trivial_regex)]
+fn build_sha_url(url: &Url) -> Url {
+    lazy_static! {
+        static ref RX: Regex = RegexBuilder::new(r#"\.xml$"#)
+            .case_insensitive(true)
+            .build()
+            .unwrap();
+    }
+
+    let path = if RX.is_match(url.path()) {
+        RX.replace(url.path(), ".sha2").into_owned()
+    } else {
+        format!("{}.sha2", url.path())
+    };
+
+    let mut url = url.clone();
+    url.set_path(&path);
+
+    url
 }

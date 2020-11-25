@@ -25,6 +25,8 @@ use futures::{
     stream::Stream,
 };
 
+use crate::fhir::{Format, WithFormat};
+
 use super::DecodeError;
 
 #[allow(clippy::type_complexity)]
@@ -65,6 +67,19 @@ where
 {
     fn default() -> Self {
         Self::Done
+    }
+}
+
+impl<'a, D> WithFormat for ItemStream<'a, D>
+where
+    D: Decoder<'a> + WithFormat,
+{
+    fn format(&self) -> Option<Format> {
+        match self {
+            Self::Done => None,
+            Self::Idle(d) => d.format(),
+            Self::Pending(_) => None,
+        }
     }
 }
 

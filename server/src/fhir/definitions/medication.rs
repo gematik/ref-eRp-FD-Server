@@ -19,6 +19,7 @@ use std::borrow::Cow;
 use std::iter::once;
 
 use async_trait::async_trait;
+use miscellaneous::str::icase_eq;
 use resources::medication::{
     Amount, Category, CompoundingData, Data, Extension, FreeTextData, Ingredient, IngredientData,
     Medication, PznCode, PznData, PznForm, StandardSize,
@@ -55,7 +56,7 @@ impl Decode for Medication {
         let extension = stream.decode_opt(&mut fields, decode_any).await?;
 
         let data = match meta.profiles.get(0) {
-            Some(s) if s == PROFILE_MEDICATION_COMPOUNDING => {
+            Some(s) if icase_eq(s, PROFILE_MEDICATION_COMPOUNDING) => {
                 let mut fields = Fields::new(&["code", "form", "amount", "ingredient"]);
 
                 let (medication_type, code) = stream
@@ -87,7 +88,7 @@ impl Decode for Medication {
                     ingredient,
                 })
             }
-            Some(s) if s == PROFILE_MEDICATION_INGREDIENT => {
+            Some(s) if icase_eq(s, PROFILE_MEDICATION_INGREDIENT) => {
                 let mut fields = Fields::new(&["code", "form", "amount", "ingredient"]);
 
                 let (medication_type, _code) = stream
@@ -118,7 +119,7 @@ impl Decode for Medication {
                     ingredient,
                 })
             }
-            Some(s) if s == PROFILE_MEDICATION_FREE_TEXT => {
+            Some(s) if icase_eq(s, PROFILE_MEDICATION_FREE_TEXT) => {
                 let mut fields = Fields::new(&["code", "form"]);
 
                 let (medication_type, code) = stream
@@ -151,7 +152,7 @@ impl Decode for Medication {
 
                 Data::FreeText(FreeTextData { code, form })
             }
-            Some(s) if s == PROFILE_MEDICATION_PZN => {
+            Some(s) if icase_eq(s, PROFILE_MEDICATION_PZN) => {
                 let mut fields = Fields::new(&["code", "form", "amount"]);
 
                 let code = stream.decode(&mut fields, decode_codeable_concept).await?;
@@ -202,27 +203,27 @@ impl Decode for Extension {
             let url = stream.value(Search::Exact("url")).await?.unwrap();
 
             match url.as_str() {
-                URL_CATEGORY => {
+                x if icase_eq(x, URL_CATEGORY) => {
                     let mut fields = Fields::new(&["valueCoding"]);
 
                     category = Some(stream.decode(&mut fields, decode_coding).await?);
                 }
-                URL_VACCINE => {
+                x if icase_eq(x, URL_VACCINE) => {
                     let mut fields = Fields::new(&["valueBoolean"]);
 
                     vaccine = Some(stream.decode(&mut fields, decode_any).await?);
                 }
-                URL_INSTRUCTION => {
+                x if icase_eq(x, URL_INSTRUCTION) => {
                     let mut fields = Fields::new(&["valueString"]);
 
                     instruction = Some(stream.decode(&mut fields, decode_any).await?);
                 }
-                URL_PACKAGING => {
+                x if icase_eq(x, URL_PACKAGING) => {
                     let mut fields = Fields::new(&["valueString"]);
 
                     packaging = Some(stream.decode(&mut fields, decode_any).await?);
                 }
-                URL_STANDARD_SIZE => {
+                x if icase_eq(x, URL_STANDARD_SIZE) => {
                     let mut fields = Fields::new(&["valueCode"]);
 
                     standard_size = Some(stream.decode(&mut fields, decode_code).await?);
@@ -274,7 +275,7 @@ where
 
         let url = stream.value(Search::Exact("url")).await?.unwrap();
 
-        if url == URL_DOSAGE_FORM {
+        if icase_eq(url, URL_DOSAGE_FORM) {
             let mut fields = Fields::new(&["valueString"]);
 
             dosage_form = Some(stream.decode(&mut fields, decode_any).await?);
@@ -294,7 +295,7 @@ where
 
             stream.element().await?;
 
-            stream.fixed(&mut fields, T::system()).await?;
+            stream.ifixed(&mut fields, T::system()).await?;
             code = Some(stream.decode(&mut fields, decode_any).await?);
 
             stream.end().await?;
@@ -318,7 +319,7 @@ where
 
             let url = stream.value(Search::Exact("url")).await?.unwrap();
 
-            if url == URL_INGREDIENT_AMOUNT {
+            if icase_eq(url, URL_INGREDIENT_AMOUNT) {
                 let mut fields = Fields::new(&["valueString"]);
 
                 amount_free_text = Some(stream.decode(&mut fields, decode_any).await?);
@@ -336,7 +337,7 @@ where
             let value = stream.decode(&mut fields, decode_any).await?;
             let unit = stream.decode(&mut fields, decode_any).await?;
             stream
-                .fixed(&mut fields, "http://unitsofmeasure.org")
+                .ifixed(&mut fields, "http://unitsofmeasure.org")
                 .await?;
 
             stream.end().await?;
@@ -650,7 +651,7 @@ impl CodeableConcept for PznCode {
         let code = {
             let mut fields = Fields::new(&["system", "code"]);
 
-            let _system = stream.fixed(&mut fields, SYSTEM_PZN).await?;
+            let _system = stream.ifixed(&mut fields, SYSTEM_PZN).await?;
             let code = stream.decode(&mut fields, decode_any).await?;
 
             code

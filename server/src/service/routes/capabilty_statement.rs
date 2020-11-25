@@ -24,7 +24,7 @@ use actix_web::{
     HttpResponse,
 };
 use resources::capability_statement::{
-    CapabilityStatement, FhirVersion, Format, Mode, Rest, Status,
+    CapabilityStatement, FhirVersion, Format, Mode, Rest, Software, Status,
 };
 use serde::Deserialize;
 
@@ -47,6 +47,11 @@ pub fn create() -> CapabilityStatement {
         title: "E-Rezept Workflow CapabilityStatement".to_owned(),
         status: Status::Draft,
         date: "2020-01-01T00:00:00Z".try_into().unwrap(),
+        software: Software {
+            name: "ref-erx-fd-server".into(),
+            version: format_version(),
+            release_date: env!("BUILD_TIMESTAMP").try_into().unwrap(),
+        },
         description: "E-Rezept Fachdienst Server Referenzimplementierung".to_owned(),
         fhir_version: FhirVersion::V4_0_0,
         format: vec![
@@ -134,6 +139,42 @@ pub async fn get(accept: Accept, query: Query<QueryArgs>) -> Result<HttpResponse
     Ok(HttpResponse::NotFound().finish())
 }
 
+fn format_version() -> String {
+    static VERSIONS: [Option<&str>; 2] = [
+        option_env!("GIT_VERSION_TAG"),
+        option_env!("CARGO_PKG_VERSION"),
+    ];
+    let version = VERSIONS
+        .iter()
+        .filter_map(|s| match s {
+            Some(s) if !s.is_empty() => Some(s),
+            _ => None,
+        })
+        .next()
+        .unwrap_or(&"0.0.0");
+    let mut ret = (*version).to_owned();
+
+    if let Some(commits_behind) = option_env!("GIT_COMMITS_BEHIND") {
+        if !commits_behind.is_empty() && commits_behind != "0" {
+            ret = format!("{}+{}", ret, commits_behind);
+        }
+    }
+
+    if let Some(dirty) = option_env!("GIT_DIRTY") {
+        if dirty == "1" {
+            ret = format!("{} dirty", ret);
+        }
+    }
+
+    if let Some(hash) = option_env!("GIT_HASH") {
+        if !hash.is_empty() {
+            ret = format!("{} {}", ret, hash);
+        }
+    }
+
+    ret
+}
+
 #[cfg(feature = "support-xml")]
 lazy_static! {
     static ref XML: String = {
@@ -152,52 +193,4 @@ lazy_static! {
 
         s.into()
     };
-}
-
-#[cfg(test)]
-pub mod tests {
-    use super::*;
-
-    use std::fs::read_to_string;
-
-    #[cfg(feature = "support-json")]
-    use crate::fhir::tests::trim_json_str;
-    #[cfg(feature = "support-xml")]
-    use crate::fhir::tests::trim_xml_str;
-
-    #[test]
-    #[cfg(feature = "support-xml")]
-    fn as_xml() {
-        #[cfg(all(feature = "interface-patient", feature = "interface-supplier"))]
-        let file = "./examples/capability_statement_both.xml";
-
-        #[cfg(all(not(feature = "interface-patient"), feature = "interface-supplier"))]
-        let file = "./examples/capability_statement_supplier.xml";
-
-        #[cfg(all(feature = "interface-patient", not(feature = "interface-supplier")))]
-        let file = "./examples/capability_statement_patient.xml";
-
-        let actual = &*XML;
-        let expected = &trim_xml_str(&read_to_string(file).unwrap());
-
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
-    #[cfg(feature = "support-json")]
-    fn as_json() {
-        #[cfg(all(feature = "interface-patient", feature = "interface-supplier"))]
-        let file = "./examples/capability_statement_both.json";
-
-        #[cfg(all(not(feature = "interface-patient"), feature = "interface-supplier"))]
-        let file = "./examples/capability_statement_supplier.json";
-
-        #[cfg(all(feature = "interface-patient", not(feature = "interface-supplier")))]
-        let file = "./examples/capability_statement_patient.json";
-
-        let actual = &*JSON;
-        let expected = &trim_json_str(&read_to_string(file).unwrap());
-
-        assert_eq!(actual, expected);
-    }
 }

@@ -19,7 +19,7 @@ use super::{
     misc::PrescriptionId,
     primitives::{Id, Instant},
     Composition, Coverage, Medication, MedicationRequest, Organization, Patient, Practitioner,
-    PractitionerRole,
+    PractitionerRole, Signature, WithSignature,
 };
 
 #[derive(Clone, PartialEq, Debug)]
@@ -28,6 +28,7 @@ pub struct KbvBundle {
     pub identifier: PrescriptionId,
     pub timestamp: Instant,
     pub entry: Entry,
+    pub signature: Vec<Signature>,
 }
 
 #[derive(Default, Clone, PartialEq, Debug)]
@@ -40,4 +41,14 @@ pub struct Entry {
     pub organization: Option<(String, Organization)>,
     pub coverage: Option<(String, Coverage)>,
     pub practitioner_role: Option<(String, PractitionerRole)>,
+}
+
+impl WithSignature for KbvBundle {
+    fn signatures(&self) -> &Vec<Signature> {
+        &self.signature
+    }
+
+    fn signatures_mut(&mut self) -> &mut Vec<Signature> {
+        &mut self.signature
+    }
 }

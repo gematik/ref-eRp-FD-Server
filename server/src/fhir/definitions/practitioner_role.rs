@@ -16,6 +16,7 @@
  */
 
 use async_trait::async_trait;
+use miscellaneous::str::icase_eq;
 use resources::practitioner_role::PractitionerRole;
 
 use crate::fhir::{
@@ -54,7 +55,7 @@ impl Decode for PractitionerRole {
 
         let mut fields = Fields::new(&["system", "value"]);
 
-        let _system = stream.fixed(&mut fields, SYSTEM_ORGANIZATION).await?;
+        let _system = stream.ifixed(&mut fields, SYSTEM_ORGANIZATION).await?;
         let organization = stream.decode(&mut fields, decode_any).await?;
 
         stream.end().await?;
@@ -64,7 +65,7 @@ impl Decode for PractitionerRole {
         stream.end_substream().await?;
         stream.end().await?;
 
-        if !meta.profiles.iter().any(|p| p == PROFILE) {
+        if !meta.profiles.iter().any(|p| icase_eq(p, PROFILE)) {
             return Err(DecodeError::InvalidProfile {
                 actual: meta.profiles,
                 expected: vec![PROFILE.into()],

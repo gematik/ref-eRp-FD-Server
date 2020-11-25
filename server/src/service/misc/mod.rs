@@ -26,3 +26,11 @@ pub use cms::Cms;
 pub use data_type::DataType;
 pub use search::Search;
 pub use sort::Sort;
+
+use openssl::{
+    pkey::{PKey, Private},
+    x509::X509,
+};
+
+pub struct SigKey(pub PKey<Private>);
+pub struct SigCert(pub X509);

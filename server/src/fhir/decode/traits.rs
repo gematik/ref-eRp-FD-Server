@@ -106,9 +106,46 @@ impl FromString for bool {
 pub mod tests {
     use super::*;
 
-    use futures::stream::iter;
+    use std::pin::Pin;
+    use std::task::{Context, Poll};
+
+    use futures::stream::{iter, Stream, StreamExt};
+
+    use crate::fhir::{Format, WithFormat};
 
     use super::super::{DecodeError, DecodeStream, Fields, Item, Search};
+
+    struct StreamWithFormat<S> {
+        stream: S,
+        format: Option<Format>,
+    }
+
+    impl<S> StreamWithFormat<S> {
+        pub fn new(stream: S, format: Option<Format>) -> Self {
+            Self { stream, format }
+        }
+    }
+
+    impl<S> WithFormat for StreamWithFormat<S> {
+        fn format(&self) -> Option<Format> {
+            self.format
+        }
+    }
+
+    impl<S> Stream for StreamWithFormat<S>
+    where
+        S: Stream + Unpin,
+    {
+        type Item = S::Item;
+
+        fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+            self.stream.poll_next_unpin(cx)
+        }
+
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            self.stream.size_hint()
+        }
+    }
 
     #[derive(Debug, PartialEq)]
     struct Element {
@@ -142,6 +179,7 @@ pub mod tests {
             extension: Vec::new(),
         }];
         let stream = iter(stream.into_iter().map(Result::<Item, String>::Ok));
+        let stream = StreamWithFormat::new(stream, None);
         let mut stream = DecodeStream::new(stream);
 
         let actual = stream
@@ -161,6 +199,7 @@ pub mod tests {
             extension: Vec::new(),
         }];
         let stream = iter(stream.into_iter().map(Result::<Item, String>::Ok));
+        let stream = StreamWithFormat::new(stream, None);
         let mut stream = DecodeStream::new(stream);
 
         let mut fields = Fields::new(&["test"]);
@@ -181,6 +220,7 @@ pub mod tests {
             extension: Vec::new(),
         }];
         let stream = iter(stream.into_iter().map(Result::<Item, String>::Ok));
+        let stream = StreamWithFormat::new(stream, None);
         let mut stream = DecodeStream::new(stream);
 
         let mut fields = Fields::new(&["fuu"]);
@@ -213,6 +253,7 @@ pub mod tests {
             },
         ];
         let stream = iter(stream.into_iter().map(Result::<Item, String>::Ok));
+        let stream = StreamWithFormat::new(stream, None);
         let mut stream = DecodeStream::new(stream);
 
         let mut fields = Fields::new(&["test"]);
@@ -243,6 +284,7 @@ pub mod tests {
             Item::EndElement,
         ];
         let stream = iter(stream.into_iter().map(Result::<Item, String>::Ok));
+        let stream = StreamWithFormat::new(stream, None);
         let mut stream = DecodeStream::new(stream);
 
         let actual = stream
@@ -271,6 +313,7 @@ pub mod tests {
             Item::EndElement,
         ];
         let stream = iter(stream.into_iter().map(Result::<Item, String>::Ok));
+        let stream = StreamWithFormat::new(stream, None);
         let mut stream = DecodeStream::new(stream);
 
         let actual = stream
@@ -313,6 +356,7 @@ pub mod tests {
             Item::EndElement,
         ];
         let stream = iter(stream.into_iter().map(Result::<Item, String>::Ok));
+        let stream = StreamWithFormat::new(stream, None);
         let mut stream = DecodeStream::new(stream);
 
         let actual = stream
@@ -348,6 +392,7 @@ pub mod tests {
             },
         ];
         let stream = iter(stream.into_iter().map(Result::<Item, String>::Ok));
+        let stream = StreamWithFormat::new(stream, None);
         let mut stream = DecodeStream::new(stream);
 
         let actual = stream

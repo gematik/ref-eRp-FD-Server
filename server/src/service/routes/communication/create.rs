@@ -140,7 +140,7 @@ pub async fn create(
         Entry::Vacant(entry) => entry.insert(communication),
     };
 
-    response_with_communication(communication, accept)
+    response_with_communication(communication, accept, true)
 }
 
 fn parse_task_url(url: &str) -> Result<(Id, Option<XAccessCode>), ()> {

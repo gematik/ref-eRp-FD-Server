@@ -91,7 +91,7 @@ pub async fn abort(
     let patient_receipt = task.input.patient_receipt.take();
     let _receipt = task.output.receipt.take();
 
-    let res = match response_with_task(task, accept) {
+    let res = match response_with_task(task, accept, false) {
         Ok(res) => res,
         Err(err) => return Err(err),
     };

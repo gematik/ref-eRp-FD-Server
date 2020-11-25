@@ -19,6 +19,8 @@ use std::fmt::{Debug, Display};
 
 use thiserror::Error;
 
+use crate::fhir::Format;
+
 use super::{Item, Value};
 
 pub struct EncodeStream<S> {
@@ -70,6 +72,8 @@ pub trait DataStorage {
     type Error: Display + Debug;
 
     fn put_item(&mut self, item: Item) -> Result<(), Self::Error>;
+
+    fn format(&self) -> Option<Format>;
 }
 
 pub trait Optional {
@@ -99,6 +103,10 @@ where
             state: vec![State::ExpectRoot],
             extension: Vec::new(),
         }
+    }
+
+    pub fn format(&self) -> Option<Format> {
+        self.storage.format()
     }
 
     pub fn root<N>(&mut self, name: N) -> Result<&mut Self, EncodeError<S::Error>>

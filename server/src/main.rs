@@ -25,7 +25,10 @@ use ref_erx_fd_server::{
     error::Error,
     logging::init_logger,
     service::Service,
-    tasks::{PukToken, Tsl},
+    tasks::{
+        tsl::{prepare_no_op, prepare_tsl},
+        PukToken, Tsl,
+    },
 };
 
 fn main() -> Result<(), Error> {
@@ -41,12 +44,21 @@ fn main() -> Result<(), Error> {
 async fn run(opts: Options) -> Result<(), Error> {
     let local = LocalSet::new();
 
-    let tsl = Tsl::from_url(opts.tsl);
+    let tsl = Tsl::from_url(opts.tsl, prepare_tsl, true);
+    let bnetza = Tsl::from_url(opts.bnetza, prepare_no_op, false);
     let puk_token = PukToken::from_url(opts.token)?;
 
-    let handle = Service::new(opts.key, opts.cert, opts.qes_cert, puk_token, tsl)
-        .listen(&opts.server_addr)?
-        .run(&local)?;
+    let handle = Service::new(
+        opts.enc_key,
+        opts.enc_cert,
+        opts.sig_key,
+        opts.sig_cert,
+        puk_token,
+        tsl,
+        bnetza,
+    )
+    .listen(&opts.server_addr)?
+    .run(&local)?;
 
     local
         .run_until(async move {
@@ -87,13 +99,21 @@ async fn sig_handler() -> Result<bool, Error> {
 
 #[derive(Clone, StructOpt)]
 struct Options {
-    /// Private key of the ERX-FD server.
-    #[structopt(verbatim_doc_comment, long = "key")]
-    key: PathBuf,
+    /// Private key of the ERX-FD server used for encryption.
+    #[structopt(verbatim_doc_comment, long = "enc-key")]
+    enc_key: PathBuf,
 
-    /// Certificate (with public key) of the ERX-FD server.
-    #[structopt(verbatim_doc_comment, long = "cert")]
-    cert: PathBuf,
+    /// Certificate (with public key) of the ERX-FD server use for encryption.
+    #[structopt(verbatim_doc_comment, long = "enc-cert")]
+    enc_cert: PathBuf,
+
+    /// Private key of the ERX-FD server used for signing.
+    #[structopt(verbatim_doc_comment, long = "sig-key")]
+    sig_key: PathBuf,
+
+    /// Certificate (with public key) of the ERX-FD server use for signing.
+    #[structopt(verbatim_doc_comment, long = "sig-cert")]
+    sig_cert: PathBuf,
 
     /// URI to get the public key for the access token from.
     /// This parameter accepts normal web URLs and files.
@@ -103,14 +123,11 @@ struct Options {
     #[structopt(verbatim_doc_comment, long = "token")]
     token: Url,
 
-    /// Certificate to use for verifying CMS containers.
-    #[structopt(verbatim_doc_comment, long = "qes-cert")]
-    qes_cert: PathBuf,
+    /// BNetzA-VL containing all valid QES-CA-certificates in Germany.
+    #[structopt(verbatim_doc_comment, long = "bnetza")]
+    bnetza: Option<Url>,
 
     /// URL to load TSL (Trust Status List) from.
-    /// This is the base URL the FD will look for two files in:
-    ///     * {tsl-url}/TSL.xml - Actual TSL
-    ///     * {tsl-url}/TSL.sha2 - SHA256 of the TSL.xml
     #[structopt(verbatim_doc_comment, long = "tsl")]
     tsl: Option<Url>,
 

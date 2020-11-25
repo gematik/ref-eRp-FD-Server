@@ -23,10 +23,18 @@ pub struct CapabilityStatement {
     pub title: String,
     pub status: Status,
     pub date: DateTime,
+    pub software: Software,
     pub description: String,
     pub fhir_version: FhirVersion,
     pub format: Vec<Format>,
     pub rest: Vec<Rest>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Software {
+    pub name: String,
+    pub version: String,
+    pub release_date: DateTime,
 }
 
 #[derive(Clone, Debug, PartialEq)]

@@ -24,6 +24,8 @@ use futures::{
     stream::Stream,
 };
 
+use crate::fhir::{Format, WithFormat};
+
 use super::{
     super::{
         byte_stream::StreamError,
@@ -397,5 +399,15 @@ where
             }
         }
         .boxed_local()
+    }
+}
+
+impl<'a, S, E> WithFormat for Json<'a, S, E>
+where
+    S: Stream<Item = Result<Bytes, E>> + Unpin + 'a,
+    E: Display + Debug,
+{
+    fn format(&self) -> Option<Format> {
+        Some(Format::Json)
     }
 }

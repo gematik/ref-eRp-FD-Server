@@ -91,7 +91,7 @@ pub async fn create(
         data_type => data_type,
     };
 
-    response_with_task(task, data_type)
+    response_with_task(task, data_type, true)
 }
 
 fn create_task(flow_type: FlowType) -> Result<Task, RequestError> {

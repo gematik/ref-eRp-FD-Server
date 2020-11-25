@@ -18,6 +18,10 @@
 pub mod decode;
 pub mod definitions;
 pub mod encode;
+pub mod format;
+pub mod security;
+
+pub use format::{Format, WithFormat};
 
 #[cfg(test)]
 pub mod tests {

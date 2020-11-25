@@ -18,6 +18,7 @@
 use std::iter::once;
 
 use async_trait::async_trait;
+use miscellaneous::str::icase_eq;
 use resources::medication_dispense::{DosageInstruction, MedicationDispense};
 
 use crate::fhir::{
@@ -99,7 +100,7 @@ impl Decode for MedicationDispense {
 
         stream.end().await?;
 
-        if !meta.profiles.iter().any(|p| p == PROFILE) {
+        if !meta.profiles.iter().any(|p| icase_eq(p, PROFILE)) {
             return Err(DecodeError::InvalidProfile {
                 actual: meta.profiles,
                 expected: vec![PROFILE.into()],

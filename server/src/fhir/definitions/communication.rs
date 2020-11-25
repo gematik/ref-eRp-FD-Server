@@ -18,6 +18,7 @@
 use std::iter::once;
 
 use async_trait::async_trait;
+use miscellaneous::str::icase_eq;
 use resources::{
     communication::{
         Availability, Communication, DispenseReqExtensions, InfoReqExtensions, Inner, Payload,
@@ -60,23 +61,23 @@ impl Decode for Communication {
         let meta = stream.decode::<Meta, _>(&mut fields, decode_any).await?;
 
         let p = meta.profiles;
-        let communication = if p.iter().any(|p| p == PROFILE_INFO_REQ) {
+        let communication = if p.iter().any(|p| icase_eq(p, PROFILE_INFO_REQ)) {
             let mut inner = Inner::<InfoReqExtensions, TelematikId, Kvnr>::decode(stream).await?;
             inner.id = id;
 
             Communication::InfoReq(inner)
-        } else if p.iter().any(|p| p == PROFILE_REPLY) {
+        } else if p.iter().any(|p| icase_eq(p, PROFILE_REPLY)) {
             let mut inner = Inner::<ReplyExtensions, Kvnr, TelematikId>::decode(stream).await?;
             inner.id = id;
 
             Communication::Reply(inner)
-        } else if p.iter().any(|p| p == PROFILE_DISPENSE_REQ) {
+        } else if p.iter().any(|p| icase_eq(p, PROFILE_DISPENSE_REQ)) {
             let mut inner =
                 Inner::<DispenseReqExtensions, TelematikId, Kvnr>::decode(stream).await?;
             inner.id = id;
 
             Communication::DispenseReq(inner)
-        } else if p.iter().any(|p| p == PROFILE_REPRESENTATIVE) {
+        } else if p.iter().any(|p| icase_eq(p, PROFILE_REPRESENTATIVE)) {
             let mut inner = Inner::<RepresentativeExtensions, Kvnr, Kvnr>::decode(stream).await?;
             inner.id = id;
 
@@ -209,22 +210,22 @@ impl Decode for InfoReqExtensions {
 
             let url = stream.value(Search::Exact("url")).await?.unwrap();
             match url.as_str() {
-                URL_INSURANCE_PROVIDER => {
+                x if icase_eq(x, URL_INSURANCE_PROVIDER) => {
                     let mut fields = Fields::new(&["valueIdentifier"]);
 
                     insurance_provider = Some(stream.decode(&mut fields, decode_identifier).await?);
                 }
-                URL_SUBSTITUTION_ALLOWED => {
+                x if icase_eq(x, URL_SUBSTITUTION_ALLOWED) => {
                     let mut fields = Fields::new(&["valueBoolean"]);
 
                     substitution_allowed = Some(stream.decode(&mut fields, decode_any).await?);
                 }
-                URL_PRESCRIPTION_TYPE => {
+                x if icase_eq(x, URL_PRESCRIPTION_TYPE) => {
                     let mut fields = Fields::new(&["valueCoding"]);
 
                     prescription_type = Some(stream.decode(&mut fields, decode_coding).await?);
                 }
-                URL_SUPPLY_OPTIONS => {
+                x if icase_eq(x, URL_SUPPLY_OPTIONS) => {
                     preferred_supply_options = Some(decode_supply_options(stream).await?);
                 }
                 _ => (),
@@ -273,12 +274,12 @@ impl Decode for ReplyExtensions {
 
             let url = stream.value(Search::Exact("url")).await?.unwrap();
             match url.as_str() {
-                URL_AVAILABILITY => {
+                x if icase_eq(x, URL_AVAILABILITY) => {
                     let mut fields = Fields::new(&["valueCoding"]);
 
                     availability = Some(stream.decode(&mut fields, decode_coding).await?);
                 }
-                URL_SUPPLY_OPTIONS => {
+                x if icase_eq(x, URL_SUPPLY_OPTIONS) => {
                     offered_supply_options = Some(decode_supply_options(stream).await?);
                 }
                 _ => (),
@@ -308,7 +309,7 @@ impl Decode for DispenseReqExtensions {
             stream.element().await?;
 
             let url = stream.value(Search::Exact("url")).await?.unwrap();
-            if url == URL_INSURANCE_PROVIDER {
+            if icase_eq(&url, URL_INSURANCE_PROVIDER) {
                 let mut fields = Fields::new(&["valueIdentifier	"]);
 
                 insurance_provider = Some(stream.decode(&mut fields, decode_identifier).await?);

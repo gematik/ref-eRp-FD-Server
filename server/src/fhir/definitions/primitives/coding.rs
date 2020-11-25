@@ -82,7 +82,7 @@ impl<T: CodingEx> Coding for T {
 
         stream.element().await?;
 
-        let _system = stream.fixed_opt(&mut fields, Self::system()).await?;
+        let _system = stream.ifixed_opt(&mut fields, Self::system()).await?;
         let code = stream.decode(&mut fields, decode_code).await?;
 
         stream.end().await?;
