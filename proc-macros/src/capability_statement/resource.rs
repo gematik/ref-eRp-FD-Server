@@ -73,10 +73,8 @@ impl ResourceMacro {
             result: TokenStream::new(),
             name: None,
             routes: Vec::new(),
-            type_: type_.ok_or_else(|| "Missing the 'type' attribute")?.into(),
-            profile: profile
-                .ok_or_else(|| "Missing the 'profile' attribute")?
-                .into(),
+            type_: type_.ok_or("Missing the 'type' attribute")?.into(),
+            profile: profile.ok_or("Missing the 'profile' attribute")?.into(),
             supported_profiles: supported_profiles.map(Into::into),
         })
     }
@@ -150,9 +148,7 @@ impl ResourceMacro {
                     }
                 }
                 TokenTree::Ident(ident) if ident.to_string() == "fn" => {
-                    let token = it
-                        .next()
-                        .ok_or_else(|| "Expected method name after 'fn' keyword")?;
+                    let token = it.next().ok_or("Expected method name after 'fn' keyword")?;
 
                     ret.extend(TokenStream::from(TokenTree::Ident(ident)));
                     ret.extend(TokenStream::from(token.clone()));

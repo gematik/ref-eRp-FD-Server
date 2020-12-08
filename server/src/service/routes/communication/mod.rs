@@ -17,8 +17,10 @@
 
 mod create;
 mod delete;
+mod error;
 mod get;
-mod misc;
+
+pub use error::Error;
 
 use create::create;
 use delete::delete_one;

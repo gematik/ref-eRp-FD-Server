@@ -34,7 +34,9 @@ use tokio::task::LocalSet;
 
 use crate::tasks::{PukToken, Tsl};
 
-pub use error::{Error, RequestError};
+pub use error::{
+    AsReqErr, AsReqErrResult, Error, RequestError, TypedRequestError, TypedRequestResult,
+};
 use middleware::{ExtractAccessToken, HeaderCheck, Logging, Vau};
 use misc::{Cms, SigCert, SigKey};
 use routes::configure_routes;

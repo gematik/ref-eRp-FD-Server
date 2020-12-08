@@ -15,7 +15,10 @@
  *
  */
 
+mod error;
 mod get;
+
+pub use error::Error;
 
 use actix_web::web::{get, resource, ServiceConfig};
 use proc_macros::capability_statement_resource;

@@ -23,6 +23,9 @@ use super::{
 };
 
 #[derive(Clone, PartialEq, Debug)]
+pub struct KbvBinary(pub String);
+
+#[derive(Clone, PartialEq, Debug)]
 pub struct KbvBundle {
     pub id: Id,
     pub identifier: PrescriptionId,

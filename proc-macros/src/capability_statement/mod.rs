@@ -68,10 +68,8 @@ impl CapabilityStatementMacro {
         Ok(Self {
             tokens: tokens.into_iter(),
             result: TokenStream::new(),
-            init: init.ok_or_else(|| "Missing the 'init' attribute")?.into(),
-            handler: handler
-                .ok_or_else(|| "Missing the 'handler' attribute")?
-                .into(),
+            init: init.ok_or("Missing the 'init' attribute")?.into(),
+            handler: handler.ok_or("Missing the 'handler' attribute")?.into(),
             resources: Vec::new(),
         })
     }

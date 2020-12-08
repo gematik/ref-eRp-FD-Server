@@ -95,6 +95,7 @@ pub enum Type {
     Operation,
     Communication,
     MedicationDispense,
+    AuditEvent,
 }
 
 #[allow(dead_code)]

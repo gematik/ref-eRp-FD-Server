@@ -20,7 +20,7 @@ use std::path::PathBuf;
 use std::str::from_utf8;
 
 use miscellaneous::jwt::sign;
-use openssl::pkey::PKey;
+use openssl::{pkey::PKey, x509::X509};
 use serde_json::{from_str, Value};
 use structopt::StructOpt;
 
@@ -37,6 +37,13 @@ pub struct Opts {
     /// ACCESS_TOKEN with.
     #[structopt(short, long)]
     key: PathBuf,
+
+    /// Certificate to embedd in the header of the JWS document.
+    ///
+    /// Path to the file that contians the cerificate PEM format that is added to the header of
+    /// the JWS document.
+    #[structopt(short = "z", long)]
+    cert: Option<PathBuf>,
 
     /// File path of the claims to encode within the ACCESS_TOKEN.
     ///
@@ -55,7 +62,14 @@ pub fn execute(opts: Opts) {
     let claims =
         from_str::<Value>(&claims).expect("Unable to interpret claims: Invalid JSON format!");
 
-    let access_token = sign(&claims, key, None, false).expect("Unable to crate ACCESS_TOKEN");
+    let cert = opts.cert.map(|cert| {
+        let cert = read(cert).expect("Unable to read certificate!");
+
+        X509::from_pem(&cert).expect("Unable to load certificate!")
+    });
+
+    let access_token =
+        sign(&claims, key, cert.as_ref(), false).expect("Unable to crate ACCESS_TOKEN");
 
     println!("{}", access_token);
 }

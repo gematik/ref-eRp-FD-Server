@@ -15,6 +15,8 @@
  *
  */
 
+use std::iter::once;
+
 use async_trait::async_trait;
 use resources::{Signature, SignatureFormat, SignatureType};
 
@@ -37,7 +39,7 @@ impl Decode for Signature {
     {
         let mut fields = Fields::new(&["type", "when", "who", "targetFormat", "sigFormat", "data"]);
 
-        stream.element().await?;
+        stream.root("Signature").await?;
 
         let type_ = stream.decode(&mut fields, decode_coding).await?;
         let when = stream.decode(&mut fields, decode_any).await?;
@@ -53,6 +55,9 @@ impl Decode for Signature {
         stream.end().await?;
 
         let format = match (target_format.as_deref(), sig_format.as_deref()) {
+            (Some("application/fhir+xml"), Some("application/pkcs7-mime")) => {
+                Some(SignatureFormat::Xml)
+            }
             (Some("application/fhir+json"), Some("application/jose")) => {
                 Some(SignatureFormat::Json)
             }
@@ -86,6 +91,9 @@ impl Encode for &Signature {
         S: DataStorage,
     {
         let (target_format, sig_format) = match self.format.as_ref() {
+            Some(SignatureFormat::Xml) => {
+                (Some("application/fhir+xml"), Some("application/pkcs7-mime"))
+            }
             Some(SignatureFormat::Json) => {
                 (Some("application/fhir+json"), Some("application/jose"))
             }
@@ -94,8 +102,8 @@ impl Encode for &Signature {
         };
 
         stream
-            .element()?
-            .encode("type", &self.type_, encode_coding)?
+            .root("Signature")?
+            .encode_vec("type", once(&self.type_), encode_coding)?
             .encode("when", &self.when, encode_any)?
             .encode("who", &self.who, encode_reference)?
             .encode_opt("targetFormat", target_format, encode_any)?
@@ -193,6 +201,75 @@ impl CodeEx for SignatureType {
             Self::ModificationSignature => "1.2.840.10065.1.12.1.16",
             Self::AdministrativeSignature => "1.2.840.10065.1.12.1.17",
             Self::TimestampSignature => "1.2.840.10065.1.12.1.18",
+        }
+    }
+}
+
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+
+    use std::convert::TryInto;
+    use std::fs::read_to_string;
+    use std::str::from_utf8;
+
+    use crate::fhir::{
+        decode::{tests::load_stream, JsonDecode, XmlDecode},
+        encode::{JsonEncode, XmlEncode},
+    };
+
+    use super::super::super::tests::{trim_json_str, trim_xml_str};
+
+    #[tokio::test]
+    async fn test_decode_json() {
+        let mut stream = load_stream("./examples/signature.json");
+
+        let actual = stream.json::<Signature>().await.unwrap();
+        let expected = test_signature();
+
+        assert_eq!(actual, expected);
+    }
+
+    #[tokio::test]
+    async fn test_decode_xml() {
+        let mut stream = load_stream("./examples/signature.xml");
+
+        let actual = stream.xml::<Signature>().await.unwrap();
+        let expected = test_signature();
+
+        assert_eq!(actual, expected);
+    }
+
+    #[tokio::test]
+    async fn test_encode_json() {
+        let value = test_signature();
+
+        let actual = (&value).json().unwrap();
+        let actual = from_utf8(&actual).unwrap();
+        let expected = read_to_string("./examples/signature.json").unwrap();
+
+        assert_eq!(trim_json_str(&actual), trim_json_str(&expected));
+    }
+
+    #[tokio::test]
+    async fn test_encode_xml() {
+        let value = test_signature();
+
+        let actual = (&value).xml().unwrap();
+        let actual = from_utf8(&actual).unwrap();
+        let expected = read_to_string("./examples/signature.xml").unwrap();
+
+        assert_eq!(trim_xml_str(&actual), trim_xml_str(&expected));
+    }
+
+    pub fn test_signature() -> Signature {
+        Signature {
+            type_: SignatureType::AuthorsSignature,
+            when: "2020-03-20T07:31:34.328+00:00".try_into().unwrap(),
+            who: "https://prescriptionserver.telematik/Device/eRxService".into(),
+            data: "MIII FQYJ KoZI hvcN AQcC oIII BjCC CAIC AQEx DzAN Bglg hkgB ZQME AgEF ADAL"
+                .into(),
+            format: Some(SignatureFormat::Json),
         }
     }
 }

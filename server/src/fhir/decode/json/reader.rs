@@ -244,7 +244,7 @@ where
 
     while let Some(c) = chars.next() {
         match c {
-            '\\' => match chars.next().ok_or_else(|| Error::InvalidEscape)? {
+            '\\' => match chars.next().ok_or(Error::InvalidEscape)? {
                 '"' => s.push('"'),
                 '\\' => s.push('\\'),
                 '/' => s.push('/'),

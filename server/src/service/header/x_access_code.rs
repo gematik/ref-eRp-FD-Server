@@ -27,8 +27,10 @@ use actix_web::{
     FromRequest, HttpMessage, HttpRequest,
 };
 use futures::future::{err, ok, Ready};
+use serde::Deserialize;
+use serde_urlencoded::from_str;
 
-use crate::service::RequestError;
+use crate::service::{RequestError, TypedRequestError};
 
 lazy_static! {
     pub static ref X_ACCESS_CODE: HeaderName = HeaderName::from_lowercase(b"x-accesscode").unwrap();
@@ -45,7 +47,7 @@ impl Header for XAccessCode {
     #[inline]
     fn parse<T: HttpMessage>(msg: &T) -> Result<Self, ParseError> {
         parse_x_access_code(msg.headers())
-            .ok_or_else(|| ParseError::Header)?
+            .ok_or(ParseError::Header)?
             .map_err(|_| ParseError::Header)
     }
 }
@@ -59,15 +61,34 @@ impl IntoHeaderValue for XAccessCode {
 }
 
 impl FromRequest for XAccessCode {
-    type Error = RequestError;
+    type Error = TypedRequestError;
     type Future = Ready<Result<Self, Self::Error>>;
     type Config = ();
 
     fn from_request(req: &HttpRequest, _payload: &mut Payload) -> Self::Future {
+        #[derive(Deserialize)]
+        struct Args {
+            ac: Option<String>,
+        }
+
         match parse_x_access_code(req.headers()) {
-            Some(Ok(access_code)) => ok(access_code),
-            Some(Err(())) => err(RequestError::header_invalid(Self::name())),
-            None => err(RequestError::header_missing(Self::name())),
+            Some(Ok(access_code)) => return ok(access_code),
+            Some(Err(())) => {
+                return err(
+                    RequestError::HeaderInvalid(Self::name().to_string()).with_type_from(req)
+                )
+            }
+            None => (),
+        }
+
+        let args = match from_str::<Args>(req.query_string()) {
+            Ok(args) => args,
+            Err(e) => return err(RequestError::QueryInvalid(e.to_string()).with_type_from(req)),
+        };
+
+        match args.ac {
+            Some(ac) => ok(XAccessCode(ac)),
+            None => err(RequestError::HeaderMissing("X-Access-Code".into()).with_type_from(req)),
         }
     }
 }

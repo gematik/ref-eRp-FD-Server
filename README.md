@@ -45,6 +45,12 @@ Following functionality is available:
 
         -   $activate operation
 
+        -   $accept operation
+
+        -   $reject operation
+
+        -   $close operation
+
     -   Communication resource
 
         -   create interaction
@@ -52,6 +58,14 @@ Following functionality is available:
         -   read interaction
 
         -   delete interaction
+
+    -   AuditEvent
+
+        -   read interaction
+
+    -   Device Resource
+
+        -   read interaction
 
 -   access code generation
 

@@ -15,6 +15,7 @@
  *
  */
 
+mod audit_event;
 mod date_time;
 mod option;
 mod string;
@@ -24,11 +25,8 @@ mod telematik_id;
 use std::fmt::{Debug, Formatter, Result as FmtResult};
 use std::str::FromStr;
 
-use serde::de::{Deserialize, Deserializer, Error};
-
 pub struct Search<T: Parameter> {
-    value: T::Storage,
-    comperator: Comperator,
+    args: Vec<(Comperator, T::Storage)>,
 }
 
 pub trait Parameter: Sized {
@@ -54,7 +52,13 @@ pub enum Comperator {
 
 impl<T: Parameter> Search<T> {
     pub fn matches(&self, other: &T) -> bool {
-        other.compare(self.comperator, &self.value)
+        for (comperator, value) in &self.args {
+            if other.compare(*comperator, value) {
+                return true;
+            }
+        }
+
+        false
     }
 }
 
@@ -64,10 +68,7 @@ where
     T::Storage: Debug,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        f.debug_struct("Search")
-            .field("value", &self.value)
-            .field("comperator", &self.comperator)
-            .finish()
+        f.debug_struct("Search").field("args", &self.args).finish()
     }
 }
 
@@ -75,35 +76,28 @@ impl<T: Parameter> FromStr for Search<T> {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let (comperator, s) = match s {
-            s if s.starts_with("eq") => (Comperator::Equal, &s[2..]),
-            s if s.starts_with("ne") => (Comperator::NotEqual, &s[2..]),
-            s if s.starts_with("gt") => (Comperator::GreaterThan, &s[2..]),
-            s if s.starts_with("lt") => (Comperator::LessThan, &s[2..]),
-            s if s.starts_with("ge") => (Comperator::GreaterEqual, &s[2..]),
-            s if s.starts_with("le") => (Comperator::LessEqual, &s[2..]),
-            s if s.starts_with("sa") => (Comperator::StartsAfter, &s[2..]),
-            s if s.starts_with("eb") => (Comperator::EndsBefore, &s[2..]),
-            s if s.starts_with("ap") => (Comperator::Approximately, &s[2..]),
-            s => (Comperator::Equal, s),
-        };
+        let args = s
+            .split(',')
+            .map(|s: &str| -> Result<(Comperator, T::Storage), Self::Err> {
+                let (comperator, s) = match s {
+                    s if s.starts_with("eq") => (Comperator::Equal, &s[2..]),
+                    s if s.starts_with("ne") => (Comperator::NotEqual, &s[2..]),
+                    s if s.starts_with("gt") => (Comperator::GreaterThan, &s[2..]),
+                    s if s.starts_with("lt") => (Comperator::LessThan, &s[2..]),
+                    s if s.starts_with("ge") => (Comperator::GreaterEqual, &s[2..]),
+                    s if s.starts_with("le") => (Comperator::LessEqual, &s[2..]),
+                    s if s.starts_with("sa") => (Comperator::StartsAfter, &s[2..]),
+                    s if s.starts_with("eb") => (Comperator::EndsBefore, &s[2..]),
+                    s if s.starts_with("ap") => (Comperator::Approximately, &s[2..]),
+                    s => (Comperator::Equal, s),
+                };
 
-        let value = T::parse(s)?;
+                let value = T::parse(s)?;
 
-        Ok(Self { value, comperator })
-    }
-}
+                Ok((comperator, value))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
 
-impl<'de, T: Parameter> Deserialize<'de> for Search<T> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
-        let ret = s.parse().map_err(|err| {
-            D::Error::custom(format!("Unable to parse search parameter: {}", err))
-        })?;
-
-        Ok(ret)
+        Ok(Self { args })
     }
 }

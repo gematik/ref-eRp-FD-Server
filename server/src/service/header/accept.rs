@@ -15,6 +15,8 @@
  *
  */
 
+use std::ops::Deref;
+
 use actix_web::{
     dev::Payload,
     error::ParseError,
@@ -27,13 +29,43 @@ use actix_web::{
 use futures::future::{err, ok, Ready};
 use mime::Mime;
 
-use crate::service::RequestError;
+use crate::service::{RequestError, TypedRequestError};
 
 lazy_static! {
     pub static ref ACCEPT: HeaderName = HeaderName::from_lowercase(b"accept").unwrap();
 }
 
 pub struct Accept(pub Vec<QualityItem<Mime>>);
+
+impl Accept {
+    pub fn from_headers(headers: &HeaderMap) -> Result<Self, ()> {
+        let mut result = Vec::<QualityItem<Mime>>::new();
+
+        for header in headers.get_all(Accept::name()) {
+            let s = header.to_str().map_err(|_| ())?;
+            let items = s.split(',').filter_map(|x| match x.trim() {
+                "" => None,
+                x => Some(x.parse()),
+            });
+
+            for item in items {
+                result.push(item.map_err(|_| ())?);
+            }
+        }
+
+        result.sort_by(|a, b| a.quality.cmp(&b.quality));
+
+        Ok(Accept(result))
+    }
+}
+
+impl Deref for Accept {
+    type Target = Vec<QualityItem<Mime>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 impl Header for Accept {
     #[inline]
@@ -43,7 +75,7 @@ impl Header for Accept {
 
     #[inline]
     fn parse<T: HttpMessage>(msg: &T) -> Result<Self, ParseError> {
-        parse_accept(msg.headers()).map_err(|_| ParseError::Header)
+        Accept::from_headers(msg.headers()).map_err(|_| ParseError::Header)
     }
 }
 
@@ -62,32 +94,16 @@ impl IntoHeaderValue for Accept {
 }
 
 impl FromRequest for Accept {
-    type Error = RequestError;
+    type Error = TypedRequestError;
     type Future = Ready<Result<Self, Self::Error>>;
     type Config = ();
 
     fn from_request(req: &HttpRequest, _payload: &mut Payload) -> Self::Future {
-        match parse_accept(req.headers()) {
+        match Accept::from_headers(req.headers()) {
             Ok(accept) => ok(accept),
-            Err(()) => err(RequestError::header_invalid(Self::name())),
+            Err(()) => {
+                err(RequestError::HeaderInvalid(Self::name().to_string()).with_type_from(req))
+            }
         }
     }
-}
-
-fn parse_accept(headers: &HeaderMap) -> Result<Accept, ()> {
-    let mut result = Vec::new();
-
-    for header in headers.get_all(Accept::name()) {
-        let s = header.to_str().map_err(|_| ())?;
-        result.extend(
-            s.split(',')
-                .filter_map(|x| match x.trim() {
-                    "" => None,
-                    y => Some(y),
-                })
-                .filter_map(|x| x.trim().parse().ok()),
-        )
-    }
-
-    Ok(Accept(result))
 }

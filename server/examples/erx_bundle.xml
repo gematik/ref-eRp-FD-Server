@@ -1,0 +1,79 @@
+<Bundle xmlns="http://hl7.org/fhir">
+    <id value="281a985c-f25b-4aae-91a6-41ad744080b0"/>
+    <meta>
+        <profile value="https://gematik.de/fhir/StructureDefinition/erxReceipt"/>
+    </meta>
+    <identifier>
+        <system value="https://gematik.de/fhir/Namingsystem/PrescriptionID"/>
+        <value value="160.123.456.789.123.58"/>
+    </identifier>
+    <type value="document"/>
+    <timestamp value="2020-03-20T07:31:34.328+00:00"/>
+    <entry>
+        <resource>
+            <Composition>
+                <meta>
+                    <profile value="https://gematik.de/fhir/StructureDefinition/erxComposition"/>
+                </meta>
+                <extension url="https://gematik.de/fhir/StructureDefinition/BeneficiaryExtension">
+                    <valueIdentifier>
+                        <system value="https://gematik.de/fhir/Namingsystem/TelematikID"/>
+                        <value value="606358757"/>
+                    </valueIdentifier>
+                </extension>
+                <status value="final"/>
+                <type>
+                    <coding>
+                        <system value="https://gematik.de/fhir/CodeSystem/Documenttype"/>
+                        <code value="3"/>
+                        <display value="Receipt"/>
+                    </coding>
+                </type>
+                <date value="2020-03-20T07:31:34.328+00:00"/>
+                <author>
+                    <reference value="https://prescriptionserver.telematik/Device/eRxService"/>
+                </author>
+                <title value="Quittung"/>
+                <event>
+                    <period>
+                        <start value="2020-03-20T07:23:34.328+00:00"/>
+                        <end value="2020-03-20T07:31:34.328+00:00"/>
+                    </period>
+                </event>
+            </Composition>
+        </resource>
+    </entry>
+    <entry>
+        <resource>
+            <Device>
+                <id value="eRxService"/>
+                <meta>
+                    <profile value="https://gematik.de/fhir/StructureDefinition/erxDevice"/>
+                </meta>
+                <status value="active"/>
+                <serialNumber value="R4.0.0.287342834"/>
+                <deviceName>
+                    <name value="E-Rezept Fachdienst"/>
+                    <type value="user-friendly-name"/>
+                </deviceName>
+                <version>
+                    <value value="1.0.0"/>
+                </version>
+            </Device>
+        </resource>
+    </entry>
+    <signature>
+        <type>
+            <system value="urn:iso-astm:E1762-95:2013"/>
+            <code value="1.2.840.10065.1.12.1.1"/>
+            <display value="Author's Signature"/>
+        </type>
+        <when value="2020-03-20T07:31:34.328+00:00"/>
+        <who>
+            <reference value="https://prescriptionserver.telematik/Device/eRxService"/>
+        </who>
+        <targetFormat value="application/fhir+xml"/>
+        <sigFormat value="application/pkcs7-mime"/>
+        <data value="QXVmZ3J1bmQgZGVyIENvcm9uYS1TaXR1YXRpb24ga29ubnRlIGhpZXIga3VyemZyaXN0aWcga2VpbiBCZWlzcGllbCBpbiBkZXIgTGFib3J1bWdlYnVuZyBkZXIgZ2VtYXRpayBlcnN0ZWxsdCB3ZWRlbi4gRGllc2VzIHdpcmQgbmFjaGdlcmVpY2h0LgoKSW5oYWx0bGljaCB1bmQgc3RydWt0dXJlbGwgaXN0IGRpZSBTZXJ2ZXJzaWduYXR1ciBkZXIgUXVpdHR1bmcgZWluZSBFbnZlbG9waW5nIENBZEVTLVNpZ25hdHVyLCBkaWUgZGVuIHNpZ25pZXJ0ZW4gRGF0ZW5zYXR6IGFuYWxvZyB6dXIgS29ubmVrdG9yLVNpZ25hdHVyIGlubmVyaGFsYiBkZXMgQVNOMS5Db250YWluZXJzIHRyYW5zcG9ydGllcnQu"/>
+    </signature>
+</Bundle>

@@ -16,12 +16,18 @@
  */
 
 mod abort;
+mod accept;
 #[cfg(feature = "interface-supplier")]
 mod activate;
+mod close;
 #[cfg(feature = "interface-supplier")]
 mod create;
+mod error;
 mod get;
 mod misc;
+mod reject;
+
+pub use error::Error;
 
 use abort::abort;
 #[cfg(feature = "interface-supplier")]
@@ -31,14 +37,21 @@ use proc_macros::capability_statement_resource;
 use resources::capability_statement::{Interaction, Type};
 
 use crate::fhir::definitions::{
-    OPERATION_TASK_ABORT, OPERATION_TASK_ACTIVATE, OPERATION_TASK_CREATE, RESOURCE_PROFILE_TASK,
+    OPERATION_TASK_ABORT, OPERATION_TASK_ACCEPT, OPERATION_TASK_ACTIVATE, OPERATION_TASK_CLOSE,
+    OPERATION_TASK_CREATE, OPERATION_TASK_REJECT, RESOURCE_PROFILE_TASK,
 };
 
 #[cfg(feature = "interface-supplier")]
+use accept::accept;
+#[cfg(feature = "interface-supplier")]
 use activate::activate;
+#[cfg(feature = "interface-supplier")]
+use close::close;
 #[cfg(feature = "interface-supplier")]
 use create::create;
 use get::{get_all, get_one};
+#[cfg(feature = "interface-supplier")]
+use reject::reject;
 
 #[derive(Default)]
 pub struct TaskRoutes;
@@ -50,16 +63,22 @@ impl TaskRoutes {
     #[cfg(feature = "interface-supplier")]
     #[operation(name="create", definition = OPERATION_TASK_CREATE)]
     #[operation(name="activate", definition = OPERATION_TASK_ACTIVATE)]
+    #[operation(name="accept", definition = OPERATION_TASK_ACCEPT)]
+    #[operation(name="reject", definition = OPERATION_TASK_REJECT)]
+    #[operation(name="close", definition = OPERATION_TASK_CLOSE)]
     fn configure_supplier(&self, cfg: &mut ServiceConfig) {
         cfg.service(resource("/Task/$create").route(post().to(create)));
-        cfg.service(resource("/Task/{id}/$activate").route(post().to(activate)));
+        cfg.service(resource("/Task/{id:[A-Za-z0-9-]+}/$activate").route(post().to(activate)));
+        cfg.service(resource("/Task/{id:[A-Za-z0-9-]+}/$accept").route(post().to(accept)));
+        cfg.service(resource("/Task/{id:[A-Za-z0-9-]+}/$reject").route(post().to(reject)));
+        cfg.service(resource("/Task/{id:[A-Za-z0-9-]+}/$close").route(post().to(close)));
     }
 
     #[interaction(Interaction::Read)]
     #[operation(name="abort", definition = OPERATION_TASK_ABORT)]
     fn configure_all(&self, cfg: &mut ServiceConfig) {
         cfg.service(resource("/Task").route(get().to(get_all)));
-        cfg.service(resource("/Task/{id}").route(get().to(get_one)));
-        cfg.service(resource("/Task/{id}/$abort").route(post().to(abort)));
+        cfg.service(resource("/Task/{id:[A-Za-z0-9-]+}").route(get().to(get_one)));
+        cfg.service(resource("/Task/{id:[A-Za-z0-9-]+}/$abort").route(post().to(abort)));
     }
 }

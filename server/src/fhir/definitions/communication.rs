@@ -112,8 +112,8 @@ where
         S: DataStream,
     {
         let mut fields = Fields::new(&[
-            "basedOn",
             "contained",
+            "basedOn",
             "status",
             "about",
             "sent",
@@ -123,10 +123,10 @@ where
             "payload",
         ]);
 
-        let based_on = stream.decode_opt(&mut fields, decode_reference).await?;
         let mut about = stream
             .resource_vec::<Vec<Medication>, _>(&mut fields, decode_any)
             .await?;
+        let based_on = stream.decode_opt(&mut fields, decode_reference).await?;
         let _status = stream.fixed(&mut fields, "unknown").await?;
         let about_ids = stream
             .decode_vec::<Vec<Id>, _>(&mut fields, decode_reference)
@@ -433,8 +433,8 @@ where
         S: DataStorage,
     {
         stream
-            .encode_vec("basedOn", &self.based_on, encode_reference)?
             .resource_vec("contained", &self.about, encode_any)?
+            .encode_vec("basedOn", &self.based_on, encode_reference)?
             .encode("status", "unknown", encode_any)?
             .encode_vec("about", self.about.iter().map(|x| &x.id), encode_reference)?
             .encode_opt("sent", &self.sent, encode_any)?

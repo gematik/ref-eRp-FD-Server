@@ -1,0 +1,21 @@
+{
+    "resourceType":"OperationOutcome",
+    "meta":{
+        "profile":[
+            "http://hl7.org/fhir/StructureDefinition/OperationOutcome"
+        ]
+    },
+    "issue":[
+        {
+            "severity":"error",
+            "code":"code-invalid",
+            "details":{
+                "text":"The code 'W' is not known and not legal in this context"
+            },
+            "diagnostics":"Acme.Interop.FHIRProcessors.Patient.processGender line 2453",
+            "expression":[
+                "Patient.gender"
+            ]
+        }
+    ]
+}

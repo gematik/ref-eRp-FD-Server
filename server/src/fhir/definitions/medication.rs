@@ -868,13 +868,13 @@ impl AmountEx for Amount {
 }
 
 const PROFILE_MEDICATION_COMPOUNDING: &str =
-    "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_Compounding|1.00.000";
+    "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_Compounding|1.0.0";
 const PROFILE_MEDICATION_FREE_TEXT: &str =
-    "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_FreeText|1.00.000";
+    "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_FreeText|1.0.0";
 const PROFILE_MEDICATION_INGREDIENT: &str =
-    "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_Ingredient|1.00.000";
+    "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_Ingredient|1.0.0";
 const PROFILE_MEDICATION_PZN: &str =
-    "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_PZN|1.00.000";
+    "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_PZN|1.0.0";
 
 const URL_CATEGORY: &str = "https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Medication_Category";
 const URL_VACCINE: &str = "https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Medication_Vaccine";
@@ -888,8 +888,8 @@ const URL_DOSAGE_FORM: &str =
 const URL_INGREDIENT_AMOUNT: &str =
     "https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Medication_Ingredient_Amount";
 
-const SYSTEM_PZN: &str = "https://fhir.kbv.de/NamingSystem/KBV_NS_ERP_PZN";
-const SYSTEM_ASK: &str = "https://fhir.kbv.de/NamingSystem/KBV_NS_ERP_ASK";
+const SYSTEM_PZN: &str = "http://fhir.de/CodeSystem/ifa/pzn";
+const SYSTEM_ASK: &str = "http://fhir.de/CodeSystem/ask";
 
 #[cfg(test)]
 pub mod tests {

@@ -15,30 +15,41 @@
  *
  */
 
-use std::fmt::Display;
+use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::io::Error as IoError;
-use std::str::Utf8Error;
 
 use actix_web::{
+    dev::HttpResponseBuilder,
     error::{PayloadError, ResponseError},
     http::StatusCode,
-    HttpResponse,
+    HttpRequest, HttpResponse,
 };
 use openssl::error::ErrorStack as OpenSslError;
-#[cfg(feature = "support-xml")]
-use quick_xml::DeError as XmlError;
-#[cfg(feature = "support-json")]
-use serde_json::Error as JsonError;
+use resources::operation_outcome::{Issue, IssueType, OperationOutcome, Severity};
 use thiserror::Error;
 use vau::Error as VauError;
 
-use crate::fhir::{
-    decode::{DecodeError, JsonError as JsonDecodeError, XmlError as XmlDecodeError},
-    encode::{EncodeError, JsonError as JsonEncodeError, XmlError as XmlEncodeError},
-    security::SignedError,
+use crate::{
+    fhir::{
+        decode::{DecodeError, JsonError as JsonDecodeError, XmlError as XmlDecodeError},
+        encode::{EncodeError, JsonError as JsonEncodeError, XmlError as XmlEncodeError},
+        security::SignedError,
+    },
+    tasks::tsl::Error as TslError,
 };
 
-use super::misc::AccessTokenError;
+use super::{
+    header::Accept,
+    misc::{AccessTokenError, DataType},
+    routes::{
+        audit_event::Error as AuditEventError,
+        capabilty_statement::Error as CapabiltyStatementError,
+        communication::Error as CommunicationError,
+        medication_dispense::Error as MedicationDispenseError, task::Error as TaskError,
+    },
+};
+
+/* Error */
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -50,79 +61,6 @@ pub enum Error {
 
     #[error("VAU Error: {0}")]
     VauError(VauError),
-}
-
-#[derive(Error, Debug)]
-pub enum RequestError {
-    #[error("OpenSSL Error: {0}")]
-    OpenSslError(OpenSslError),
-
-    #[error("Signed Error: {0}")]
-    SignedError(SignedError),
-
-    #[error("Internal Error: {0}")]
-    Internal(String),
-
-    #[error("Unauthorized: {0}!")]
-    Unauthorized(String),
-
-    #[error("Error while decoding XML: {0}!")]
-    DecodeXml(DecodeError<XmlDecodeError<PayloadError>>),
-
-    #[error("Error while decoding JSON: {0}!")]
-    DecodeJson(DecodeError<JsonDecodeError<PayloadError>>),
-
-    #[error("Error while encoding XML: {0}!")]
-    EncodeXml(EncodeError<XmlEncodeError>),
-
-    #[error("Error while encoding JSON: {0}!")]
-    EncodeJson(EncodeError<JsonEncodeError>),
-
-    #[cfg(feature = "support-xml")]
-    #[error("Error while reading XML: {0}!")]
-    DeserializeXml(XmlError),
-
-    #[cfg(feature = "support-json")]
-    #[error("Error while reading JSON: {0}!")]
-    DeserializeJson(JsonError),
-
-    #[cfg(feature = "support-xml")]
-    #[error("Error while writing XML: {0}!")]
-    SerializeXml(XmlError),
-
-    #[cfg(feature = "support-json")]
-    #[error("Error while writing JSON: {0}!")]
-    SerializeJson(JsonError),
-
-    #[error("Access Token Error: {0}!")]
-    AccessTokenError(AccessTokenError),
-
-    #[error("Payload Error: {0}")]
-    PayloadError(PayloadError),
-
-    #[error("UTF-8 Error: {0:?}")]
-    Utf8Error(Utf8Error),
-
-    #[error("Header is missing: {0}!")]
-    HeaderMissing(String),
-
-    #[error("Header has invalid value: {0}!")]
-    HeaderInvalid(String),
-
-    #[error("Payload exceeds the configured limit: {0}!")]
-    PayloadToLarge(usize),
-
-    #[error("Bad Request: {0}")]
-    BadRequest(String),
-
-    #[error("The query argument '_format' is malformed: {0}!")]
-    InvalidFormatArgument(String),
-
-    #[error("Content-Type is not supported: {0}!")]
-    ContentTypeNotSupported(String),
-
-    #[error("None of the accepted content types of the client are not supported by the server!")]
-    AcceptUnsupported,
 }
 
 impl From<IoError> for Error {
@@ -143,142 +81,507 @@ impl From<VauError> for Error {
     }
 }
 
-impl RequestError {
-    pub fn internal<T: Display>(t: T) -> Self {
-        Self::Internal(t.to_string())
-    }
+/* TypedRequestError */
 
-    pub fn header_invalid<T: Display>(t: T) -> Self {
-        Self::HeaderInvalid(t.to_string())
-    }
+#[derive(Debug)]
+pub struct TypedRequestError {
+    pub error: RequestError,
+    pub data_type: DataType,
+}
 
-    pub fn header_missing<T: Display>(t: T) -> Self {
-        Self::HeaderMissing(t.to_string())
+impl Display for TypedRequestError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        self.error.fmt(f)
     }
 }
 
-impl ResponseError for RequestError {
+impl ResponseError for TypedRequestError {
     fn error_response(&self) -> HttpResponse {
-        let mut res = HttpResponse::InternalServerError();
+        use RequestError as E;
 
-        match self {
-            Self::OpenSslError(_) => res.status(StatusCode::BAD_REQUEST),
-
-            Self::SignedError(_) => res.status(StatusCode::INTERNAL_SERVER_ERROR),
-
-            Self::Internal(_) => res.status(StatusCode::INTERNAL_SERVER_ERROR),
-
-            Self::Unauthorized(_) => res.status(StatusCode::UNAUTHORIZED),
-
-            Self::DecodeXml(_) => res.status(StatusCode::BAD_REQUEST),
-
-            Self::DecodeJson(_) => res.status(StatusCode::BAD_REQUEST),
-
-            Self::EncodeXml(_) => res.status(StatusCode::INTERNAL_SERVER_ERROR),
-
-            Self::EncodeJson(_) => res.status(StatusCode::INTERNAL_SERVER_ERROR),
-
-            #[cfg(feature = "support-xml")]
-            Self::DeserializeXml(_) => res.status(StatusCode::BAD_REQUEST),
-
-            #[cfg(feature = "support-json")]
-            Self::DeserializeJson(_) => res.status(StatusCode::BAD_REQUEST),
-
-            #[cfg(feature = "support-xml")]
-            Self::SerializeXml(_) => res.status(StatusCode::INTERNAL_SERVER_ERROR),
-
-            #[cfg(feature = "support-json")]
-            Self::SerializeJson(_) => res.status(StatusCode::INTERNAL_SERVER_ERROR),
-
-            #[cfg(feature = "interface-supplier")]
-            Self::AccessTokenError(AccessTokenError::Missing) => res
-                .status(StatusCode::UNAUTHORIZED)
-                .header(
+        let res = ResponseBuilder::new();
+        let mut res = match &self.error {
+            E::OpenSslError(_) => res.status(StatusCode::BAD_REQUEST),
+            E::SignedError(_) => res.status(StatusCode::INTERNAL_SERVER_ERROR).severity(Severity::Fatal),
+            E::AccessTokenError(err) => match err {
+                #[cfg(all(feature = "interface-supplier", not(feature = "interface-patient")))]
+                AccessTokenError::Missing => res
+                    .status(StatusCode::UNAUTHORIZED)
+                    .code(IssueType::SecurityUnknown)
+                    .header(
+                        "WWW-Authenticate",
+                        "Bearer realm='prescriptionserver.telematik',scope='openid profile prescriptionservice.lei'"),
+                #[cfg(all(feature = "interface-patient", not(feature = "interface-supplier")))]
+                AccessTokenError::Missing => res
+                    .status(StatusCode::UNAUTHORIZED)
+                    .code(IssueType::SecurityUnknown)
+                    .header(
+                        "WWW-Authenticate",
+                        "Bearer realm='prescriptionserver.telematik',scope='openid profile prescriptionservice.vers'"),
+                AccessTokenError::NoKvnr => res.status(StatusCode::BAD_REQUEST).code(IssueType::SecurityUnknown),
+                AccessTokenError::NoTelematikId => res.status(StatusCode::BAD_REQUEST).code(IssueType::SecurityUnknown),
+                AccessTokenError::InvalidProfession => res.status(StatusCode::FORBIDDEN).code(IssueType::SecurityForbidden),
+                _ => res.status(StatusCode::UNAUTHORIZED).code(IssueType::SecurityUnknown).header(
                     "WWW-Authenticate",
-                    "Bearer realm='prescriptionserver.telematik',scope='openid profile prescriptionservice.lei'"),
-
-            #[cfg(all(feature = "interface-patient", not(feature = "interface-supplier")))]
-            Self::AccessTokenError(AccessTokenError::Missing) => res
-                .status(StatusCode::UNAUTHORIZED)
-                .header(
-                    "WWW-Authenticate",
-                    "Bearer realm='prescriptionserver.telematik',scope='openid profile prescriptionservice.vers'"),
-
-            Self::AccessTokenError(AccessTokenError::NoKvnr)
-            | Self::AccessTokenError(AccessTokenError::NoTelematikId) =>
-                res.status(StatusCode::BAD_REQUEST),
-
-            Self::AccessTokenError(_) => res.status(StatusCode::UNAUTHORIZED).header(
-                "WWW-Authenticate",
-                "Bearer realm='prescriptionserver.telematik', error='invalACCESS_TOKEN'",
-            ),
-
-            Self::PayloadError(_)
-            | Self::Utf8Error(_)
-            | Self::HeaderMissing(_)
-            | Self::HeaderInvalid(_)
-            | Self::PayloadToLarge(_)
-            | Self::BadRequest(_)
-            | Self::InvalidFormatArgument(_)
-            | Self::ContentTypeNotSupported(_)
-            | Self::AcceptUnsupported => res.status(StatusCode::BAD_REQUEST),
+                    "Bearer realm='prescriptionserver.telematik', error='invalACCESS_TOKEN'",
+                ),
+            },
+            E::DecodeXml(err) => res.status(StatusCode::BAD_REQUEST).expression_opt(err.path()),
+            E::DecodeJson(err) => res.status(StatusCode::BAD_REQUEST).expression_opt(err.path()),
+            E::EncodeXml(_) => res.status(StatusCode::INTERNAL_SERVER_ERROR).severity(Severity::Fatal),
+            E::EncodeJson(_) => res.status(StatusCode::INTERNAL_SERVER_ERROR).severity(Severity::Fatal),
+            E::CapabiltyStatementError(err) => match err {
+                CapabiltyStatementError::InvalidFormat(_) => res.status(StatusCode::BAD_REQUEST),
+                CapabiltyStatementError::UnsupportedFormat => res.status(StatusCode::BAD_REQUEST),
+            },
+            E::AuditEventError(err) => match err {
+                AuditEventError::NotFound(_) => res.status(StatusCode::NOT_FOUND).code(IssueType::ProcessingNotFound),
+            },
+            E::CommunicationError(err) => match err {
+                CommunicationError::ContentSizeExceeded => res.status(StatusCode::BAD_REQUEST).code(IssueType::ProcessingTooLong),
+                CommunicationError::MissingFieldBasedOn => res.status(StatusCode::BAD_REQUEST).code(IssueType::InvalidRequired).expression("/Communication/basedOn".into()),
+                CommunicationError::SenderNotEqualRecipient => res.status(StatusCode::BAD_REQUEST),
+                CommunicationError::UnknownTask(_) => res.status(StatusCode::BAD_REQUEST),
+                CommunicationError::UnauthorizedTaskAccess => res.status(StatusCode::UNAUTHORIZED),
+                CommunicationError::InvalidTaskStatus => res.status(StatusCode::BAD_REQUEST),
+                CommunicationError::NotFound(_) => res.status(StatusCode::NOT_FOUND).code(IssueType::ProcessingNotFound),
+                CommunicationError::Unauthorized(_) => res.status(StatusCode::UNAUTHORIZED),
+            },
+            E::MedicationDispenseError(err) => match err {
+                MedicationDispenseError::NotFound(_) => res.status(StatusCode::NOT_FOUND).code(IssueType::ProcessingNotFound),
+                MedicationDispenseError::Forbidden(_) => res.status(StatusCode::FORBIDDEN).code(IssueType::SecurityForbidden),
+            },
+            E::TaskError(err) => match err {
+                TaskError::NotFound(_) => res.status(StatusCode::NOT_FOUND).code(IssueType::ProcessingNotFound),
+                TaskError::Forbidden(_) => res.status(StatusCode::FORBIDDEN).code(IssueType::SecurityForbidden),
+                TaskError::Conflict(_) => res.status(StatusCode::CONFLICT).code(IssueType::ProcessingConflict),
+                TaskError::Gone(_) => res.status(StatusCode::GONE).code(IssueType::ProcessingConflict),
+                TaskError::EPrescriptionMissing => res.status(StatusCode::BAD_REQUEST),
+                TaskError::EPrescriptionMismatch => res.status(StatusCode::BAD_REQUEST),
+                TaskError::EPrescriptionNotFound(_) => res.status(StatusCode::INTERNAL_SERVER_ERROR).severity(Severity::Fatal),
+                TaskError::KvnrMissing => res.status(StatusCode::BAD_REQUEST).code(IssueType::SecurityUnknown),
+                TaskError::KvnrInvalid => res.status(StatusCode::BAD_REQUEST).code(IssueType::SecurityUnknown),
+                TaskError::SubjectMissing => res.status(StatusCode::BAD_REQUEST),
+                TaskError::SubjectMimatch => res.status(StatusCode::BAD_REQUEST),
+                TaskError::PerfromerMimatch => res.status(StatusCode::BAD_REQUEST),
+                TaskError::AcceptTimestampMissing => res.status(StatusCode::INTERNAL_SERVER_ERROR).severity(Severity::Fatal),
+                TaskError::InvalidStatus => res.status(StatusCode::BAD_REQUEST),
+                TaskError::InvalidUrl(_) => res.status(StatusCode::BAD_REQUEST),
+            },
+            E::CmsContainerError(_) => res.status(StatusCode::BAD_REQUEST),
+            E::NotFound(_) => res.status(StatusCode::NOT_FOUND).code(IssueType::ProcessingNotFound),
+            E::HeaderInvalid(_) => res.status(StatusCode::BAD_REQUEST),
+            E::HeaderMissing(_) => res.status(StatusCode::BAD_REQUEST),
+            E::QueryInvalid(_) => res.status(StatusCode::BAD_REQUEST),
+            E::ContentTypeNotSupported => res.status(StatusCode::BAD_REQUEST),
+            E::AcceptUnsupported => res.status(StatusCode::BAD_REQUEST),
         };
 
-        res.header("Content-Type", "text/plain; charset=utf-8")
-            .body(format!("{}", self))
+        if res.details.is_none() {
+            res.details = Some(self.error.to_string());
+        }
+
+        res.data_type(self.data_type).build()
     }
 }
 
-impl From<OpenSslError> for RequestError {
-    fn from(err: OpenSslError) -> Self {
-        Self::OpenSslError(err)
+/* RequestError */
+
+#[derive(Error, Debug)]
+pub enum RequestError {
+    #[error("OpenSSL Error: {0}")]
+    OpenSslError(OpenSslError),
+
+    #[error("Signed Error: {0}")]
+    SignedError(SignedError),
+
+    #[error("Access Token Error: {0}")]
+    AccessTokenError(AccessTokenError),
+
+    #[error("Error while decoding XML: {0}")]
+    DecodeXml(DecodeError<XmlDecodeError<PayloadError>>),
+
+    #[error("Error while decoding JSON: {0}")]
+    DecodeJson(DecodeError<JsonDecodeError<PayloadError>>),
+
+    #[error("Error while encoding XML: {0}")]
+    EncodeXml(EncodeError<XmlEncodeError>),
+
+    #[error("Error while encoding JSON: {0}")]
+    EncodeJson(EncodeError<JsonEncodeError>),
+
+    #[error("Capabilty Statement Error {0}")]
+    CapabiltyStatementError(CapabiltyStatementError),
+
+    #[error("Audit Event Resource Error {0}")]
+    AuditEventError(AuditEventError),
+
+    #[error("Communication Resource Error {0}")]
+    CommunicationError(CommunicationError),
+
+    #[error("Medication Dispense Resource Error: {0}")]
+    MedicationDispenseError(MedicationDispenseError),
+
+    #[error("Task Resource Error: {0}")]
+    TaskError(TaskError),
+
+    #[error("Unable to verify CMS container: {0}")]
+    CmsContainerError(TslError),
+
+    #[error("Not Found: {0}!")]
+    NotFound(String),
+
+    #[error("Header Invalid: {0}!")]
+    HeaderInvalid(String),
+
+    #[error("Header Missing: {0}!")]
+    HeaderMissing(String),
+
+    #[error("Invalid Query: {0}!")]
+    QueryInvalid(String),
+
+    #[error("Content Type not Supported!")]
+    ContentTypeNotSupported,
+
+    #[error("Accept Value is not Supported!")]
+    AcceptUnsupported,
+}
+
+impl RequestError {
+    #[cfg(feature = "support-json")]
+    #[allow(clippy::wrong_self_convention)]
+    pub fn as_json(self) -> TypedRequestError {
+        TypedRequestError {
+            error: self,
+            data_type: DataType::Json,
+        }
+    }
+
+    #[cfg(feature = "support-xml")]
+    #[allow(clippy::wrong_self_convention)]
+    pub fn as_xml(self) -> TypedRequestError {
+        TypedRequestError {
+            error: self,
+            data_type: DataType::Xml,
+        }
+    }
+
+    pub fn with_type(self, data_type: DataType) -> TypedRequestError {
+        TypedRequestError {
+            error: self,
+            data_type,
+        }
+    }
+
+    pub fn with_type_from<T: DataTypeFrom>(self, from: &T) -> TypedRequestError {
+        TypedRequestError {
+            error: self,
+            data_type: from.data_type(),
+        }
+    }
+
+    pub fn with_type_default(self) -> TypedRequestError {
+        TypedRequestError {
+            error: self,
+            data_type: DataType::default(),
+        }
     }
 }
 
-impl From<SignedError> for RequestError {
-    fn from(err: SignedError) -> Self {
-        Self::SignedError(err)
+impl<T> From<T> for RequestError
+where
+    T: AsReqErr,
+{
+    fn from(err: T) -> RequestError {
+        err.as_req_err()
     }
 }
 
-impl From<AccessTokenError> for RequestError {
-    fn from(err: AccessTokenError) -> Self {
-        Self::AccessTokenError(err)
+/* DataTypeFrom */
+
+pub trait DataTypeFrom {
+    fn data_type(&self) -> DataType;
+}
+
+impl DataTypeFrom for Accept {
+    fn data_type(&self) -> DataType {
+        DataType::from_accept(&self).unwrap_or_default()
     }
 }
 
-impl From<PayloadError> for RequestError {
-    fn from(err: PayloadError) -> Self {
-        Self::PayloadError(err)
+impl DataTypeFrom for HttpRequest {
+    fn data_type(&self) -> DataType {
+        match Accept::from_headers(self.headers()) {
+            Ok(accept) => DataType::from_accept(&accept).unwrap_or_default(),
+            Err(_) => DataType::default(),
+        }
     }
 }
 
-impl From<Utf8Error> for RequestError {
-    fn from(err: Utf8Error) -> Self {
-        Self::Utf8Error(err)
+/* TypedRequestResult */
+
+pub trait TypedRequestResult: Sized {
+    type Value;
+
+    #[cfg(feature = "support-json")]
+    fn err_as_json(self) -> Result<Self::Value, TypedRequestError>;
+
+    #[cfg(feature = "support-xml")]
+    fn err_as_xml(self) -> Result<Self::Value, TypedRequestError>;
+
+    fn err_with_type(self, data_type: DataType) -> Result<Self::Value, TypedRequestError>;
+
+    fn err_with_type_from<F: DataTypeFrom>(
+        self,
+        from: &F,
+    ) -> Result<Self::Value, TypedRequestError>;
+
+    fn err_with_type_default(self) -> Result<Self::Value, TypedRequestError> {
+        self.err_with_type(DataType::default())
     }
 }
 
-impl From<DecodeError<XmlDecodeError<PayloadError>>> for RequestError {
-    fn from(err: DecodeError<XmlDecodeError<PayloadError>>) -> Self {
-        Self::DecodeXml(err)
+impl<T> TypedRequestResult for Result<T, RequestError> {
+    type Value = T;
+
+    #[cfg(feature = "support-json")]
+    fn err_as_json(self) -> Result<T, TypedRequestError> {
+        self.map_err(RequestError::as_json)
+    }
+
+    #[cfg(feature = "support-xml")]
+    fn err_as_xml(self) -> Result<T, TypedRequestError> {
+        self.map_err(RequestError::as_xml)
+    }
+
+    fn err_with_type(self, data_type: DataType) -> Result<T, TypedRequestError> {
+        self.map_err(|err| err.with_type(data_type))
+    }
+
+    fn err_with_type_from<F: DataTypeFrom>(self, from: &F) -> Result<T, TypedRequestError> {
+        self.map_err(|err| err.with_type_from(from))
     }
 }
 
-impl From<DecodeError<JsonDecodeError<PayloadError>>> for RequestError {
-    fn from(err: DecodeError<JsonDecodeError<PayloadError>>) -> Self {
-        Self::DecodeJson(err)
+/* AsReqErrResult */
+
+pub trait AsReqErrResult {
+    type Value;
+
+    fn as_req_err(self) -> Result<Self::Value, RequestError>;
+}
+
+impl<T, E> AsReqErrResult for Result<T, E>
+where
+    E: AsReqErr,
+{
+    type Value = T;
+
+    fn as_req_err(self) -> Result<T, RequestError> {
+        self.map_err(AsReqErr::as_req_err)
     }
 }
 
-impl From<EncodeError<XmlEncodeError>> for RequestError {
-    fn from(err: EncodeError<XmlEncodeError>) -> Self {
-        Self::EncodeXml(err)
+/* AsReqErr */
+
+pub trait AsReqErr {
+    fn as_req_err(self) -> RequestError;
+}
+
+impl AsReqErr for OpenSslError {
+    fn as_req_err(self) -> RequestError {
+        RequestError::OpenSslError(self)
     }
 }
 
-impl From<EncodeError<JsonEncodeError>> for RequestError {
-    fn from(err: EncodeError<JsonEncodeError>) -> Self {
-        Self::EncodeJson(err)
+impl AsReqErr for SignedError {
+    fn as_req_err(self) -> RequestError {
+        RequestError::SignedError(self)
+    }
+}
+
+impl AsReqErr for AccessTokenError {
+    fn as_req_err(self) -> RequestError {
+        RequestError::AccessTokenError(self)
+    }
+}
+
+impl AsReqErr for DecodeError<XmlDecodeError<PayloadError>> {
+    fn as_req_err(self) -> RequestError {
+        RequestError::DecodeXml(self)
+    }
+}
+
+impl AsReqErr for DecodeError<JsonDecodeError<PayloadError>> {
+    fn as_req_err(self) -> RequestError {
+        RequestError::DecodeJson(self)
+    }
+}
+
+impl AsReqErr for EncodeError<XmlEncodeError> {
+    fn as_req_err(self) -> RequestError {
+        RequestError::EncodeXml(self)
+    }
+}
+
+impl AsReqErr for EncodeError<JsonEncodeError> {
+    fn as_req_err(self) -> RequestError {
+        RequestError::EncodeJson(self)
+    }
+}
+
+impl AsReqErr for CapabiltyStatementError {
+    fn as_req_err(self) -> RequestError {
+        RequestError::CapabiltyStatementError(self)
+    }
+}
+
+impl AsReqErr for AuditEventError {
+    fn as_req_err(self) -> RequestError {
+        RequestError::AuditEventError(self)
+    }
+}
+
+impl AsReqErr for CommunicationError {
+    fn as_req_err(self) -> RequestError {
+        RequestError::CommunicationError(self)
+    }
+}
+
+impl AsReqErr for MedicationDispenseError {
+    fn as_req_err(self) -> RequestError {
+        RequestError::MedicationDispenseError(self)
+    }
+}
+
+impl AsReqErr for TaskError {
+    fn as_req_err(self) -> RequestError {
+        RequestError::TaskError(self)
+    }
+}
+
+/* ResponseBuilder */
+
+struct ResponseBuilder {
+    code: Option<IssueType>,
+    status: Option<StatusCode>,
+    details: Option<String>,
+    severity: Option<Severity>,
+    data_type: Option<DataType>,
+    header: Vec<(&'static str, &'static str)>,
+    expression: Vec<String>,
+}
+
+#[allow(dead_code)]
+impl ResponseBuilder {
+    fn new() -> Self {
+        Self {
+            code: None,
+            status: None,
+            details: None,
+            severity: None,
+            data_type: None,
+            header: Vec::new(),
+            expression: Vec::new(),
+        }
+    }
+
+    fn code(mut self, code: IssueType) -> Self {
+        self.code = Some(code);
+
+        self
+    }
+
+    fn status(mut self, status: StatusCode) -> Self {
+        self.status = Some(status);
+
+        self
+    }
+
+    fn details(mut self, details: String) -> Self {
+        self.details = Some(details);
+
+        self
+    }
+
+    pub fn severity(mut self, severity: Severity) -> Self {
+        self.severity = Some(severity);
+
+        self
+    }
+
+    pub fn data_type(mut self, data_type: DataType) -> Self {
+        self.data_type = Some(data_type);
+
+        self
+    }
+
+    pub fn header(mut self, key: &'static str, value: &'static str) -> Self {
+        self.header.push((key, value));
+
+        self
+    }
+
+    pub fn expression(mut self, expression: String) -> Self {
+        self.expression.push(expression);
+
+        self
+    }
+
+    pub fn expression_opt(mut self, expression: Option<&String>) -> Self {
+        if let Some(expression) = expression {
+            self.expression.push(expression.clone());
+        }
+
+        self
+    }
+
+    pub fn build(self) -> HttpResponse {
+        let status = self.status.unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+        let data_type = self.data_type.unwrap_or_default().replace_any_default();
+        let severity = if status == StatusCode::INTERNAL_SERVER_ERROR {
+            Severity::Fatal
+        } else {
+            Severity::Error
+        };
+
+        let mut res = HttpResponseBuilder::new(status);
+        for (name, value) in self.header {
+            res.header(name, value);
+        }
+
+        let out = OperationOutcome {
+            issue: vec![Issue {
+                severity: self.severity.unwrap_or(severity),
+                code: self.code.unwrap_or(IssueType::Invalid),
+                details: self.details,
+                diagnostics: None,
+                expression: Vec::new(),
+            }],
+        };
+
+        match data_type {
+            #[cfg(feature = "support-xml")]
+            DataType::Xml => {
+                use crate::fhir::encode::XmlEncode;
+
+                let xml = out.xml().unwrap();
+
+                res.content_type(DataType::Xml.as_mime().to_string())
+                    .body(xml)
+            }
+
+            #[cfg(feature = "support-json")]
+            DataType::Json => {
+                use crate::fhir::encode::JsonEncode;
+
+                let json = out.json().unwrap();
+
+                res.content_type(DataType::Json.as_mime().to_string())
+                    .body(json)
+            }
+
+            DataType::Any | DataType::Unknown => panic!("Data type of response was not specified"),
+        }
     }
 }

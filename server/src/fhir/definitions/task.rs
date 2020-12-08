@@ -537,6 +537,12 @@ pub const OPERATION_CREATE: &str =
     "http://gematik.de/fhir/OperationDefinition/CreateOperationDefinition";
 pub const OPERATION_ACTIVATE: &str =
     "http://gematik.de/fhir/OperationDefinition/ActivateOperationDefinition";
+pub const OPERATION_ACCEPT: &str =
+    "http://gematik.de/fhir/OperationDefinition/AcceptOperationDefinition";
+pub const OPERATION_REJECT: &str =
+    "http://gematik.de/fhir/OperationDefinition/RejectOperationDefinition";
+pub const OPERATION_CLOSE: &str =
+    "http://gematik.de/fhir/OperationDefinition/CloseOperationDefinition";
 pub const OPERATION_ABORT: &str =
     "http://gematik.de/fhir/OperationDefinition/AbortOperationDefinition";
 

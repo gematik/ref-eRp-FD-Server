@@ -16,30 +16,42 @@
  */
 
 use std::collections::HashMap;
+use std::convert::TryInto;
+use std::ops::{Deref, DerefMut};
+use std::str::FromStr;
 use std::sync::Arc;
 
+use chrono::{DateTime, Utc};
 use resources::{
     communication::{Communication, Inner as CommunicationInner},
     misc::{Kvnr, TelematikId},
     primitives::Id,
-    KbvBundle, MedicationDispense, Task,
+    AuditEvent, ErxBundle, KbvBinary, KbvBundle, MedicationDispense, Task,
 };
 use tokio::sync::{Mutex, MutexGuard};
+use url::Url;
 
 use crate::fhir::security::Signed;
 
-use super::header::XAccessCode;
+use super::{header::XAccessCode, routes::task::Error as TaskError, RequestError};
 
 #[derive(Default, Clone)]
 pub struct State(Arc<Mutex<Inner>>);
 
 #[derive(Default)]
 pub struct Inner {
-    pub tasks: HashMap<Id, Task>,
-    pub e_prescriptions: HashMap<Id, KbvBundle>,
+    pub tasks: HashMap<Id, TaskMeta>,
+    pub e_prescriptions: HashMap<Id, (KbvBinary, KbvBundle)>,
     pub patient_receipts: HashMap<Id, Signed<KbvBundle>>,
+    pub erx_receipts: HashMap<Id, ErxBundle>,
     pub communications: HashMap<Id, Communication>,
     pub medication_dispense: HashMap<Id, MedicationDispense>,
+    pub audit_events: HashMap<Id, AuditEvent>,
+}
+
+pub struct TaskMeta {
+    pub task: Task,
+    pub accept_timestamp: Option<DateTime<Utc>>,
 }
 
 pub enum CommunicationMatch<'a> {
@@ -52,6 +64,35 @@ pub enum CommunicationMatch<'a> {
 impl State {
     pub async fn lock(&self) -> MutexGuard<'_, Inner> {
         self.0.lock().await
+    }
+
+    pub fn parse_task_url(uri: &str) -> Result<(Id, Option<XAccessCode>), RequestError> {
+        let url = format!("http://localhost/{}", uri);
+        let url = Url::from_str(&url).map_err(|_| TaskError::InvalidUrl(uri.into()))?;
+
+        let mut path = url
+            .path_segments()
+            .ok_or_else(|| TaskError::InvalidUrl(uri.into()))?;
+        if path.next() != Some("Task") {
+            return Err(TaskError::InvalidUrl(uri.into()).into());
+        }
+
+        let task_id = path
+            .next()
+            .ok_or_else(|| TaskError::InvalidUrl(uri.into()))?;
+        let task_id = task_id
+            .try_into()
+            .map_err(|_| TaskError::InvalidUrl(uri.into()))?;
+
+        let access_code = url.query_pairs().find_map(|(key, value)| {
+            if key == "ac" {
+                Some(XAccessCode(value.into_owned()))
+            } else {
+                None
+            }
+        });
+
+        Ok((task_id, access_code))
     }
 }
 
@@ -96,7 +137,7 @@ impl Inner {
         &self,
         kvnr: Option<Kvnr>,
         access_code: Option<XAccessCode>,
-    ) -> impl Iterator<Item = &Task> {
+    ) -> impl Iterator<Item = &TaskMeta> {
         self.tasks.iter().filter_map(move |(_, task)| {
             if task_matches(task, &kvnr, &access_code) {
                 Some(task)
@@ -135,6 +176,41 @@ impl Inner {
                     _ => Some(m),
                 }
             })
+    }
+
+    pub fn remove_communications(&mut self, task_id: &Id) {
+        self.communications.retain(|_, c| {
+            if let Some(based_on) = c.based_on() {
+                let (id, _) = State::parse_task_url(&based_on).unwrap();
+
+                &id != task_id
+            } else {
+                true
+            }
+        })
+    }
+}
+
+impl From<Task> for TaskMeta {
+    fn from(task: Task) -> Self {
+        Self {
+            task,
+            accept_timestamp: None,
+        }
+    }
+}
+
+impl Deref for TaskMeta {
+    type Target = Task;
+
+    fn deref(&self) -> &Self::Target {
+        &self.task
+    }
+}
+
+impl DerefMut for TaskMeta {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.task
     }
 }
 

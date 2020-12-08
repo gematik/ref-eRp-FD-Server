@@ -49,6 +49,7 @@ impl Decode for MedicationDispense {
             "status",
             "medicationReference",
             "subject",
+            "supportingInformation",
             "performer",
             "whenPrepared",
             "whenHandedOver",
@@ -74,6 +75,7 @@ impl Decode for MedicationDispense {
 
             identifier
         };
+        let supporting_information = stream.decode_opt(&mut fields, decode_reference).await?;
         let performer = {
             stream.begin_substream(&mut fields).await?;
             stream.element().await?;
@@ -112,6 +114,7 @@ impl Decode for MedicationDispense {
             prescription_id,
             medication,
             subject,
+            supporting_information,
             performer,
             when_prepared,
             when_handed_over,
@@ -162,6 +165,11 @@ impl Encode for &MedicationDispense {
             .element()?
             .encode("identifier", &self.subject, encode_identifier)?
             .end()?
+            .encode_opt(
+                "supportingInformation",
+                &self.supporting_information,
+                encode_reference,
+            )?
             .field_name("performer")?
             .array()?
             .element()?
@@ -194,7 +202,7 @@ impl Encode for &DosageInstruction {
     }
 }
 
-pub const PROFILE: &str = "https://gematik.de/fhir/StructureDefinition/ERxMedicationDispense";
+pub const PROFILE: &str = "https://gematik.de/fhir/StructureDefinition/erxMedicationDispense";
 
 #[cfg(test)]
 pub mod tests {
@@ -261,6 +269,7 @@ pub mod tests {
             prescription_id: "160.123.456.789.123.58".parse().unwrap(),
             medication: "Medication/1234".into(),
             subject: Kvnr::new("X234567890").unwrap(),
+            supporting_information: None,
             performer: TelematikId::new("606358757"),
             when_prepared: None,
             when_handed_over: "2020-03-20T07:13:00+05:00".try_into().unwrap(),

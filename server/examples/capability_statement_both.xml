@@ -55,7 +55,7 @@
         </resource>
         <resource>
             <type value="MedicationDispense"/>
-            <profile value="https://gematik.de/fhir/StructureDefinition/ERxMedicationDispense"/>
+            <profile value="https://gematik.de/fhir/StructureDefinition/erxMedicationDispense"/>
             <interaction>
                 <code value="read"/>
             </interaction>

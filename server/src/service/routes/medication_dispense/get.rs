@@ -18,7 +18,7 @@
 use std::str::FromStr;
 
 use actix_web::{
-    web::{Data, Path, Query},
+    web::{Data, Path},
     HttpRequest, HttpResponse,
 };
 use chrono::{DateTime, Utc};
@@ -27,33 +27,42 @@ use resources::{
     misc::TelematikId,
     primitives::Id,
 };
-use serde::Deserialize;
 
-#[cfg(feature = "support-json")]
-use crate::fhir::encode::JsonEncode;
-#[cfg(feature = "support-xml")]
-use crate::fhir::encode::XmlEncode;
 use crate::service::{
     header::{Accept, Authorization},
-    misc::{DataType, Profession, Search, Sort},
+    misc::{create_response, DataType, FromQuery, Profession, Query, QueryValue, Search, Sort},
     state::State,
-    RequestError,
+    AsReqErr, AsReqErrResult, TypedRequestError, TypedRequestResult,
 };
 
-#[derive(Default, Deserialize)]
+use super::Error;
+
+#[derive(Default)]
 pub struct QueryArgs {
-    when_handed_over: Option<Search<DateTime<Utc>>>,
-    when_prepared: Option<Search<DateTime<Utc>>>,
-    performer: Option<Search<TelematikId>>,
-
-    #[serde(rename = "_sort")]
+    when_handed_over: Vec<Search<DateTime<Utc>>>,
+    when_prepared: Vec<Search<DateTime<Utc>>>,
+    performer: Vec<Search<TelematikId>>,
     sort: Option<Sort<SortArgs>>,
-
-    #[serde(rename = "_count")]
     count: Option<usize>,
-
-    #[serde(rename = "pageId")]
     page_id: Option<usize>,
+}
+
+impl FromQuery for QueryArgs {
+    fn parse_key_value_pair(&mut self, key: &str, value: QueryValue) -> Result<(), String> {
+        match key {
+            "whenHandedOver" => self.when_handed_over.push(value.ok()?.parse()?),
+            "whenPrepared" => self.when_prepared.push(value.ok()?.parse()?),
+            "performer" => self.performer.push(value.ok()?.parse()?),
+            "_sort" => self.sort = Some(value.ok()?.parse()?),
+            "_count" => self.count = Some(value.ok()?.parse::<usize>().map_err(|e| e.to_string())?),
+            "pageId" => {
+                self.page_id = Some(value.ok()?.parse::<usize>().map_err(|e| e.to_string())?)
+            }
+            _ => (),
+        }
+
+        Ok(())
+    }
 }
 
 pub enum SortArgs {
@@ -79,15 +88,19 @@ pub async fn get_all(
     access_token: Authorization,
     query: Query<QueryArgs>,
     request: HttpRequest,
-) -> Result<HttpResponse, RequestError> {
-    access_token.check_profession(|p| p == Profession::Versicherter)?;
-
-    let kvnr = access_token.kvnr()?;
-    let accept = DataType::from_accept(accept)
+) -> Result<HttpResponse, TypedRequestError> {
+    let accept = DataType::from_accept(&accept)
         .and_then(DataType::ignore_any)
         .unwrap_or_default()
-        .check_supported()?;
+        .check_supported()
+        .err_with_type_default()?;
 
+    access_token
+        .check_profession(|p| p == Profession::Versicherter)
+        .as_req_err()
+        .err_with_type(accept)?;
+
+    let kvnr = access_token.kvnr().as_req_err().err_with_type(accept)?;
     let state = state.lock().await;
 
     // Collect results
@@ -97,24 +110,23 @@ pub async fn get_all(
             continue;
         }
 
-        match &query.when_handed_over {
-            Some(when_handed_over)
-                if when_handed_over
-                    .matches(&medication_dispense.when_handed_over.clone().into()) => {}
-            Some(_) => continue,
-            None => (),
+        for expected in &query.when_handed_over {
+            if !expected.matches(&medication_dispense.when_handed_over.clone().into()) {
+                continue;
+            }
         }
 
-        match (&query.when_prepared, &medication_dispense.when_prepared) {
-            (Some(expected), Some(actual)) if expected.matches(&actual.clone().into()) => (),
-            (Some(_), _) => continue,
-            (None, _) => (),
+        for expected in &query.when_prepared {
+            match &medication_dispense.when_prepared {
+                Some(actual) if !expected.matches(&actual.clone().into()) => continue,
+                _ => (),
+            }
         }
 
-        match &query.performer {
-            Some(performer) if performer.matches(&medication_dispense.performer) => (),
-            Some(_) => continue,
-            None => (),
+        for expected in &query.performer {
+            if !expected.matches(&medication_dispense.performer) {
+                continue;
+            }
         }
 
         results.push(medication_dispense);
@@ -187,28 +199,7 @@ pub async fn get_all(
         }
     }
 
-    // Create the response
-    match accept {
-        #[cfg(feature = "support-xml")]
-        DataType::Xml => {
-            let xml = bundle.xml()?;
-
-            Ok(HttpResponse::Ok()
-                .content_type(DataType::Xml.as_mime().to_string())
-                .body(xml))
-        }
-
-        #[cfg(feature = "support-json")]
-        DataType::Json => {
-            let json = bundle.json()?;
-
-            Ok(HttpResponse::Ok()
-                .content_type(DataType::Json.as_mime().to_string())
-                .body(json))
-        }
-
-        DataType::Any | DataType::Unknown => panic!("Data type of response was not specified"),
-    }
+    create_response(&bundle, accept)
 }
 
 pub async fn get_one(
@@ -216,46 +207,31 @@ pub async fn get_one(
     id: Path<Id>,
     accept: Accept,
     access_token: Authorization,
-) -> Result<HttpResponse, RequestError> {
-    access_token.check_profession(|p| p == Profession::Versicherter)?;
-
-    let kvnr = access_token.kvnr()?;
-    let accept = DataType::from_accept(accept)
+) -> Result<HttpResponse, TypedRequestError> {
+    let accept = DataType::from_accept(&accept)
         .and_then(DataType::ignore_any)
         .unwrap_or_default()
-        .check_supported()?;
+        .check_supported()
+        .err_with_type_default()?;
 
+    access_token
+        .check_profession(|p| p == Profession::Versicherter)
+        .as_req_err()
+        .err_with_type(accept)?;
+
+    let id = id.0;
+    let kvnr = access_token.kvnr().as_req_err().err_with_type(accept)?;
     let state = state.lock().await;
     let medication_dispense = match state.medication_dispense.get(&id) {
         Some(medication_dispense) => medication_dispense,
-        None => return Ok(HttpResponse::NotFound().finish()),
+        None => return Err(Error::NotFound(id).as_req_err().with_type(accept)),
     };
 
     if medication_dispense.subject != kvnr {
-        return Ok(HttpResponse::Forbidden().finish());
+        return Err(Error::Forbidden(id).as_req_err().with_type(accept));
     }
 
-    match accept {
-        #[cfg(feature = "support-xml")]
-        DataType::Xml => {
-            let xml = medication_dispense.xml()?;
-
-            Ok(HttpResponse::Ok()
-                .content_type(DataType::Xml.as_mime().to_string())
-                .body(xml))
-        }
-
-        #[cfg(feature = "support-json")]
-        DataType::Json => {
-            let json = medication_dispense.json()?;
-
-            Ok(HttpResponse::Ok()
-                .content_type(DataType::Json.as_mime().to_string())
-                .body(json))
-        }
-
-        DataType::Any | DataType::Unknown => panic!("Data type of response was not specified"),
-    }
+    create_response(medication_dispense, accept)
 }
 
 fn make_uri(query: &str, page_id: usize) -> String {

@@ -56,6 +56,7 @@ pub enum Type {
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum Format {
+    Xml,
     Json,
     Unknown,
 }

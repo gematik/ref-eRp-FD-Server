@@ -23,7 +23,7 @@ use crate::service::constants::{MIMES_FHIR_JSON, MIME_FHIR_JSON};
 use crate::service::constants::{MIMES_FHIR_XML, MIME_FHIR_XML};
 use crate::service::{constants::MIME_ANY, header::Accept, RequestError};
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum DataType {
     Unknown,
     Any,
@@ -58,11 +58,8 @@ impl DataType {
         Self::Unknown
     }
 
-    pub fn from_accept(accept: Accept) -> Option<Self> {
-        let mut accept = accept.0;
-        accept.sort_by(|a, b| a.quality.cmp(&b.quality));
-
-        for mime in accept.iter().map(|m| &m.item) {
+    pub fn from_accept(accept: &Accept) -> Option<Self> {
+        for mime in accept.0.iter().map(|m| &m.item) {
             let ret = Self::from_mime(mime);
             if ret != Self::Unknown {
                 return Some(ret);
@@ -113,6 +110,13 @@ impl DataType {
     pub fn replace_any(self, value: DataType) -> Self {
         match self {
             Self::Any => value,
+            _ => self,
+        }
+    }
+
+    pub fn replace_any_default(self) -> Self {
+        match self {
+            Self::Any => DataType::default(),
             _ => self,
         }
     }

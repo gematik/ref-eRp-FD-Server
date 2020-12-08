@@ -54,6 +54,9 @@ pub enum Error {
 
     #[error("Unable to find Issuer Certificate!")]
     UnknownIssuerCert,
+
+    #[error("Empty Certificate Key!")]
+    EmptyCertKey,
 }
 
 impl From<IoError> for Error {

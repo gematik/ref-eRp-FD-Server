@@ -72,7 +72,7 @@ where
 
         match parse_authorization(&req) {
             Ok(()) => (),
-            Err(err) => return Either::Right(ready(Err(err.into()))),
+            Err(err) => return Either::Right(ready(Err(err.with_type_from(&req).into()))),
         };
 
         let req = ServiceRequest::from_parts(req, payload)
@@ -87,7 +87,7 @@ pub fn extract_access_token(req: &HttpRequest) -> Result<&str, RequestError> {
     let access_token = req
         .headers()
         .get(&*AUTHORIZATION)
-        .ok_or_else(|| AccessTokenError::Missing)?
+        .ok_or(AccessTokenError::Missing)?
         .to_str()
         .map_err(|_| AccessTokenError::InvalidValue)?;
 
@@ -101,12 +101,12 @@ pub fn extract_access_token(req: &HttpRequest) -> Result<&str, RequestError> {
 fn parse_authorization(req: &HttpRequest) -> Result<(), RequestError> {
     let puk_token = req
         .app_data::<PukToken>()
-        .ok_or_else(|| RequestError::internal("Shared data 'PukToken' is missing!"))?;
+        .expect("Shared data 'PukToken' is missing!");
 
     let pub_key = puk_token
         .load()
         .as_ref()
-        .ok_or_else(|| AccessTokenError::NoPukToken)?
+        .ok_or(AccessTokenError::NoPukToken)?
         .public_key
         .clone();
 

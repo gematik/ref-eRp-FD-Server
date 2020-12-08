@@ -30,7 +30,7 @@ pub use jwt::Error;
 struct Header {
     alg: Algorithm,
 
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     x5c: Vec<String>,
 }
 

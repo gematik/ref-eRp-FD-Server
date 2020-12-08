@@ -144,10 +144,10 @@ async fn fetch_pub_key(client: &Client, url: Url) -> Result<PKey<Public>, Error>
     let cert = jwks
         .keys
         .first()
-        .ok_or_else(|| Error::MissingCert)?
+        .ok_or(Error::MissingCert)?
         .x5c
         .first()
-        .ok_or_else(|| Error::MissingCert)?;
+        .ok_or(Error::MissingCert)?;
     let cert = format!(
         "-----BEGIN CERTIFICATE-----\n{}\n-----END CERTIFICATE-----",
         cert

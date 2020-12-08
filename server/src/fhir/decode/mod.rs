@@ -273,7 +273,7 @@ pub mod tests {
         });
         assert_some_ok!(Item::Field {
             name: "reference".into(),
-            value: "Bundle/KbvPrescriptionExample".into(),
+            value: "#Bundle/KbvPrescriptionExample".into(),
             extension: Vec::new(),
         });
         assert_some_ok!(Item::EndElement);
@@ -309,7 +309,7 @@ pub mod tests {
         });
         assert_some_ok!(Item::Field {
             name: "reference".into(),
-            value: "Bundle/KbvPatientReceiptExample".into(),
+            value: "#Bundle/KbvPatientReceiptExample".into(),
             extension: Vec::new(),
         });
         assert_some_ok!(Item::EndElement);
@@ -345,7 +345,7 @@ pub mod tests {
         });
         assert_some_ok!(Item::Field {
             name: "reference".into(),
-            value: "Bundle/KbvReceiptExample".into(),
+            value: "#Bundle/KbvReceiptExample".into(),
             extension: Vec::new(),
         });
         assert_some_ok!(Item::EndElement);

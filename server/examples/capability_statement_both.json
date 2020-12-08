@@ -68,7 +68,7 @@
                 },
                 {
                     "type":"MedicationDispense",
-                    "profile":"https://gematik.de/fhir/StructureDefinition/ERxMedicationDispense",
+                    "profile":"https://gematik.de/fhir/StructureDefinition/erxMedicationDispense",
                     "interaction":[
                         {
                             "code":"read"

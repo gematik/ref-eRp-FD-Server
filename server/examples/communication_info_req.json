@@ -11,7 +11,7 @@
             "id":"5fe6e06c-8725-46d5-aecd-e65e041ca3de",
             "meta":{
                 "profile":[
-                    "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_PZN|1.00.000"
+                    "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_PZN|1.0.0"
                 ]
             },
             "extension":[
@@ -34,7 +34,7 @@
             "code":{
                 "coding":[
                     {
-                        "system":"https://fhir.kbv.de/NamingSystem/KBV_NS_ERP_PZN",
+                        "system":"http://fhir.de/CodeSystem/ifa/pzn",
                         "code":"06313728"
                     }
                 ],
@@ -64,7 +64,7 @@
     "status":"unknown",
     "about":[
         {
-            "reference":"5fe6e06c-8725-46d5-aecd-e65e041ca3de"
+            "reference":"#5fe6e06c-8725-46d5-aecd-e65e041ca3de"
         }
     ],
     "sent":"2020-03-12T18:01:10+00:00",

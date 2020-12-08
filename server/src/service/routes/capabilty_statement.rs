@@ -27,18 +27,32 @@ use resources::capability_statement::{
     CapabilityStatement, FhirVersion, Format, Mode, Rest, Software, Status,
 };
 use serde::Deserialize;
+use thiserror::Error;
 
 #[cfg(feature = "support-json")]
 use crate::{fhir::encode::JsonEncode, service::constants::MIME_FHIR_JSON};
 #[cfg(feature = "support-xml")]
 use crate::{fhir::encode::XmlEncode, service::constants::MIME_FHIR_XML};
 
-use crate::service::{header::Accept, misc::DataType, RequestError};
+use crate::service::{
+    header::Accept,
+    misc::{format_version, DataType},
+    RequestError, TypedRequestError,
+};
 
 #[derive(Deserialize)]
 pub struct QueryArgs {
     #[serde(rename = "_format")]
     format: Option<String>,
+}
+
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("Invalid '_format' argument: {0}!")]
+    InvalidFormat(String),
+
+    #[error("Requested unsupported format!")]
+    UnsupportedFormat,
 }
 
 pub fn create() -> CapabilityStatement {
@@ -67,8 +81,11 @@ pub fn create() -> CapabilityStatement {
     }
 }
 
-pub async fn get(accept: Accept, query: Query<QueryArgs>) -> Result<HttpResponse, RequestError> {
-    let mut data_types = match query.0.format {
+pub async fn get(
+    accept: Accept,
+    query: Query<QueryArgs>,
+) -> Result<HttpResponse, TypedRequestError> {
+    let data_types = match query.0.format {
         #[cfg(feature = "support-xml")]
         Some(format) if format == "xml" => {
             vec![QualityItem::new(MIME_FHIR_XML.clone(), Quality::default())]
@@ -79,16 +96,16 @@ pub async fn get(accept: Accept, query: Query<QueryArgs>) -> Result<HttpResponse
             vec![QualityItem::new(MIME_FHIR_JSON.clone(), Quality::default())]
         }
 
-        Some(format) => vec![format
-            .parse()
-            .map_err(|_| RequestError::InvalidFormatArgument(format))?],
+        Some(format) => vec![format.parse().map_err(|_| {
+            RequestError::CapabiltyStatementError(Error::InvalidFormat(format))
+                .with_type_from(&accept)
+        })?],
 
         None => accept.0,
     };
 
     let mut use_default = data_types.is_empty();
-    data_types.sort_by(|a, b| a.quality.cmp(&b.quality));
-    for q in data_types {
+    for q in data_types.iter() {
         let data_type = DataType::from_mime(&q.item);
         if data_type == DataType::Unknown {
             continue;
@@ -136,43 +153,8 @@ pub async fn get(accept: Accept, query: Query<QueryArgs>) -> Result<HttpResponse
             .body(JSON.clone()));
     }
 
-    Ok(HttpResponse::NotFound().finish())
-}
-
-fn format_version() -> String {
-    static VERSIONS: [Option<&str>; 2] = [
-        option_env!("GIT_VERSION_TAG"),
-        option_env!("CARGO_PKG_VERSION"),
-    ];
-    let version = VERSIONS
-        .iter()
-        .filter_map(|s| match s {
-            Some(s) if !s.is_empty() => Some(s),
-            _ => None,
-        })
-        .next()
-        .unwrap_or(&"0.0.0");
-    let mut ret = (*version).to_owned();
-
-    if let Some(commits_behind) = option_env!("GIT_COMMITS_BEHIND") {
-        if !commits_behind.is_empty() && commits_behind != "0" {
-            ret = format!("{}+{}", ret, commits_behind);
-        }
-    }
-
-    if let Some(dirty) = option_env!("GIT_DIRTY") {
-        if dirty == "1" {
-            ret = format!("{} dirty", ret);
-        }
-    }
-
-    if let Some(hash) = option_env!("GIT_HASH") {
-        if !hash.is_empty() {
-            ret = format!("{} {}", ret, hash);
-        }
-    }
-
-    ret
+    let accept = Accept(data_types);
+    Err(RequestError::CapabiltyStatementError(Error::UnsupportedFormat).with_type_from(&accept))
 }
 
 #[cfg(feature = "support-xml")]

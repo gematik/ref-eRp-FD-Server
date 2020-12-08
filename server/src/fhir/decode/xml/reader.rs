@@ -109,7 +109,7 @@ where
             .stream
             .take_while(is_ident)
             .await?
-            .ok_or_else(|| StreamError::UnexpectedEof)?;
+            .ok_or(StreamError::UnexpectedEof)?;
         let name = from_utf8(&name)?;
         let name = name.to_owned();
 
@@ -135,7 +135,7 @@ where
                         .stream
                         .take_while(is_ident)
                         .await?
-                        .ok_or_else(|| StreamError::UnexpectedEof)?;
+                        .ok_or(StreamError::UnexpectedEof)?;
                     let attrib = from_utf8(&attrib)?;
 
                     self.stream.drop_whitespaces().await?;
@@ -147,7 +147,7 @@ where
                         .stream
                         .take_while(|_, v| v != b'"')
                         .await?
-                        .ok_or_else(|| StreamError::UnexpectedEof)?;
+                        .ok_or(StreamError::UnexpectedEof)?;
                     let value = from_utf8(&value)?;
 
                     self.stream.expect(b"\"").await?;

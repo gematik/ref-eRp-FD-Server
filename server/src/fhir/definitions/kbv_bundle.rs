@@ -18,7 +18,7 @@
 use async_trait::async_trait;
 use miscellaneous::str::icase_eq;
 use resources::{
-    kbv_bundle::{Entry, KbvBundle},
+    kbv_bundle::{Entry, KbvBinary, KbvBundle},
     Composition, Coverage, Medication, MedicationRequest, Organization, Patient, Practitioner,
     PractitionerRole, SignatureFormat,
 };
@@ -31,7 +31,7 @@ use crate::fhir::{
 
 use super::{
     meta::Meta,
-    primitives::{decode_identifier, encode_identifier},
+    primitives::{decode_binary, decode_identifier, encode_binary, encode_identifier, BinaryEx},
 };
 
 /* Decode */
@@ -177,6 +177,16 @@ impl Decode for Resource {
     }
 }
 
+#[async_trait(?Send)]
+impl Decode for KbvBinary {
+    async fn decode<S>(stream: &mut DecodeStream<S>) -> Result<Self, DecodeError<S::Error>>
+    where
+        S: DataStream,
+    {
+        decode_binary(stream).await
+    }
+}
+
 /* Encode */
 
 impl Encode for &KbvBundle {
@@ -205,14 +215,20 @@ impl Encode for &KbvBundle {
             .encode("timestamp", &self.timestamp, encode_any)?
             .field_name("entry")?
             .array()?
-            .inline_opt(&self.entry.composition, encode_any)?
-            .inline_opt(&self.entry.medication_request, encode_any)?
-            .inline_opt(&self.entry.medication, encode_any)?
-            .inline_opt(&self.entry.patient, encode_any)?
-            .inline_opt(&self.entry.practitioner, encode_any)?
-            .inline_opt(&self.entry.organization, encode_any)?
-            .inline_opt(&self.entry.coverage, encode_any)?
-            .inline_opt(&self.entry.practitioner_role, encode_any)?
+            .inline_opt(self.entry.composition.as_ref().map(EntryPair), encode_any)?
+            .inline_opt(
+                self.entry.medication_request.as_ref().map(EntryPair),
+                encode_any,
+            )?
+            .inline_opt(self.entry.medication.as_ref().map(EntryPair), encode_any)?
+            .inline_opt(self.entry.patient.as_ref().map(EntryPair), encode_any)?
+            .inline_opt(self.entry.practitioner.as_ref().map(EntryPair), encode_any)?
+            .inline_opt(self.entry.organization.as_ref().map(EntryPair), encode_any)?
+            .inline_opt(self.entry.coverage.as_ref().map(EntryPair), encode_any)?
+            .inline_opt(
+                self.entry.practitioner_role.as_ref().map(EntryPair),
+                encode_any,
+            )?
             .end()?
             .encode_opt("signature", signature, encode_any)?
             .end()?;
@@ -221,9 +237,11 @@ impl Encode for &KbvBundle {
     }
 }
 
-impl<T> Encode for &(String, T)
+struct EntryPair<'a, T>(&'a (String, T));
+
+impl<'a, T> Encode for EntryPair<'a, T>
 where
-    for<'a> &'a T: Encode,
+    for<'x> &'x T: Encode,
 {
     fn encode<S>(self, stream: &mut EncodeStream<S>) -> Result<(), EncodeError<S::Error>>
     where
@@ -231,15 +249,40 @@ where
     {
         stream
             .element()?
-            .encode("fullUrl", &self.0, encode_any)?
-            .resource("resource", &self.1, encode_any)?
+            .encode("fullUrl", &self.0 .0, encode_any)?
+            .resource("resource", &self.0 .1, encode_any)?
             .end()?;
 
         Ok(())
     }
 }
 
-const PROFILE: &str = "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Bundle|1.00.000";
+impl Encode for &KbvBinary {
+    fn encode<S>(self, stream: &mut EncodeStream<S>) -> Result<(), EncodeError<S::Error>>
+    where
+        S: DataStorage,
+    {
+        encode_binary(self, stream)
+    }
+}
+
+/* Misc */
+
+impl BinaryEx for KbvBinary {
+    fn from_parts(data: String) -> Result<Self, String> {
+        Ok(KbvBinary(data))
+    }
+
+    fn data(&self) -> String {
+        self.0.clone()
+    }
+
+    fn content_type() -> Option<&'static str> {
+        Some("application/pkcs7-mime")
+    }
+}
+
+const PROFILE: &str = "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Bundle|1.0.0";
 
 #[cfg(test)]
 pub mod tests {

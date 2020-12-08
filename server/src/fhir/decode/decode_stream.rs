@@ -107,6 +107,31 @@ where
     Custom { message: String, path: OptStr },
 }
 
+impl<E> DecodeError<E>
+where
+    E: Debug + Display,
+{
+    pub fn path(&self) -> Option<&String> {
+        match self {
+            Self::InvalidValue { path, .. } => path.0.as_ref(),
+            Self::InvalidFixedValue { path, .. } => path.0.as_ref(),
+            Self::ElementOutOfOrder { path, .. } => path.0.as_ref(),
+            Self::MissingField { path, .. } => path.0.as_ref(),
+            Self::MissingExtension { path, .. } => path.0.as_ref(),
+            Self::UnexpectedElement { path, .. } => path.0.as_ref(),
+            Self::UnexpectedEnd { path, .. } => path.0.as_ref(),
+            Self::UnexpectedField { path, .. } => path.0.as_ref(),
+            Self::UnexpectedValue { path, .. } => path.0.as_ref(),
+            Self::UnexpectedElements { path, .. } => path.0.as_ref(),
+            Self::UnexpectedEoB { path, .. } => path.0.as_ref(),
+            Self::UnexpectedEoE { path, .. } => path.0.as_ref(),
+            Self::UnexpectedEoF { path, .. } => path.0.as_ref(),
+            Self::Custom { path, .. } => path.0.as_ref(),
+            _ => None,
+        }
+    }
+}
+
 pub trait DataStream: Unpin {
     type Stream: Stream<Item = Result<Item, Self::Error>> + Unpin;
     type Error: Debug + Display + Unpin;

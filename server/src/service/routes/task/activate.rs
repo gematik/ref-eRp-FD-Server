@@ -28,25 +28,20 @@ use futures::{future::ready, stream::once};
 use resources::{
     primitives::Id,
     task::{Status, TaskActivateParameters},
-    KbvBundle, SignatureType,
+    KbvBinary, KbvBundle, SignatureType,
 };
 
-#[cfg(feature = "support-json")]
-use crate::fhir::decode::JsonDecode;
-#[cfg(feature = "support-xml")]
-use crate::fhir::decode::XmlDecode;
-
 use crate::{
-    fhir::security::Signed,
+    fhir::{decode::XmlDecode, security::Signed},
     service::{
-        error::RequestError,
         header::{Accept, Authorization, ContentType, XAccessCode},
-        misc::{Cms, DataType, Profession, SigCert, SigKey},
+        misc::{create_response, read_payload, Cms, DataType, Profession, SigCert, SigKey},
         state::State,
+        AsReqErr, AsReqErrResult, TypedRequestError, TypedRequestResult,
     },
 };
 
-use super::misc::response_with_task;
+use super::Error;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn activate(
@@ -59,41 +54,40 @@ pub async fn activate(
     access_token: Authorization,
     content_type: ContentType,
     access_code: XAccessCode,
-    mut payload: Payload,
-) -> Result<HttpResponse, RequestError> {
-    access_token.check_profession(|p| {
-        p == Profession::Arzt
-            || p == Profession::Zahnarzt
-            || p == Profession::PraxisArzt
-            || p == Profession::ZahnarztPraxis
-            || p == Profession::PraxisPsychotherapeut
-            || p == Profession::Krankenhaus
-    })?;
-
+    payload: Payload,
+) -> Result<HttpResponse, TypedRequestError> {
     let data_type = DataType::from_mime(&content_type);
-    let accept = DataType::from_accept(accept)
+    let accept = DataType::from_accept(&accept)
         .unwrap_or_default()
         .replace_any(data_type)
-        .check_supported()?;
+        .check_supported()
+        .err_with_type_default()?;
 
-    let args: TaskActivateParameters = match data_type {
-        #[cfg(feature = "support-xml")]
-        DataType::Xml => payload.xml().await?,
+    access_token
+        .check_profession(|p| {
+            p == Profession::Arzt
+                || p == Profession::Zahnarzt
+                || p == Profession::PraxisArzt
+                || p == Profession::ZahnarztPraxis
+                || p == Profession::PraxisPsychotherapeut
+                || p == Profession::Krankenhaus
+        })
+        .as_req_err()
+        .err_with_type(accept)?;
 
-        #[cfg(feature = "support-json")]
-        DataType::Json => payload.json().await?,
-
-        DataType::Unknown | DataType::Any => {
-            return Err(RequestError::ContentTypeNotSupported(
-                content_type.to_string(),
-            ))
-        }
-    };
-
-    let kbv_bundle = cms.verify(&args.data)?;
+    let id = id.0;
+    let args = read_payload::<TaskActivateParameters>(data_type, payload)
+        .await
+        .err_with_type(accept)?;
+    let kbv_binary = KbvBinary(args.data);
+    let kbv_bundle = cms.verify(&kbv_binary.0).err_with_type(accept)?;
     let kbv_bundle = kbv_bundle.into();
     let kbv_bundle = Result::<Bytes, PayloadError>::Ok(kbv_bundle);
-    let kbv_bundle: KbvBundle = once(ready(kbv_bundle)).xml().await?;
+    let kbv_bundle: KbvBundle = once(ready(kbv_bundle))
+        .xml()
+        .await
+        .as_req_err()
+        .err_with_type(accept)?;
 
     let kvnr = match kbv_bundle
         .entry
@@ -104,16 +98,8 @@ pub async fn activate(
         .map(TryInto::try_into)
     {
         Some(Ok(kvnr)) => kvnr,
-        Some(Err(())) => {
-            return Err(RequestError::BadRequest(
-                "KBV Bundle does not contain a valid KV-Nr.!".into(),
-            ))
-        }
-        None => {
-            return Err(RequestError::BadRequest(
-                "KBV Bundle is missing the KV-Nr.!".into(),
-            ))
-        }
+        Some(Err(())) => return Err(Error::KvnrInvalid.as_req_err().with_type(accept)),
+        None => return Err(Error::KvnrMissing.as_req_err().with_type(accept)),
     };
 
     /* verify the request */
@@ -123,57 +109,60 @@ pub async fn activate(
     {
         let task = match state.tasks.get(&id) {
             Some(task) => task,
-            None => return Ok(HttpResponse::NotFound().finish()),
+            None => return Err(Error::NotFound(id).as_req_err().with_type(accept)),
         };
 
         if Status::Draft != task.status {
-            return Err(RequestError::BadRequest(format!(
-                "Invalid task status (expected={:?}, actual={:?})",
-                Status::Draft,
-                task.status
-            )));
+            return Err(Error::InvalidStatus.as_req_err().with_type(accept));
         }
 
         match &task.identifier.access_code {
             Some(s) if *s == access_code => (),
-            Some(_) | None => return Ok(HttpResponse::Forbidden().finish()),
+            Some(_) | None => return Err(Error::Forbidden(id).as_req_err().with_type(accept)),
         }
     }
 
     /* create / update resources */
 
     let mut patient_receipt = kbv_bundle.clone();
-    patient_receipt.id =
-        Id::generate().map_err(|_| RequestError::internal("Unable to generate ID"))?;
+    patient_receipt.id = Id::generate().unwrap();
 
     let patient_receipt = match state.patient_receipts.entry(patient_receipt.id.clone()) {
         Entry::Occupied(_) => {
-            return Err(RequestError::internal(format!(
+            panic!(
                 "Patient receipt with this ID ({}) already exists!",
                 patient_receipt.id
-            )))
+            );
         }
         Entry::Vacant(entry) => {
             let mut patient_receipt = Signed::new(patient_receipt);
-            patient_receipt.sign_json(
-                SignatureType::AuthorsSignature,
-                "Device/software".into(),
-                &sig_key.0,
-                &sig_cert.0,
-            )?;
+            patient_receipt
+                .sign_json(
+                    SignatureType::AuthorsSignature,
+                    "Device/software".into(),
+                    &sig_key.0,
+                    &sig_cert.0,
+                )
+                .as_req_err()
+                .err_with_type(accept)?;
 
             entry.insert(patient_receipt).id.clone()
         }
     };
 
     let e_prescription = match state.e_prescriptions.entry(kbv_bundle.id.clone()) {
-        Entry::Occupied(_) => return Ok(HttpResponse::BadRequest().finish()),
-        Entry::Vacant(entry) => entry.insert(kbv_bundle).id.clone(),
+        Entry::Occupied(_) => {
+            panic!(
+                "ePrescription with this ID ({}) does already exist!",
+                kbv_bundle.id
+            );
+        }
+        Entry::Vacant(entry) => entry.insert((kbv_binary, kbv_bundle)).1.id.clone(),
     };
 
-    let mut task = match state.tasks.get_mut(&id) {
+    let task = match state.tasks.get_mut(&id) {
         Some(task) => task,
-        None => return Err(RequestError::internal("Unable to get task from database!")),
+        None => return Err(Error::NotFound(id).as_req_err().with_type(accept)),
     };
 
     task.for_ = Some(kvnr);
@@ -181,5 +170,5 @@ pub async fn activate(
     task.input.e_prescription = Some(e_prescription);
     task.input.patient_receipt = Some(patient_receipt);
 
-    response_with_task(task, accept, false)
+    create_response(&**task, accept)
 }

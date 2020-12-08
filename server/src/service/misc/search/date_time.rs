@@ -45,10 +45,10 @@ impl FromStr for DateTimeStorage {
             .unwrap();
         }
 
-        let captures = RX.captures(&s).ok_or_else(|| ())?;
+        let captures = RX.captures(&s).ok_or(())?;
 
         let mut storage = Self {
-            year: from_capture(&captures, 1)?.ok_or_else(|| ())?,
+            year: from_capture(&captures, 1)?.ok_or(())?,
             month: from_capture(&captures, 2)?,
             day: from_capture(&captures, 3)?,
             hour: from_capture(&captures, 4)?,
@@ -65,8 +65,8 @@ impl FromStr for DateTimeStorage {
             let tz = tz.as_str();
             if tz != "Z" {
                 let mut parts = tz[1..].split(':');
-                let hours = parts.next().ok_or_else(|| ())?.parse().map_err(|_| ())?;
-                let minutes = parts.next().ok_or_else(|| ())?.parse().map_err(|_| ())?;
+                let hours = parts.next().ok_or(())?.parse().map_err(|_| ())?;
+                let minutes = parts.next().ok_or(())?.parse().map_err(|_| ())?;
 
                 let mut t = NaiveDate::from_ymd(
                     storage.year,
@@ -210,9 +210,10 @@ pub mod tests {
     macro_rules! test_parse {
         ($s:expr, $cmp:ident, $date:expr) => {
             let x = Search::<DateTime<Utc>>::from_str($s).unwrap();
+            let x = &x.args[0];
 
-            assert_eq!(x.comperator, Comperator::$cmp);
-            assert_eq!(x.value, $date);
+            assert_eq!(x.0, Comperator::$cmp);
+            assert_eq!(x.1, $date);
         };
     }
 

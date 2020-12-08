@@ -3,7 +3,7 @@
     "id":"281a985c-f25b-4aae-91a6-41ad744080b0",
     "meta":{
         "profile":[
-            "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Bundle|1.00.000"
+            "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Bundle|1.0.0"
         ]
     },
     "identifier":{
@@ -118,7 +118,7 @@
                 "id":"e930cdee-9eb5-4b44-88b5-2a18b69f3b9a",
                 "meta":{
                     "profile":[
-                        "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Prescription|1.00.000"
+                        "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Prescription|1.0.0"
                     ]
                 },
                 "extension":[
@@ -205,7 +205,7 @@
                 "id":"5fe6e06c-8725-46d5-aecd-e65e041ca3de",
                 "meta":{
                     "profile":[
-                        "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_PZN|1.00.000"
+                        "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_PZN|1.0.0"
                     ]
                 },
                 "extension":[
@@ -228,7 +228,7 @@
                 "code":{
                     "coding":[
                         {
-                            "system":"https://fhir.kbv.de/NamingSystem/KBV_NS_ERP_PZN",
+                            "system":"http://fhir.de/CodeSystem/ifa/pzn",
                             "code":"06313728"
                         }
                     ],

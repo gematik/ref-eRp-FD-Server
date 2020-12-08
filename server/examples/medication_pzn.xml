@@ -1,7 +1,7 @@
 <Medication xmlns="http://hl7.org/fhir">
     <id value="5fe6e06c-8725-46d5-aecd-e65e041ca3de"/>
     <meta>
-        <profile value="https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_PZN|1.00.000"/>
+        <profile value="https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_PZN|1.0.0"/>
     </meta>
     <extension url="https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Medication_Category">
         <valueCoding>
@@ -17,7 +17,7 @@
     </extension>
     <code>
         <coding>
-            <system value="https://fhir.kbv.de/NamingSystem/KBV_NS_ERP_PZN"/>
+            <system value="http://fhir.de/CodeSystem/ifa/pzn"/>
             <code value="06313728"/>
         </coding>
         <text value="Sumatriptan-1a Pharma 100 mg Tabletten"/>

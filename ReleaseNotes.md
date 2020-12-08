@@ -1,3 +1,13 @@
+# Release 0.8.0
+Implemented features:
+* Implemented OperationOutcome Resource for Errorneous Operations
+* Implemented AuditEvent Resource and Routes
+* Implemented Device Resource
+* Improved Resource Filtering
+* Implemented Task $accept Operation
+* Implemented Task $reject Operation
+* Implemented Task $close Operation
+
 # Release 0.7.0
 Implemented features:
 * Implemented FD signature for KBV bundle

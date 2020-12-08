@@ -35,8 +35,8 @@ fn main() -> Result<(), Error> {
     println!("cargo:rustc-env=BUILD_TIMESTAMP={}", timestamp);
 
     if let Some(git_head) = git_head {
-        let git_head = if git_head.starts_with("ref: ") {
-            &git_head[5..]
+        let git_head = if let Some(stripped) = git_head.strip_prefix("ref: ") {
+            stripped
         } else {
             &git_head
         };
@@ -80,7 +80,7 @@ fn get_hash() -> Result<String, Error> {
     let hash = lines
         .into_iter()
         .next()
-        .ok_or_else(|| Error::UnableToGetCommitHash)?;
+        .ok_or(Error::UnableToGetCommitHash)?;
 
     Ok(hash)
 }
@@ -97,7 +97,7 @@ fn get_version_tag() -> Result<String, Error> {
     let version_tag = lines
         .into_iter()
         .next()
-        .ok_or_else(|| Error::UnableToGetCommitVersion)?;
+        .ok_or(Error::UnableToGetCommitVersion)?;
 
     Ok(version_tag)
 }

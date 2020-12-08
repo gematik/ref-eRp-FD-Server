@@ -1,0 +1,22 @@
+{
+    "resourceType":"Device",
+    "id":"eRxService",
+    "meta":{
+        "profile":[
+            "https://gematik.de/fhir/StructureDefinition/erxDevice"
+        ]
+    },
+    "status":"active",
+    "serialNumber":"R4.0.0.287342834",
+    "deviceName":[
+        {
+            "name":"E-Rezept Fachdienst",
+            "type":"user-friendly-name"
+        }
+    ],
+    "version":[
+        {
+            "value":"1.0.0"
+        }
+    ]
+}

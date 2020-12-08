@@ -44,17 +44,17 @@ pub struct AccessToken {
     #[serde(rename = "professionOID")]
     pub profession: Profession,
 
-    #[serde(rename = "given_name")]
-    pub given_name: String,
-
-    #[serde(rename = "family_name")]
-    pub family_name: String,
-
-    #[serde(rename = "organizationName")]
-    pub organization_name: String,
-
     #[serde(rename = "idNummer")]
     pub id_number: String,
+
+    #[serde(rename = "given_name")]
+    pub given_name: Option<String>,
+
+    #[serde(rename = "family_name")]
+    pub family_name: Option<String>,
+
+    #[serde(rename = "organizationName")]
+    pub organization_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, Eq, PartialEq)]

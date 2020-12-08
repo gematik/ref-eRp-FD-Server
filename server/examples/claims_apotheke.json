@@ -1,0 +1,16 @@
+{
+    "acr": "eidas-loa-high",
+    "aud": "https://erp.telematik.de/login",
+    "exp": 2524608000,
+    "family_name": "der Nachname",
+    "given_name": "der Vorname",
+    "iat": 1585336956,
+    "idNummer": "X234567890",
+    "iss": "https://idp1.telematik.de/jwt",
+    "jti": "<IDP>_01234567890123456789",
+    "nbf": 1585336956,
+    "nonce": "fuu bar baz",
+    "organizationName": "Institutions- oder Organisations-Bezeichnung",
+    "professionOID": "1.2.276.0.76.4.54",
+    "sub": "RabcUSuuWKKZEEHmrcNm_kUDOW13uaGU5Zk8OoBwiNk"
+}

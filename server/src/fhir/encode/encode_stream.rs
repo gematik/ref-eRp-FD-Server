@@ -189,10 +189,7 @@ where
                 Ok(self)
             }
             Some(State::ValueExtended { value }) => {
-                let extension = self
-                    .extension
-                    .pop()
-                    .ok_or_else(|| EncodeError::UnexpectedEnd)?;
+                let extension = self.extension.pop().ok_or(EncodeError::UnexpectedEnd)?;
 
                 self.add_item(Item::Value { value, extension })?;
 

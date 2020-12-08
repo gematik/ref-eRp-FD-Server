@@ -47,6 +47,40 @@ where
     Ok(())
 }
 
+pub async fn decode_identifier_reference<T, S>(
+    stream: &mut DecodeStream<S>,
+) -> Result<T, DecodeError<S::Error>>
+where
+    T: Identifier,
+    S: DataStream,
+{
+    let mut fields = Fields::new(&["identifier"]);
+
+    stream.element().await?;
+
+    let value = stream.decode(&mut fields, decode_identifier).await?;
+
+    stream.end().await?;
+
+    Ok(value)
+}
+
+pub fn encode_identifier_reference<T, S>(
+    value: &T,
+    stream: &mut EncodeStream<S>,
+) -> Result<(), EncodeError<S::Error>>
+where
+    T: Identifier,
+    S: DataStorage,
+{
+    stream
+        .element()?
+        .encode("identifier", value, encode_identifier)?
+        .end()?;
+
+    Ok(())
+}
+
 pub trait IdentifierEx: Sized {
     fn from_parts(value: String) -> Result<Self, String>;
 

@@ -15,43 +15,41 @@
  *
  */
 
-use actix_web::HttpResponse;
-use resources::Task;
+use rand::{distributions::Standard, thread_rng, Rng};
+use resources::{KbvBinary, KbvBundle, Task};
 
-#[cfg(feature = "support-json")]
-use crate::fhir::encode::JsonEncode;
-#[cfg(feature = "support-xml")]
-use crate::fhir::encode::XmlEncode;
-use crate::service::{misc::DataType, RequestError};
+use crate::fhir::{
+    definitions::EncodeBundleResource,
+    encode::{DataStorage, Encode, EncodeError, EncodeStream},
+};
 
-pub fn response_with_task(
-    task: &Task,
-    data_type: DataType,
-    created: bool,
-) -> Result<HttpResponse, RequestError> {
-    let (body, content_type) = match data_type {
-        #[cfg(feature = "support-xml")]
-        DataType::Xml => {
-            let xml = task.xml()?;
+#[derive(Clone)]
+pub enum Resource<'a> {
+    Task(&'a Task),
+    Binary(&'a KbvBinary),
+    Bundle(&'a KbvBundle),
+}
 
-            (xml, DataType::Xml.as_mime().to_string())
+impl EncodeBundleResource for Resource<'_> {}
+
+impl Encode for Resource<'_> {
+    fn encode<S>(self, stream: &mut EncodeStream<S>) -> Result<(), EncodeError<S::Error>>
+    where
+        S: DataStorage,
+    {
+        match self {
+            Self::Task(v) => v.encode(stream),
+            Self::Binary(v) => v.encode(stream),
+            Self::Bundle(v) => v.encode(stream),
         }
+    }
+}
 
-        #[cfg(feature = "support-json")]
-        DataType::Json => {
-            let json = task.json()?;
-
-            (json, DataType::Json.as_mime().to_string())
-        }
-
-        DataType::Any | DataType::Unknown => panic!("Data type of response was not specified"),
-    };
-
-    let mut res = if created {
-        HttpResponse::Created()
-    } else {
-        HttpResponse::Ok()
-    };
-
-    Ok(res.content_type(content_type).body(body))
+pub fn random_id() -> String {
+    thread_rng()
+        .sample_iter(&Standard)
+        .take(32)
+        .map(|x: u8| format!("{:02x}", x))
+        .collect::<Vec<_>>()
+        .join("")
 }

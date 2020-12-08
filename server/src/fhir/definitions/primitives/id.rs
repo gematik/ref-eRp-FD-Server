@@ -57,11 +57,15 @@ impl Encode for &Id {
 }
 
 impl ReferenceEx for Id {
-    fn from_parts(reference: String) -> Result<Self, String> {
-        reference.try_into()
+    fn from_parts(value: String) -> Result<Self, String> {
+        if let Some(Ok(id)) = value.strip_prefix('#').map(TryInto::try_into) {
+            return Ok(id);
+        }
+
+        Err(value)
     }
 
     fn reference(&self) -> String {
-        self.to_string()
+        format!("#{}", self)
     }
 }

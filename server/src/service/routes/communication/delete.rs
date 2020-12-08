@@ -22,23 +22,35 @@ use actix_web::{
 use resources::primitives::Id;
 
 use crate::service::{
-    header::Authorization,
-    misc::Profession,
+    header::{Accept, Authorization},
+    misc::{DataType, Profession},
     state::{CommunicationMatch, State},
-    RequestError,
+    AsReqErr, AsReqErrResult, TypedRequestError, TypedRequestResult,
 };
+
+use super::Error;
 
 pub async fn delete_one(
     state: Data<State>,
     id: Path<Id>,
+    accept: Accept,
     access_token: Authorization,
-) -> Result<HttpResponse, RequestError> {
-    access_token.check_profession(|p| match p {
-        Profession::Versicherter => true,
-        Profession::KrankenhausApotheke => true,
-        Profession::OeffentlicheApotheke => true,
-        _ => false,
-    })?;
+) -> Result<HttpResponse, TypedRequestError> {
+    let accept = DataType::from_accept(&accept)
+        .unwrap_or_default()
+        .replace_any_default()
+        .check_supported()
+        .err_with_type_default()?;
+
+    access_token
+        .check_profession(|p| match p {
+            Profession::Versicherter => true,
+            Profession::KrankenhausApotheke => true,
+            Profession::OeffentlicheApotheke => true,
+            _ => false,
+        })
+        .as_req_err()
+        .err_with_type(accept)?;
 
     let id = id.into_inner();
     let kvnr = access_token.kvnr().ok();
@@ -46,9 +58,11 @@ pub async fn delete_one(
 
     let mut state = state.lock().await;
     match state.get_communication(&id, &kvnr, &telematik_id) {
-        CommunicationMatch::NotFound => return Ok(HttpResponse::NotFound().finish()),
+        CommunicationMatch::NotFound => {
+            return Err(Error::NotFound(id).as_req_err().with_type(accept))
+        }
         CommunicationMatch::Unauthorized | CommunicationMatch::Recipient(_) => {
-            return Ok(HttpResponse::Unauthorized().finish())
+            return Err(Error::Unauthorized(id).as_req_err().with_type(accept))
         }
         CommunicationMatch::Sender(_) => (),
     }

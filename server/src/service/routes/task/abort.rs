@@ -25,12 +25,12 @@ use serde::Deserialize;
 
 use crate::service::{
     header::{Accept, Authorization, XAccessCode},
-    misc::{DataType, Profession},
+    misc::{create_response, DataType, Profession},
     state::State,
-    RequestError,
+    AsReqErr, AsReqErrResult, TypedRequestError, TypedRequestResult,
 };
 
-use super::misc::response_with_task;
+use super::Error;
 
 #[derive(Deserialize)]
 pub struct QueryArgs {
@@ -44,41 +44,46 @@ pub async fn abort(
     accept: Accept,
     access_token: Authorization,
     access_code: Option<XAccessCode>,
-) -> Result<HttpResponse, RequestError> {
-    access_token.check_profession(|p| {
-        p == Profession::Versicherter
-            || p == Profession::Arzt
-            || p == Profession::Zahnarzt
-            || p == Profession::PraxisArzt
-            || p == Profession::ZahnarztPraxis
-            || p == Profession::PraxisPsychotherapeut
-            || p == Profession::Krankenhaus
-            || p == Profession::OeffentlicheApotheke
-            || p == Profession::KrankenhausApotheke
-    })?;
-
-    let kvnr = access_token.kvnr().ok();
-    let accept = DataType::from_accept(accept)
+) -> Result<HttpResponse, TypedRequestError> {
+    let accept = DataType::from_accept(&accept)
         .and_then(DataType::ignore_any)
         .unwrap_or_default()
-        .check_supported()?;
+        .check_supported()
+        .err_with_type_default()?;
 
+    access_token
+        .check_profession(|p| {
+            p == Profession::Versicherter
+                || p == Profession::Arzt
+                || p == Profession::Zahnarzt
+                || p == Profession::PraxisArzt
+                || p == Profession::ZahnarztPraxis
+                || p == Profession::PraxisPsychotherapeut
+                || p == Profession::Krankenhaus
+                || p == Profession::OeffentlicheApotheke
+                || p == Profession::KrankenhausApotheke
+        })
+        .as_req_err()
+        .err_with_type(accept)?;
+
+    let id = id.0;
+    let kvnr = access_token.kvnr().ok();
     let mut state = state.lock().await;
     let task = match state.get_task_mut(&id, &kvnr, &access_code) {
         Some(Ok(task)) => task,
-        Some(Err(())) => return Ok(HttpResponse::Forbidden().finish()),
-        None => return Ok(HttpResponse::NotFound().finish()),
+        Some(Err(())) => return Err(Error::Forbidden(id).as_req_err().with_type(accept)),
+        None => return Err(Error::NotFound(id).as_req_err().with_type(accept)),
     };
 
     let is_pharmacy = access_token.is_pharmacy();
     let is_in_progress = task.status == Status::InProgress;
 
     if is_pharmacy != is_in_progress {
-        return Ok(HttpResponse::Forbidden().finish());
+        return Err(Error::Forbidden(id).as_req_err().with_type(accept));
     }
 
     if is_pharmacy && (query.secret.is_none() || task.identifier.secret != query.secret) {
-        return Ok(HttpResponse::Forbidden().finish());
+        return Err(Error::Forbidden(id).as_req_err().with_type(accept));
     }
 
     task.for_ = None;
@@ -91,7 +96,7 @@ pub async fn abort(
     let patient_receipt = task.input.patient_receipt.take();
     let _receipt = task.output.receipt.take();
 
-    let res = match response_with_task(task, accept, false) {
+    let res = match create_response(&*task, accept) {
         Ok(res) => res,
         Err(err) => return Err(err),
     };

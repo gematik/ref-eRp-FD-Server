@@ -31,7 +31,7 @@ use actix_web::{
 use futures::future::{err, ok, Ready};
 use mime::Mime;
 
-use crate::service::RequestError;
+use crate::service::{RequestError, TypedRequestError};
 
 lazy_static! {
     pub static ref CONTENT_TYPE: HeaderName = HeaderName::from_lowercase(b"content-type").unwrap();
@@ -48,7 +48,7 @@ impl Header for ContentType {
     #[inline]
     fn parse<T: HttpMessage>(msg: &T) -> Result<Self, ParseError> {
         parse_content_type(msg.headers())
-            .ok_or_else(|| ParseError::Header)?
+            .ok_or(ParseError::Header)?
             .map_err(|_| ParseError::Header)
     }
 }
@@ -82,15 +82,17 @@ impl Display for ContentType {
 }
 
 impl FromRequest for ContentType {
-    type Error = RequestError;
+    type Error = TypedRequestError;
     type Future = Ready<Result<Self, Self::Error>>;
     type Config = ();
 
     fn from_request(req: &HttpRequest, _payload: &mut Payload) -> Self::Future {
         match parse_content_type(req.headers()) {
             Some(Ok(content_type)) => ok(content_type),
-            Some(Err(())) => err(RequestError::header_invalid(Self::name())),
-            None => err(RequestError::header_missing(Self::name())),
+            Some(Err(())) => {
+                err(RequestError::HeaderInvalid(Self::name().to_string()).with_type_from(req))
+            }
+            None => err(RequestError::HeaderMissing(Self::name().to_string()).with_type_from(req)),
         }
     }
 }

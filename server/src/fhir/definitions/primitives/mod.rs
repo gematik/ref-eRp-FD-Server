@@ -34,5 +34,8 @@ pub use codeable_concept::{
     decode_codeable_concept, encode_codeable_concept, CodeableConcept, CodeableConceptEx,
 };
 pub use coding::{decode_coding, encode_coding, Coding, CodingEx};
-pub use identifier::{decode_identifier, encode_identifier, Identifier, IdentifierEx};
+pub use identifier::{
+    decode_identifier, decode_identifier_reference, encode_identifier, encode_identifier_reference,
+    Identifier, IdentifierEx,
+};
 pub use reference::{decode_reference, encode_reference, Reference, ReferenceEx};

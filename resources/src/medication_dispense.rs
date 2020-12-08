@@ -26,6 +26,7 @@ pub struct MedicationDispense {
     pub prescription_id: PrescriptionId,
     pub medication: String,
     pub subject: Kvnr,
+    pub supporting_information: Option<String>,
     pub performer: TelematikId,
     pub when_prepared: Option<DateTime>,
     pub when_handed_over: DateTime,

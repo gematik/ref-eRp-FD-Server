@@ -42,9 +42,9 @@ impl Cms {
             Pkcs7::from_pem(data.as_bytes())?
         };
 
-        self.bnetza.verify_pkcs7(pkcs7).map_err(|err| {
-            RequestError::BadRequest(format!("Unable to verify CMS container: {}", err))
-        })
+        self.bnetza
+            .verify_pkcs7(pkcs7)
+            .map_err(RequestError::CmsContainerError)
     }
 }
 

@@ -1,6 +1,6 @@
 <MedicationDispense xmlns="http://hl7.org/fhir">
     <meta>
-        <profile value="https://gematik.de/fhir/StructureDefinition/ERxMedicationDispense"/>
+        <profile value="https://gematik.de/fhir/StructureDefinition/erxMedicationDispense"/>
     </meta>
     <identifier>
         <system value="https://gematik.de/fhir/Namingsystem/PrescriptionID"/>

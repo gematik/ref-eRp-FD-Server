@@ -303,7 +303,7 @@ pub mod tests {
                 name: "reference".into(),
             },
             Item::Value {
-                value: "Bundle/KbvPrescriptionExample".into(),
+                value: "#Bundle/KbvPrescriptionExample".into(),
                 extension: vec![],
             },
             Item::End,
@@ -350,7 +350,7 @@ pub mod tests {
                 name: "reference".into(),
             },
             Item::Value {
-                value: "Bundle/KbvPatientReceiptExample".into(),
+                value: "#Bundle/KbvPatientReceiptExample".into(),
                 extension: vec![],
             },
             Item::End,
@@ -402,7 +402,7 @@ pub mod tests {
                 name: "reference".into(),
             },
             Item::Value {
-                value: "Bundle/KbvReceiptExample".into(),
+                value: "#Bundle/KbvReceiptExample".into(),
                 extension: vec![],
             },
             Item::End,

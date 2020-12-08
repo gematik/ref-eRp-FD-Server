@@ -1,0 +1,14 @@
+<OperationOutcome xmlns="http://hl7.org/fhir">
+    <meta>
+        <profile value="http://hl7.org/fhir/StructureDefinition/OperationOutcome"/>
+    </meta>
+    <issue>
+        <severity value="error"/>
+        <code value="code-invalid"/>
+        <details>
+            <text value="The code 'W' is not known and not legal in this context"/>
+        </details>
+        <diagnostics value="Acme.Interop.FHIRProcessors.Patient.processGender line 2453"/>
+        <expression value="Patient.gender"/>
+    </issue>
+</OperationOutcome>

@@ -53,7 +53,7 @@
             </coding>
         </type>
         <valueReference>
-            <reference value="Bundle/KbvPrescriptionExample"/>
+            <reference value="#Bundle/KbvPrescriptionExample"/>
         </valueReference>
     </input>
     <input>
@@ -65,7 +65,7 @@
             </coding>
         </type>
         <valueReference>
-            <reference value="Bundle/KbvPatientReceiptExample"/>
+            <reference value="#Bundle/KbvPatientReceiptExample"/>
         </valueReference>
     </input>
     <output>
@@ -77,7 +77,7 @@
             </coding>
         </type>
         <valueReference>
-            <reference value="Bundle/KbvReceiptExample"/>
+            <reference value="#Bundle/KbvReceiptExample"/>
         </valueReference>
     </output>
 </Task>

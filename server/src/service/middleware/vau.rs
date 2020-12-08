@@ -38,7 +38,7 @@ use log::error;
 use openssl::{ec::EcKey, pkey::Private, x509::X509};
 use vau::{decode, encode, Decrypter, Encrypter, Error as VauError, UserPseudonymGenerator};
 
-use crate::service::{misc::AccessTokenError, Error, RequestError};
+use crate::service::{misc::AccessTokenError, Error, RequestError, TypedRequestResult};
 
 use super::extract_access_token::extract_access_token;
 
@@ -176,7 +176,9 @@ where
         let (req, payload) = req.into_parts();
         let content_type = req.content_type();
         if content_type != "application/octet-stream" {
-            return Err(RequestError::ContentTypeNotSupported(content_type.into()).into());
+            return Err(RequestError::ContentTypeNotSupported
+                .with_type_from(&req)
+                .into());
         }
 
         let mut this = self.0.borrow_mut();
@@ -187,9 +189,11 @@ where
         let (decoded, next, req) = decode(req, &payload)?;
 
         let (next, payload) = next.into_parts();
-        let access_token = extract_access_token(&next)?;
+        let access_token = extract_access_token(&next).err_with_type_from(&req)?;
         if access_token != decoded.access_token {
-            return Err(RequestError::AccessTokenError(AccessTokenError::Mismatch).into());
+            return Err(RequestError::AccessTokenError(AccessTokenError::Mismatch)
+                .with_type_from(&req)
+                .into());
         }
 
         let next = ServiceRequest::from_parts(next, payload)

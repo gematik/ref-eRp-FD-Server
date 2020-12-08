@@ -22,27 +22,34 @@ use actix_web::{
     HttpResponse,
 };
 
-use crate::tasks::Tsl;
+use crate::{
+    service::{header::Accept, RequestError},
+    tasks::Tsl,
+};
 
 pub fn configure_routes(cfg: &mut ServiceConfig) {
     cfg.service(resource("/TSL.xml").route(get().to(get_xml)));
     cfg.service(resource("/TSL.sha2").route(get().to(get_sha2)));
 }
 
-async fn get_xml(tsl: Data<Tsl>) -> Result<HttpResponse, ActixError> {
+async fn get_xml(tsl: Data<Tsl>, accept: Accept) -> Result<HttpResponse, ActixError> {
     match &*tsl.load() {
         Some(tsl) => Ok(HttpResponse::Ok()
             .content_type(ContentType::xml().try_into()?)
             .body(&tsl.xml)),
-        None => Ok(HttpResponse::NotFound().finish()),
+        None => Err(RequestError::NotFound("/TSL.xml".into())
+            .with_type_from(&accept)
+            .into()),
     }
 }
 
-async fn get_sha2(tsl: Data<Tsl>) -> Result<HttpResponse, ActixError> {
+async fn get_sha2(tsl: Data<Tsl>, accept: Accept) -> Result<HttpResponse, ActixError> {
     match tsl.load().as_ref().and_then(|tsl| tsl.sha2.as_ref()) {
         Some(sha2) => Ok(HttpResponse::Ok()
             .content_type(ContentType::plaintext().try_into()?)
             .body(sha2)),
-        None => Ok(HttpResponse::NotFound().finish()),
+        None => Err(RequestError::NotFound("/TSL.sha2".into())
+            .with_type_from(&accept)
+            .into()),
     }
 }

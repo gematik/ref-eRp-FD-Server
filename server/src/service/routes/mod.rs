@@ -15,17 +15,21 @@
  *
  */
 
-mod capabilty_statement;
-mod communication;
-mod medication_dispense;
-mod task;
-mod tsl;
+pub mod audit_event;
+pub mod capabilty_statement;
+pub mod communication;
+pub mod device;
+pub mod medication_dispense;
+pub mod task;
+pub mod tsl;
 
 use actix_web::web::ServiceConfig;
 use proc_macros::capability_statement;
 
+use audit_event::AutidEventRoutes;
 use capabilty_statement::{create as capability_statement_create, get as capability_statement_get};
 use communication::CommunicationRoutes;
+use device::DeviceRoutes;
 use medication_dispense::MedicationDispenseRoutes;
 use task::TaskRoutes;
 use tsl::configure_routes as tsl_configure_routes;
@@ -42,6 +46,12 @@ pub struct Routes {
 
     #[resource]
     medication_dispense: MedicationDispenseRoutes,
+
+    #[resource]
+    audit_event: AutidEventRoutes,
+
+    #[resource]
+    device: DeviceRoutes,
 }
 
 pub fn configure_routes(cfg: &mut ServiceConfig) {

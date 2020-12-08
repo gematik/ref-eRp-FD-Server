@@ -1,0 +1,30 @@
+<Composition xmlns="http://hl7.org/fhir">
+    <meta>
+        <profile value="https://gematik.de/fhir/StructureDefinition/erxComposition"/>
+    </meta>
+    <extension url="https://gematik.de/fhir/StructureDefinition/BeneficiaryExtension">
+        <valueIdentifier>
+            <system value="https://gematik.de/fhir/Namingsystem/TelematikID"/>
+            <value value="606358757"/>
+        </valueIdentifier>
+    </extension>
+    <status value="final"/>
+    <type>
+        <coding>
+            <system value="https://gematik.de/fhir/CodeSystem/Documenttype"/>
+            <code value="3"/>
+            <display value="Receipt"/>
+        </coding>
+    </type>
+    <date value="2020-03-20T07:31:34.328+00:00"/>
+    <author>
+        <reference value="https://prescriptionserver.telematik/Device/eRxService"/>
+    </author>
+    <title value="Quittung"/>
+    <event>
+        <period>
+            <start value="2020-03-20T07:23:34.328+00:00"/>
+            <end value="2020-03-20T07:31:34.328+00:00"/>
+        </period>
+    </event>
+</Composition>

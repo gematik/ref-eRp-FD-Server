@@ -18,12 +18,12 @@
 use std::cmp::Ordering;
 use std::str::FromStr;
 
-use serde::de::{Deserialize, Deserializer, Error};
-
+#[derive(Debug)]
 pub struct Sort<T> {
     parameters: Vec<Parameter<T>>,
 }
 
+#[derive(Debug)]
 pub enum Parameter<T> {
     Ascending(T),
     Descending(T),
@@ -49,22 +49,24 @@ impl<T> Sort<T> {
     }
 }
 
-impl<'de, T> Deserialize<'de> for Sort<T>
+impl<T> FromStr for Sort<T>
 where
     T: FromStr,
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parameters = s
             .split(',')
-            .map(|p| {
-                let s = if p.starts_with('-') { &p[1..] } else { p };
-                let s = s.parse().map_err(|_| {
-                    D::Error::custom(format!("Unable to deserialize sort parameter: {}", s))
-                })?;
+            .map(|p| -> Result<Parameter<T>, String> {
+                let s = if let Some(p) = p.strip_prefix('-') {
+                    p
+                } else {
+                    p
+                };
+                let s = s
+                    .parse()
+                    .map_err(|_| format!("Unable to parse sort parameter: {}", s))?;
 
                 if p.starts_with('-') {
                     Ok(Parameter::Descending(s))
@@ -75,7 +77,7 @@ where
             .collect::<Result<Vec<_>, _>>()?;
 
         if parameters.is_empty() {
-            return Err(D::Error::custom("Empty sort parameters!"));
+            return Err("Empty sort parameters!".into());
         }
 
         Ok(Sort { parameters })

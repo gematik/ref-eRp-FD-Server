@@ -18,7 +18,7 @@
 use std::str::FromStr;
 
 use actix_web::{
-    web::{Data, Path, Query},
+    web::{Data, Path},
     HttpRequest, HttpResponse,
 };
 use chrono::{DateTime, Utc};
@@ -26,41 +26,44 @@ use resources::{
     bundle::{Bundle, Entry, Relation, Type},
     primitives::Id,
     task::Status,
-    KbvBundle, Task,
-};
-use serde::Deserialize;
-
-#[cfg(feature = "support-json")]
-use crate::fhir::encode::JsonEncode;
-#[cfg(feature = "support-xml")]
-use crate::fhir::encode::XmlEncode;
-use crate::{
-    fhir::{
-        definitions::EncodeBundleResource,
-        encode::{DataStorage, Encode, EncodeError, EncodeStream},
-    },
-    service::{
-        header::{Accept, Authorization, XAccessCode},
-        misc::{DataType, Profession, Search, Sort},
-        state::State,
-        RequestError,
-    },
+    Task,
 };
 
-#[derive(Default, Deserialize)]
+use crate::service::{
+    header::{Accept, Authorization, XAccessCode},
+    misc::{create_response, DataType, FromQuery, Profession, Query, QueryValue, Search, Sort},
+    state::State,
+    AsReqErr, AsReqErrResult, TypedRequestError, TypedRequestResult,
+};
+
+use super::{misc::Resource, Error};
+
+#[derive(Default)]
 pub struct QueryArgs {
-    status: Option<Search<Status>>,
-    authored_on: Option<Search<DateTime<Utc>>>,
-    last_modified: Option<Search<DateTime<Utc>>>,
-
-    #[serde(rename = "_sort")]
+    status: Vec<Search<Status>>,
+    authored_on: Vec<Search<DateTime<Utc>>>,
+    last_modified: Vec<Search<DateTime<Utc>>>,
     sort: Option<Sort<SortArgs>>,
-
-    #[serde(rename = "_count")]
     count: Option<usize>,
-
-    #[serde(rename = "pageId")]
     page_id: Option<usize>,
+}
+
+impl FromQuery for QueryArgs {
+    fn parse_key_value_pair(&mut self, key: &str, value: QueryValue) -> Result<(), String> {
+        match key {
+            "status" => self.status.push(value.ok()?.parse()?),
+            "authoredOn" => self.authored_on.push(value.ok()?.parse()?),
+            "lastModified" => self.last_modified.push(value.ok()?.parse()?),
+            "_sort" => self.sort = Some(value.ok()?.parse()?),
+            "_count" => self.count = Some(value.ok()?.parse::<usize>().map_err(|e| e.to_string())?),
+            "pageId" => {
+                self.page_id = Some(value.ok()?.parse::<usize>().map_err(|e| e.to_string())?)
+            }
+            _ => (),
+        }
+
+        Ok(())
+    }
 }
 
 pub enum SortArgs {
@@ -87,14 +90,14 @@ pub async fn get_all(
     access_code: Option<XAccessCode>,
     query: Query<QueryArgs>,
     request: HttpRequest,
-) -> Result<HttpResponse, RequestError> {
+) -> Result<HttpResponse, TypedRequestError> {
     get(
         &state,
         None,
         accept,
         id_token,
         access_code,
-        query.into_inner(),
+        query.0,
         request.query_string(),
     )
     .await
@@ -106,7 +109,7 @@ pub async fn get_one(
     accept: Accept,
     id_token: Authorization,
     access_code: Option<XAccessCode>,
-) -> Result<HttpResponse, RequestError> {
+) -> Result<HttpResponse, TypedRequestError> {
     get(
         &state,
         Some(id.into_inner()),
@@ -128,23 +131,27 @@ async fn get(
     access_code: Option<XAccessCode>,
     query: QueryArgs,
     query_str: &str,
-) -> Result<HttpResponse, RequestError> {
-    access_token.check_profession(|p| p == Profession::Versicherter)?;
-
-    let kvnr = access_token.kvnr().ok();
-    let accept = DataType::from_accept(accept)
+) -> Result<HttpResponse, TypedRequestError> {
+    let accept = DataType::from_accept(&accept)
         .and_then(DataType::ignore_any)
         .unwrap_or_default()
-        .check_supported()?;
+        .check_supported()
+        .err_with_type_default()?;
 
+    access_token
+        .check_profession(|p| p == Profession::Versicherter)
+        .as_req_err()
+        .err_with_type(accept)?;
+
+    let kvnr = access_token.kvnr().ok();
     let state = state.lock().await;
 
     let mut tasks = Vec::new();
     let is_collection = if let Some(id) = id {
         match state.get_task(&id, &kvnr, &access_code) {
             Some(Ok(task)) => tasks.push(task),
-            Some(Err(())) => return Ok(HttpResponse::Forbidden().finish()),
-            None => return Ok(HttpResponse::NotFound().finish()),
+            Some(Err(())) => return Err(Error::Forbidden(id).as_req_err().with_type(accept)),
+            None => return Err(Error::NotFound(id).as_req_err().with_type(accept)),
         }
 
         false
@@ -192,7 +199,7 @@ async fn get(
 
         if let Some(id) = task.input.e_prescription.as_ref() {
             if let Some(res) = state.e_prescriptions.get(id) {
-                bundle.entries.push(Entry::new(Resource::Bundle(res)));
+                bundle.entries.push(Entry::new(Resource::Binary(&res.0)));
             }
         }
 
@@ -231,37 +238,17 @@ async fn get(
         }
     }
 
-    match accept {
-        #[cfg(feature = "support-xml")]
-        DataType::Xml => {
-            let xml = bundle.xml()?;
-
-            Ok(HttpResponse::Ok()
-                .content_type(DataType::Xml.as_mime().to_string())
-                .body(xml))
-        }
-
-        #[cfg(feature = "support-json")]
-        DataType::Json => {
-            let json = bundle.json()?;
-
-            Ok(HttpResponse::Ok()
-                .content_type(DataType::Json.as_mime().to_string())
-                .body(json))
-        }
-
-        DataType::Any | DataType::Unknown => panic!("Data type of response was not specified"),
-    }
+    create_response(&bundle, accept)
 }
 
 fn check_query(query: &QueryArgs, task: &Task) -> bool {
-    if let Some(status) = &query.status {
+    for status in &query.status {
         if !status.matches(&task.status) {
             return false;
         }
     }
 
-    if let Some(authored_on) = &query.authored_on {
+    for authored_on in &query.authored_on {
         if let Some(task_authored_on) = &task.authored_on {
             if !authored_on.matches(&task_authored_on.clone().into()) {
                 return false;
@@ -269,7 +256,7 @@ fn check_query(query: &QueryArgs, task: &Task) -> bool {
         }
     }
 
-    if let Some(last_modified) = &query.last_modified {
+    for last_modified in &query.last_modified {
         if let Some(task_last_modified) = &task.last_modified {
             if !last_modified.matches(&task_last_modified.clone().into()) {
                 return false;
@@ -285,25 +272,5 @@ fn make_uri(query: &str, page_id: usize) -> String {
         format!("/Task?pageId={}", page_id)
     } else {
         format!("/Task?{}&pageId={}", query, page_id)
-    }
-}
-
-#[derive(Clone)]
-enum Resource<'a> {
-    Task(&'a Task),
-    Bundle(&'a KbvBundle),
-}
-
-impl EncodeBundleResource for Resource<'_> {}
-
-impl Encode for Resource<'_> {
-    fn encode<S>(self, stream: &mut EncodeStream<S>) -> Result<(), EncodeError<S::Error>>
-    where
-        S: DataStorage,
-    {
-        match self {
-            Self::Task(v) => v.encode(stream),
-            Self::Bundle(v) => v.encode(stream),
-        }
     }
 }

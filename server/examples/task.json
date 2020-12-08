@@ -70,7 +70,7 @@
                 ]
             },
             "valueReference":{
-                "reference":"Bundle/KbvPrescriptionExample"
+                "reference":"#Bundle/KbvPrescriptionExample"
             }
         },
         {
@@ -84,7 +84,7 @@
                 ]
             },
             "valueReference":{
-                "reference":"Bundle/KbvPatientReceiptExample"
+                "reference":"#Bundle/KbvPatientReceiptExample"
             }
         }
     ],
@@ -100,7 +100,7 @@
                 ]
             },
             "valueReference":{
-                "reference":"Bundle/KbvReceiptExample"
+                "reference":"#Bundle/KbvReceiptExample"
             }
         }
     ]

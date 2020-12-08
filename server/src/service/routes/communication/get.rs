@@ -18,7 +18,7 @@
 use std::str::FromStr;
 
 use actix_web::{
-    web::{Data, Path, Query},
+    web::{Data, Path},
     HttpResponse,
 };
 use chrono::{DateTime, Utc};
@@ -27,34 +27,46 @@ use resources::{
     primitives::Id,
     Communication,
 };
-use serde::Deserialize;
 
-use crate::{
-    fhir::encode::{JsonEncode, XmlEncode},
-    service::{
-        header::{Accept, Authorization},
-        misc::{DataType, Profession, Search, Sort},
-        state::{CommunicationMatch, State},
-        RequestError,
-    },
+use crate::service::{
+    header::{Accept, Authorization},
+    misc::{create_response, DataType, FromQuery, Profession, Query, QueryValue, Search, Sort},
+    state::{CommunicationMatch, State},
+    AsReqErr, AsReqErrResult, TypedRequestError, TypedRequestResult,
 };
 
-use super::misc::response_with_communication;
+use super::Error;
 
-#[derive(Deserialize)]
+#[derive(Default, Debug)]
 pub struct QueryArgs {
-    sent: Option<Search<DateTime<Utc>>>,
-    received: Option<Search<Option<DateTime<Utc>>>>,
-    recipient: Option<Search<String>>,
-    sender: Option<Search<String>>,
-
-    #[serde(rename = "_sort")]
+    sent: Vec<Search<DateTime<Utc>>>,
+    received: Vec<Search<Option<DateTime<Utc>>>>,
+    sender: Vec<Search<String>>,
+    recipient: Vec<Search<String>>,
     sort: Option<Sort<SortArgs>>,
 }
 
+impl FromQuery for QueryArgs {
+    fn parse_key_value_pair(&mut self, key: &str, value: QueryValue<'_>) -> Result<(), String> {
+        match key {
+            "sent" => self.sent.push(value.ok()?.parse()?),
+            "received" => self.sent.push(value.ok()?.parse()?),
+            "sender" => self.sent.push(value.ok()?.parse()?),
+            "recipient" => self.sent.push(value.ok()?.parse()?),
+            "_sort" => self.sort = Some(value.ok()?.parse()?),
+            _ => (),
+        }
+
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
 pub enum SortArgs {
     Sent,
     Received,
+    Sender,
+    Recipient,
 }
 
 impl FromStr for SortArgs {
@@ -64,6 +76,8 @@ impl FromStr for SortArgs {
         match s {
             "sent" => Ok(Self::Sent),
             "received" => Ok(Self::Received),
+            "sender" => Ok(Self::Sender),
+            "recipient" => Ok(Self::Recipient),
             _ => Err(()),
         }
     }
@@ -74,19 +88,24 @@ pub async fn get_all(
     accept: Accept,
     access_token: Authorization,
     query: Query<QueryArgs>,
-) -> Result<HttpResponse, RequestError> {
-    access_token.check_profession(|p| match p {
-        Profession::Versicherter => true,
-        Profession::KrankenhausApotheke => true,
-        Profession::OeffentlicheApotheke => true,
-        _ => false,
-    })?;
-
-    let accept = DataType::from_accept(accept)
+) -> Result<HttpResponse, TypedRequestError> {
+    let accept = DataType::from_accept(&accept)
         .and_then(DataType::ignore_any)
         .unwrap_or_default()
-        .check_supported()?;
+        .check_supported()
+        .err_with_type_default()?;
 
+    access_token
+        .check_profession(|p| match p {
+            Profession::Versicherter => true,
+            Profession::KrankenhausApotheke => true,
+            Profession::OeffentlicheApotheke => true,
+            _ => false,
+        })
+        .as_req_err()
+        .err_with_type(accept)?;
+
+    let query = query.0;
     let kvnr = access_token.kvnr().ok();
     let telematik_id = access_token.telematik_id().ok();
 
@@ -130,6 +149,18 @@ pub async fn get_all(
 
                     a.cmp(&b)
                 }
+                SortArgs::Sender => {
+                    let a = a.sender();
+                    let b = b.sender();
+
+                    a.cmp(&b)
+                }
+                SortArgs::Recipient => {
+                    let a = a.recipient();
+                    let b = b.recipient();
+
+                    a.cmp(&b)
+                }
             })
         });
     }
@@ -140,27 +171,7 @@ pub async fn get_all(
         bundle.entries.push(Entry::new(c));
     }
 
-    match accept {
-        #[cfg(feature = "support-xml")]
-        DataType::Xml => {
-            let xml = bundle.xml()?;
-
-            Ok(HttpResponse::Ok()
-                .content_type(DataType::Xml.as_mime().to_string())
-                .body(xml))
-        }
-
-        #[cfg(feature = "support-json")]
-        DataType::Json => {
-            let json = bundle.json()?;
-
-            Ok(HttpResponse::Ok()
-                .content_type(DataType::Json.as_mime().to_string())
-                .body(json))
-        }
-
-        DataType::Any | DataType::Unknown => panic!("Data type of response was not specified"),
-    }
+    create_response(&bundle, accept)
 }
 
 pub async fn get_one(
@@ -168,18 +179,22 @@ pub async fn get_one(
     id: Path<Id>,
     accept: Accept,
     access_token: Authorization,
-) -> Result<HttpResponse, RequestError> {
-    access_token.check_profession(|p| match p {
-        Profession::Versicherter => true,
-        Profession::KrankenhausApotheke => true,
-        Profession::OeffentlicheApotheke => true,
-        _ => false,
-    })?;
-
-    let accept = DataType::from_accept(accept)
+) -> Result<HttpResponse, TypedRequestError> {
+    let accept = DataType::from_accept(&accept)
         .and_then(DataType::ignore_any)
         .unwrap_or_default()
-        .check_supported()?;
+        .check_supported()
+        .err_with_type_default()?;
+
+    access_token
+        .check_profession(|p| match p {
+            Profession::Versicherter => true,
+            Profession::KrankenhausApotheke => true,
+            Profession::OeffentlicheApotheke => true,
+            _ => false,
+        })
+        .as_req_err()
+        .err_with_type(accept)?;
 
     let id = id.into_inner();
     let kvnr = access_token.kvnr().ok();
@@ -187,8 +202,12 @@ pub async fn get_one(
 
     let mut state = state.lock().await;
     let communication = match state.get_communication(&id, &kvnr, &telematik_id) {
-        CommunicationMatch::NotFound => return Ok(HttpResponse::NotFound().finish()),
-        CommunicationMatch::Unauthorized => return Ok(HttpResponse::Unauthorized().finish()),
+        CommunicationMatch::NotFound => {
+            return Err(Error::NotFound(id).as_req_err().with_type(accept))
+        }
+        CommunicationMatch::Unauthorized => {
+            return Err(Error::Unauthorized(id).as_req_err().with_type(accept))
+        }
         CommunicationMatch::Sender(c) => c,
         CommunicationMatch::Recipient(c) => {
             if c.received().is_none() {
@@ -199,11 +218,11 @@ pub async fn get_one(
         }
     };
 
-    response_with_communication(communication, accept, false)
+    create_response(&*communication, accept)
 }
 
-fn check_query(query: &Query<QueryArgs>, communication: &Communication) -> bool {
-    if let Some(qsent) = &query.sent {
+fn check_query(query: &QueryArgs, communication: &Communication) -> bool {
+    for qsent in &query.sent {
         if let Some(csent) = communication.sent() {
             let csent = csent.clone().into();
             if !qsent.matches(&csent) {
@@ -214,14 +233,14 @@ fn check_query(query: &Query<QueryArgs>, communication: &Communication) -> bool 
         }
     }
 
-    if let Some(qreceived) = &query.received {
+    for qreceived in &query.received {
         let creceived = communication.received().clone().map(Into::into);
         if !qreceived.matches(&creceived) {
             return false;
         }
     }
 
-    if let Some(qsender) = &query.sender {
+    for qsender in &query.sender {
         if let Some(csender) = communication.sender() {
             if !qsender.matches(&csender) {
                 return false;
@@ -231,7 +250,7 @@ fn check_query(query: &Query<QueryArgs>, communication: &Communication) -> bool 
         }
     }
 
-    if let Some(qrecipient) = &query.recipient {
+    for qrecipient in &query.recipient {
         let crecipient = communication.recipient();
         if !qrecipient.matches(&crecipient) {
             return false;

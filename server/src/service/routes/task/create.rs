@@ -17,14 +17,14 @@
 
 use std::collections::hash_map::Entry;
 use std::convert::TryInto;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use actix_web::{
+    http::StatusCode,
     web::{Data, Payload},
     HttpResponse,
 };
 use chrono::Utc;
-use log::debug;
-use rand::{distributions::Standard, thread_rng, Rng};
 use resources::{
     misc::PrescriptionId,
     primitives::Id,
@@ -32,78 +32,59 @@ use resources::{
     types::{FlowType, PerformerType},
 };
 
-#[cfg(feature = "support-json")]
-use crate::fhir::decode::JsonDecode;
-#[cfg(feature = "support-xml")]
-use crate::fhir::decode::XmlDecode;
 use crate::service::{
-    error::RequestError,
     header::{Accept, Authorization, ContentType},
-    misc::{DataType, Profession},
-    State,
+    misc::{create_response_with, read_payload, DataType, Profession},
+    AsReqErrResult, RequestError, State, TypedRequestError, TypedRequestResult,
 };
 
-use super::misc::response_with_task;
+use super::misc::random_id;
 
 pub async fn create(
     state: Data<State>,
     accept: Accept,
     access_token: Authorization,
     content_type: ContentType,
-    mut payload: Payload,
-) -> Result<HttpResponse, RequestError> {
-    access_token.check_profession(|p| {
-        p == Profession::Arzt
-            || p == Profession::Zahnarzt
-            || p == Profession::PraxisArzt
-            || p == Profession::ZahnarztPraxis
-            || p == Profession::PraxisPsychotherapeut
-            || p == Profession::Krankenhaus
-    })?;
-
+    payload: Payload,
+) -> Result<HttpResponse, TypedRequestError> {
     let data_type = DataType::from_mime(&content_type);
-    let args: TaskCreateParameters = match data_type {
-        #[cfg(feature = "support-xml")]
-        DataType::Xml => payload.xml().await?,
+    let accept = DataType::from_accept(&accept)
+        .unwrap_or_default()
+        .replace_any(data_type)
+        .check_supported()
+        .err_with_type_default()?;
 
-        #[cfg(feature = "support-json")]
-        DataType::Json => payload.json().await?,
+    access_token
+        .check_profession(|p| {
+            p == Profession::Arzt
+                || p == Profession::Zahnarzt
+                || p == Profession::PraxisArzt
+                || p == Profession::ZahnarztPraxis
+                || p == Profession::PraxisPsychotherapeut
+                || p == Profession::Krankenhaus
+        })
+        .as_req_err()
+        .err_with_type(accept)?;
 
-        DataType::Unknown | DataType::Any => {
-            return Err(RequestError::ContentTypeNotSupported(
-                content_type.to_string(),
-            ))
-        }
-    };
-
-    let task = create_task(args.flow_type)?;
+    let args = read_payload::<TaskCreateParameters>(data_type, payload)
+        .await
+        .err_with_type(accept)?;
+    let task = create_task(args.flow_type).err_with_type(accept)?;
     let id = task.id.clone().unwrap();
 
     let mut state = state.lock().await;
     let task = match state.tasks.entry(id) {
         Entry::Occupied(entry) => entry.into_mut(),
-        Entry::Vacant(entry) => entry.insert(task),
-    };
-    debug!(target: "ref_erx_fd_server", "Task created with id: {:?}, ac: {:?}", task.id, task.identifier.access_code);
-
-    let data_type = match DataType::from_accept(accept).unwrap_or_default() {
-        DataType::Any => data_type,
-        data_type => data_type,
+        Entry::Vacant(entry) => entry.insert(task.into()),
     };
 
-    response_with_task(task, data_type, true)
+    create_response_with(&**task, accept, StatusCode::CREATED)
 }
 
 fn create_task(flow_type: FlowType) -> Result<Task, RequestError> {
-    let id =
-        Some(Id::generate().map_err(|()| RequestError::Internal("Unable to generate Id".into()))?);
-    let access_code: String = thread_rng()
-        .sample_iter(&Standard)
-        .take(32)
-        .map(|x: u8| format!("{:X}", x))
-        .collect::<Vec<_>>()
-        .join("");
-    let prescription_id = PrescriptionId::new(FlowType::PharmaceuticalDrugs, 123);
+    let id = Some(Id::generate().unwrap());
+    let access_code = random_id();
+    let prescription_id = generate_prescription_id(FlowType::PharmaceuticalDrugs);
 
     Ok(Task {
         id,
@@ -119,14 +100,18 @@ fn create_task(flow_type: FlowType) -> Result<Task, RequestError> {
         },
         status: Status::Draft,
         for_: None,
-        authored_on: Some(Utc::now().to_rfc3339().try_into().map_err(|err| {
-            RequestError::internal(format!("Unable to set Task.authored_on: {}", err))
-        })?),
-        last_modified: Some(Utc::now().to_rfc3339().try_into().map_err(|err| {
-            RequestError::internal(format!("Unable to set Task.last_modified: {}", err))
-        })?),
+        authored_on: Some(Utc::now().to_rfc3339().try_into().unwrap()),
+        last_modified: Some(Utc::now().to_rfc3339().try_into().unwrap()),
         performer_type: vec![PerformerType::PublicPharmacy],
         input: Default::default(),
         output: Default::default(),
     })
+}
+
+fn generate_prescription_id(flow_type: FlowType) -> PrescriptionId {
+    static NEXT_ID: AtomicUsize = AtomicUsize::new(0);
+
+    let number = NEXT_ID.fetch_add(1, Ordering::SeqCst);
+
+    PrescriptionId::new(flow_type, number)
 }

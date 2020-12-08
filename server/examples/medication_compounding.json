@@ -3,7 +3,7 @@
     "id":"cabe8dc4-e1b7-4d2a-bc2d-9443167f88d8",
     "meta":{
         "profile":[
-            "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_Compounding|1.00.000"
+            "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_Compounding|1.0.0"
         ]
     },
     "extension":[
@@ -54,7 +54,7 @@
             "itemCodeableConcept":{
                 "coding":[
                     {
-                        "system":"https://fhir.kbv.de/NamingSystem/KBV_NS_ERP_PZN",
+                        "system":"http://fhir.de/CodeSystem/ifa/pzn",
                         "code":"09703312"
                     }
                 ],

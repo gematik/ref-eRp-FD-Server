@@ -23,20 +23,22 @@ use futures::future::{ready, Ready};
 
 use crate::service::{
     misc::{AccessToken, AccessTokenError},
-    RequestError,
+    RequestError, TypedRequestError,
 };
 
 pub struct Authorization(Rc<AccessToken>);
 
 impl FromRequest for Authorization {
-    type Error = RequestError;
+    type Error = TypedRequestError;
     type Future = Ready<Result<Self, Self::Error>>;
     type Config = ();
 
     fn from_request(req: &HttpRequest, _payload: &mut Payload) -> Self::Future {
         ready(match req.extensions_mut().get_mut::<Rc<AccessToken>>() {
             Some(access_token) => Ok(Authorization(access_token.clone())),
-            None => Err(AccessTokenError::Missing.into()),
+            None => {
+                Err(RequestError::AccessTokenError(AccessTokenError::Missing).with_type_from(req))
+            }
         })
     }
 }

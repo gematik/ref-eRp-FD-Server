@@ -246,6 +246,7 @@ impl Decode for Type {
             "Operation" => Ok(Self::Operation),
             "Communication" => Ok(Self::Communication),
             "MedicationDispense" => Ok(Self::MedicationDispense),
+            "AuditEvent" => Ok(Self::AuditEvent),
             _ => Err(DecodeError::InvalidValue {
                 value,
                 path: stream.path().into(),
@@ -440,6 +441,7 @@ impl Encode for &Type {
             Type::Operation => "Operation",
             Type::Communication => "Communication",
             Type::MedicationDispense => "MedicationDispense",
+            Type::AuditEvent => "AuditEvent",
         };
 
         stream.value(value)?;
@@ -632,7 +634,7 @@ pub mod tests {
                         },
                         Resource {
                             type_: Type::MedicationDispense,
-                            profile: "https://gematik.de/fhir/StructureDefinition/ERxMedicationDispense".into(),
+                            profile: "https://gematik.de/fhir/StructureDefinition/erxMedicationDispense".into(),
                             supported_profiles: vec![],
                             operation: vec![],
                             interaction: vec![Interaction::Read],

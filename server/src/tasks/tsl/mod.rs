@@ -80,7 +80,7 @@ impl Tsl {
 
         let mut is_valid = false;
         'signer_loop: for signer_cert in signer_certs {
-            let key = Certs::key(&signer_cert)?;
+            let key = Certs::key(signer_cert.issuer_name())?;
 
             if let Some(ca_certs) = inner.certs.entries().get(&key) {
                 for ca_cert in ca_certs {
