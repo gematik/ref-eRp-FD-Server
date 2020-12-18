@@ -32,6 +32,7 @@ pub struct Composition {
 #[derive(Clone, PartialEq, Debug)]
 pub struct Extension {
     pub legal_basis: Option<LegalBasis>,
+    pub pkv: Option<PKV>,
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -58,4 +59,12 @@ pub enum LegalBasis {
     SubstituteRegulationWithAsv,
     SubstituteRegulationWithDischargeManagement,
     SubstituteRegulationWithTss,
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub enum PKV {
+    Standard,
+    Basic,
+    Individual,
+    Emergency,
 }

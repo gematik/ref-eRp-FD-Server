@@ -130,7 +130,7 @@
                 </subject>
                 <authoredOn value="2020-02-03T00:00:00+00:00"/>
                 <requester>
-                    <reference value="Practioner/20597e0e-cb2a-45b3-95f0-dc3dbdb617c3"/>
+                    <reference value="Practitioner/20597e0e-cb2a-45b3-95f0-dc3dbdb617c3"/>
                 </requester>
                 <insurance>
                     <reference value="Coverage/1b1ffb6e-eb05-43d7-87eb-e7818fe9661a"/>

@@ -29,6 +29,27 @@
             <valueDate value="2020-05-01"/>
         </extension>
     </extension>
+    <extension url="https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Multiple_Prescription">
+        <extension url="Kennzeichen">
+            <valueBoolean value="true"/>
+        </extension>
+        <extension url="Nummerierung">
+            <valueRatio>
+                <numerator>
+                    <value value="2"/>
+                </numerator>
+                <denominator>
+                    <value value="4"/>
+                </denominator>
+            </valueRatio>
+        </extension>
+        <extension url="Zeitraum">
+            <valuePeriod>
+                <start value="2021-01-02"/>
+                <end value="2021-03-30"/>
+            </valuePeriod>
+        </extension>
+    </extension>
     <status value="active"/>
     <intent value="order"/>
     <medicationReference>
@@ -39,7 +60,7 @@
     </subject>
     <authoredOn value="2020-02-03T00:00:00+00:00"/>
     <requester>
-        <reference value="Practioner/20597e0e-cb2a-45b3-95f0-dc3dbdb617c3"/>
+        <reference value="Practitioner/20597e0e-cb2a-45b3-95f0-dc3dbdb617c3"/>
     </requester>
     <insurance>
         <reference value="Coverage/1b1ffb6e-eb05-43d7-87eb-e7818fe9661a"/>

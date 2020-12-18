@@ -20,7 +20,7 @@ use std::iter::once;
 
 use async_trait::async_trait;
 use miscellaneous::str::icase_eq;
-use resources::composition::{Author, Composition, Extension, LegalBasis, Section};
+use resources::composition::{Author, Composition, Extension, LegalBasis, Section, PKV};
 
 use crate::fhir::{
     decode::{decode_any, DataStream, Decode, DecodeError, DecodeStream, Fields},
@@ -120,23 +120,34 @@ impl Decode for Extension {
         S: DataStream,
     {
         let mut legal_basis = None;
+        let mut pkv = None;
 
         let mut fields = Fields::new(&["extension"]);
         while stream.begin_substream_vec(&mut fields).await? {
             stream.element().await?;
 
-            let mut fields = Fields::new(&["url", "valueCoding"]);
+            let mut fields = Fields::new(&["url"]);
             let url = stream.decode::<String, _>(&mut fields, decode_any).await?;
 
-            if icase_eq(url, URL_LEGAL_BASIS) {
-                legal_basis = Some(stream.decode(&mut fields, decode_coding).await?);
+            match url.as_str() {
+                x if icase_eq(x, URL_LEGAL_BASIS) => {
+                    let mut fields = Fields::new(&["valueCoding"]);
+
+                    legal_basis = Some(stream.decode(&mut fields, decode_coding).await?);
+                }
+                x if icase_eq(x, URL_PKV) => {
+                    let mut fields = Fields::new(&["valueCoding"]);
+
+                    pkv = Some(stream.decode(&mut fields, decode_coding).await?);
+                }
+                _ => (),
             }
 
             stream.end().await?;
             stream.end_substream().await?;
         }
 
-        Ok(Extension { legal_basis })
+        Ok(Extension { legal_basis, pkv })
     }
 }
 
@@ -310,6 +321,14 @@ impl Encode for &Extension {
                 .end()?;
         }
 
+        if let Some(pkv) = &self.pkv {
+            stream
+                .element()?
+                .attrib("url", URL_PKV, encode_any)?
+                .encode("valueCoding", pkv, encode_coding)?
+                .end()?;
+        }
+
         stream.end()?;
 
         Ok(())
@@ -446,6 +465,43 @@ impl CodeEx for LegalBasis {
     }
 }
 
+impl CodingEx for PKV {
+    type Code = Self;
+
+    fn from_parts(code: Self::Code) -> Self {
+        code
+    }
+
+    fn code(&self) -> &Self::Code {
+        &self
+    }
+
+    fn system() -> Option<&'static str> {
+        Some(SYSTEM_PKV)
+    }
+}
+
+impl CodeEx for PKV {
+    fn from_parts(value: String) -> Result<Self, String> {
+        match value.as_str() {
+            "01" => Ok(Self::Standard),
+            "02" => Ok(Self::Basic),
+            "03" => Ok(Self::Individual),
+            "04" => Ok(Self::Emergency),
+            _ => Err(value),
+        }
+    }
+
+    fn code(&self) -> &'static str {
+        match self {
+            Self::Standard => "01",
+            Self::Basic => "02",
+            Self::Individual => "03",
+            Self::Emergency => "04",
+        }
+    }
+}
+
 struct CompositionType;
 
 impl CodeableConceptEx for CompositionType {
@@ -577,9 +633,11 @@ impl CodeEx for SectionItem<'_> {
 const PROFILE: &str = "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Composition|1.0.0";
 
 const URL_LEGAL_BASIS: &str = "https://fhir.kbv.de/StructureDefinition/KBV_EX_FOR_Legal_basis";
+const URL_PKV: &str = "https://fhir.kbv.de/StructureDefinition/KBV_EX_FOR_PKV_Tariff";
 
 const SYSTEM_LEGAL_BASIS: &str =
     "https://fhir.kbv.de/CodeSystem/KBV_CS_SFHIR_KBV_STATUSKENNZEICHEN";
+const SYSTEM_PKV: &str = "https://fhir.kbv.de/CodeSystem/KBV_CS_SFHIR_KBV_PKV_TARIFF";
 const SYSTEM_TYPE: &str = "https://fhir.kbv.de/CodeSystem/KBV_CS_FOR_Formular_Art";
 const SYSTEM_PRF: &str = "https://fhir.kbv.de/NamingSystem/KBV_NS_FOR_Pruefnummer";
 const SYSTEM_SECTION: &str = "https://fhir.kbv.de/CodeSystem/KBV_CS_FOR_Section_Type";
@@ -646,6 +704,7 @@ pub mod tests {
             id: "ed52c1e3-b700-4497-ae19-b23744e29876".try_into().unwrap(),
             extension: Extension {
                 legal_basis: Some(LegalBasis::None),
+                pkv: Some(PKV::Basic),
             },
             subject: Some("Patient/9774f67f-a238-4daf-b4e6-679deeef3811".into()),
             date: "2020-05-04T08:00:00+00:00".try_into().unwrap(),

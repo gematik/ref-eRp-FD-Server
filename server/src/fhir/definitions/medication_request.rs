@@ -21,7 +21,7 @@ use async_trait::async_trait;
 use miscellaneous::str::icase_eq;
 use resources::medication_request::{
     AccidentCause, AccidentInformation, CoPayment, DispenseRequest, Dosage, Extension,
-    MedicationRequest,
+    MedicationRequest, MultiPrescription, SeriesElement, TimeRange,
 };
 
 use crate::fhir::{
@@ -137,6 +137,7 @@ impl Decode for Extension {
         let mut emergency_service_fee = None;
         let mut bvg = None;
         let mut accident_information = None;
+        let mut multi_prescription = None;
 
         let mut fields = Fields::new(&["extension"]);
         while stream.begin_substream_vec(&mut fields).await? {
@@ -165,6 +166,11 @@ impl Decode for Extension {
 
                     accident_information = Some(stream.decode(&mut fields, decode_any).await?);
                 }
+                x if icase_eq(x, URL_MULTI_PRESCRIPTION) => {
+                    let mut fields = Fields::new(&["extension"]);
+
+                    multi_prescription = Some(stream.decode(&mut fields, decode_any).await?);
+                }
                 _ => (),
             }
 
@@ -181,12 +187,18 @@ impl Decode for Extension {
             url: URL_BVG.into(),
             path: stream.path().into(),
         })?;
+        let multi_prescription =
+            multi_prescription.ok_or_else(|| DecodeError::MissingExtension {
+                url: URL_MULTI_PRESCRIPTION.into(),
+                path: stream.path().into(),
+            })?;
 
         Ok(Extension {
             co_payment,
             emergency_service_fee,
             bvg,
             accident_information,
+            multi_prescription,
         })
     }
 }
@@ -345,6 +357,118 @@ impl Decode for DispenseRequest {
     }
 }
 
+#[async_trait(?Send)]
+impl Decode for MultiPrescription {
+    async fn decode<S>(stream: &mut DecodeStream<S>) -> Result<Self, DecodeError<S::Error>>
+    where
+        S: DataStream,
+    {
+        let mut flag = None;
+        let mut series_element = None;
+        let mut time_range = None;
+
+        let mut fields = Fields::new(&["extension"]);
+        while stream.begin_substream_vec(&mut fields).await? {
+            stream.element().await?;
+
+            let url = stream.value(Search::Exact("url")).await?.unwrap();
+
+            match url.as_str() {
+                "Kennzeichen" => {
+                    let mut fields = Fields::new(&["valueBoolean"]);
+
+                    flag = Some(stream.decode(&mut fields, decode_any).await?);
+                }
+                "Nummerierung" => {
+                    let mut fields = Fields::new(&["valueRatio"]);
+
+                    series_element = Some(stream.decode_opt(&mut fields, decode_any).await?);
+                }
+                "Zeitraum" => {
+                    let mut fields = Fields::new(&["valuePeriod"]);
+
+                    time_range = Some(stream.decode_opt(&mut fields, decode_any).await?);
+                }
+                _ => (),
+            }
+
+            stream.end().await?;
+            stream.end_substream().await?;
+        }
+
+        let flag = flag.ok_or_else(|| DecodeError::MissingExtension {
+            url: "Kennzeichen".into(),
+            path: stream.path().into(),
+        })?;
+        let series_element = series_element.ok_or_else(|| DecodeError::MissingExtension {
+            url: "Nummerierung".into(),
+            path: stream.path().into(),
+        })?;
+        let time_range = time_range.ok_or_else(|| DecodeError::MissingExtension {
+            url: "Zeitraum".into(),
+            path: stream.path().into(),
+        })?;
+
+        Ok(MultiPrescription {
+            flag,
+            series_element,
+            time_range,
+        })
+    }
+}
+
+#[async_trait(?Send)]
+impl Decode for SeriesElement {
+    async fn decode<S>(stream: &mut DecodeStream<S>) -> Result<Self, DecodeError<S::Error>>
+    where
+        S: DataStream,
+    {
+        let mut fields = Fields::new(&["numerator", "denominator"]);
+
+        stream.element().await?;
+
+        stream.begin_substream(&mut fields).await?;
+        stream.element().await?;
+        let mut subfield = Fields::new(&["value"]);
+        let numerator = stream.decode(&mut subfield, decode_any).await?;
+        stream.end().await?;
+        stream.end_substream().await?;
+
+        stream.begin_substream(&mut fields).await?;
+        stream.element().await?;
+        let mut subfield = Fields::new(&["value"]);
+        let denominator = stream.decode(&mut subfield, decode_any).await?;
+        stream.end().await?;
+        stream.end_substream().await?;
+
+        stream.end().await?;
+
+        Ok(SeriesElement {
+            numerator,
+            denominator,
+        })
+    }
+}
+
+#[async_trait(?Send)]
+impl Decode for TimeRange {
+    async fn decode<S>(stream: &mut DecodeStream<S>) -> Result<Self, DecodeError<S::Error>>
+    where
+        S: DataStream,
+    {
+        let mut fields = Fields::new(&["start", "end"]);
+
+        stream.element().await?;
+
+        let start = stream.decode_opt(&mut fields, decode_any).await?;
+        let end = stream.decode_opt(&mut fields, decode_any).await?;
+
+        stream.end().await?;
+
+        Ok(TimeRange { start, end })
+    }
+}
+
 /* Encode */
 
 impl Encode for &MedicationRequest {
@@ -425,6 +549,12 @@ impl Encode for &Extension {
                 .end()?;
         }
 
+        stream
+            .element()?
+            .attrib("url", URL_MULTI_PRESCRIPTION, encode_any)?
+            .encode("extension", &self.multi_prescription, encode_any)?
+            .end()?;
+
         stream.end()?;
 
         Ok(())
@@ -457,6 +587,39 @@ impl Encode for &AccidentInformation {
             .encode("valueDate", &self.date, encode_any)?
             .end()?;
 
+        stream.end()?;
+
+        Ok(())
+    }
+}
+
+impl Encode for &MultiPrescription {
+    fn encode<S>(self, stream: &mut EncodeStream<S>) -> Result<(), EncodeError<S::Error>>
+    where
+        S: DataStorage,
+    {
+        stream
+            .array()?
+            .element()?
+            .attrib("url", "Kennzeichen", encode_any)?
+            .encode("valueBoolean", &self.flag, encode_any)?
+            .end()?;
+
+        if let Some(series_element) = &self.series_element {
+            stream
+                .element()?
+                .attrib("url", "Nummerierung", encode_any)?
+                .encode("valueRatio", series_element, encode_any)?
+                .end()?;
+        }
+
+        if let Some(time_range) = &self.time_range {
+            stream
+                .element()?
+                .attrib("url", "Zeitraum", encode_any)?
+                .encode("valuePeriod", time_range, encode_any)?
+                .end()?;
+        }
         stream.end()?;
 
         Ok(())
@@ -513,6 +676,42 @@ impl Encode for &DispenseRequest {
             .encode("system", SYSTEM_QUANTITY, encode_any)?
             .encode("code", "{Package}", encode_any)?
             .end()?
+            .end()?;
+
+        Ok(())
+    }
+}
+
+impl Encode for &SeriesElement {
+    fn encode<S>(self, stream: &mut EncodeStream<S>) -> Result<(), EncodeError<S::Error>>
+    where
+        S: DataStorage,
+    {
+        stream
+            .element()?
+            .field_name("numerator")?
+            .element()?
+            .encode("value", &self.numerator, encode_any)?
+            .end()?
+            .field_name("denominator")?
+            .element()?
+            .encode("value", &self.denominator, encode_any)?
+            .end()?
+            .end()?;
+
+        Ok(())
+    }
+}
+
+impl Encode for &TimeRange {
+    fn encode<S>(self, stream: &mut EncodeStream<S>) -> Result<(), EncodeError<S::Error>>
+    where
+        S: DataStorage,
+    {
+        stream
+            .element()?
+            .encode_opt("start", &self.start, encode_any)?
+            .encode_opt("end", &self.end, encode_any)?
             .end()?;
 
         Ok(())
@@ -600,7 +799,8 @@ const URL_BVG: &str = "https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_BVG";
 const URL_ACCIDENT_INFORMATION: &str =
     "https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Accident";
 const URL_DOSAGE_MARK: &str = "https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_DosageFlag";
-
+const URL_MULTI_PRESCRIPTION: &str =
+    "https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Multiple_Prescription";
 const SYSTEM_CO_PAYMENT: &str = "https://fhir.kbv.de/CodeSystem/KBV_CS_ERP_StatusCoPayment";
 const SYSTEM_ACCIDENT_CAUSE: &str = "https://fhir.kbv.de/CodeSystem/KBV_CS_FOR_Ursache_Type";
 const SYSTEM_QUANTITY: &str = "http://unitsofmeasure.org";
@@ -674,11 +874,22 @@ pub mod tests {
                     date: "2020-05-01".try_into().unwrap(),
                     business: Some("Dummy-Betrieb".into()),
                 }),
+                multi_prescription: MultiPrescription {
+                    flag: true,
+                    series_element: Some(SeriesElement {
+                        numerator: 2,
+                        denominator: 4,
+                    }),
+                    time_range: Some(TimeRange {
+                        start: Some("2021-01-02".try_into().unwrap()),
+                        end: Some("2021-03-30".try_into().unwrap()),
+                    }),
+                },
             },
             medication: "Medication/5fe6e06c-8725-46d5-aecd-e65e041ca3de".into(),
             subject: "Patient/9774f67f-a238-4daf-b4e6-679deeef3811".into(),
             authored_on: "2020-02-03T00:00:00+00:00".try_into().unwrap(),
-            requester: "Practioner/20597e0e-cb2a-45b3-95f0-dc3dbdb617c3".into(),
+            requester: "Practitioner/20597e0e-cb2a-45b3-95f0-dc3dbdb617c3".into(),
             insurance: "Coverage/1b1ffb6e-eb05-43d7-87eb-e7818fe9661a".into(),
             note: None,
             dosage: Some(Dosage {

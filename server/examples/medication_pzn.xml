@@ -39,4 +39,8 @@
             <value value="1"/>
         </denominator>
     </amount>
+    <batch>
+        <lotNumber value="1234567890abcde"/>
+        <expirationDate value="2020-02-03T00:00:00+00:00"/>
+    </batch>
 </Medication>

@@ -9,6 +9,12 @@
             <code value="00"/>
         </valueCoding>
     </extension>
+    <extension url="https://fhir.kbv.de/StructureDefinition/KBV_EX_FOR_PKV_Tariff">
+        <valueCoding>
+            <system value="https://fhir.kbv.de/CodeSystem/KBV_CS_SFHIR_KBV_PKV_TARIFF"/>
+            <code value="02"/>
+        </valueCoding>
+    </extension>
     <status value="final"/>
     <type>
         <coding>

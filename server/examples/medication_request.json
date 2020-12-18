@@ -41,6 +41,33 @@
                     "valueDate":"2020-05-01"
                 }
             ]
+        },
+        {
+            "url":"https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Multiple_Prescription",
+            "extension":[
+                {
+                    "url":"Kennzeichen",
+                    "valueBoolean":true
+                },
+                {
+                    "url":"Nummerierung",
+                    "valueRatio":{
+                        "numerator":{
+                            "value":2
+                        },
+                        "denominator":{
+                            "value":4
+                        }
+                    }
+                },
+                {
+                    "url":"Zeitraum",
+                    "valuePeriod":{
+                        "start":"2021-01-02",
+                        "end":"2021-03-30"
+                    }
+                }
+            ]
         }
     ],
     "status":"active",
@@ -53,7 +80,7 @@
     },
     "authoredOn":"2020-02-03T00:00:00+00:00",
     "requester":{
-        "reference":"Practioner/20597e0e-cb2a-45b3-95f0-dc3dbdb617c3"
+        "reference":"Practitioner/20597e0e-cb2a-45b3-95f0-dc3dbdb617c3"
     },
     "insurance":[
         {

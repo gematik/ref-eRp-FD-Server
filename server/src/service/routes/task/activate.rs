@@ -24,10 +24,13 @@ use actix_web::{
     HttpResponse,
 };
 use bytes::Bytes;
+use chrono::{Duration, Utc};
 use futures::{future::ready, stream::once};
 use resources::{
+    primitives::DateTime,
     primitives::Id,
     task::{Status, TaskActivateParameters},
+    types::FlowType,
     KbvBinary, KbvBundle, SignatureType,
 };
 
@@ -42,6 +45,7 @@ use crate::{
 };
 
 use super::Error;
+use std::ops::Add;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn activate(
@@ -169,6 +173,13 @@ pub async fn activate(
     task.status = Status::Ready;
     task.input.e_prescription = Some(e_prescription);
     task.input.patient_receipt = Some(patient_receipt);
+
+    let acpt_exp_dur = match task.extension.flow_type {
+        FlowType::PharmaceuticalDrugs => (Duration::days(30), Duration::days(92)),
+    };
+    let now = Utc::now(); //TODO: take date from QES signature in CMS/pkcs7
+    task.extension.accept_date = Some(DateTime::from(now.add(acpt_exp_dur.0)));
+    task.extension.expiry_date = Some(DateTime::from(now.add(acpt_exp_dur.1)));
 
     create_response(&**task, accept)
 }

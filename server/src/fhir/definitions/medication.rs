@@ -21,8 +21,8 @@ use std::iter::once;
 use async_trait::async_trait;
 use miscellaneous::str::icase_eq;
 use resources::medication::{
-    Amount, Category, CompoundingData, Data, Extension, FreeTextData, Ingredient, IngredientData,
-    Medication, PznCode, PznData, PznForm, StandardSize,
+    Amount, Batch, Category, CompoundingData, Data, Extension, FreeTextData, Ingredient,
+    IngredientData, Medication, PznCode, PznData, PznForm, StandardSize,
 };
 
 use crate::fhir::{
@@ -57,7 +57,7 @@ impl Decode for Medication {
 
         let data = match meta.profiles.get(0) {
             Some(s) if icase_eq(s, PROFILE_MEDICATION_COMPOUNDING) => {
-                let mut fields = Fields::new(&["code", "form", "amount", "ingredient"]);
+                let mut fields = Fields::new(&["code", "form", "amount", "ingredient", "batch"]);
 
                 let (medication_type, code) = stream
                     .decode::<(MedicationType, Option<String>), _>(
@@ -70,6 +70,8 @@ impl Decode for Medication {
                 let ingredient = stream
                     .decode_vec::<Vec<PznIngredient<'static>>, _>(&mut fields, decode_ingredient)
                     .await?;
+
+                let batch: Option<Batch> = stream.decode_opt(&mut fields, decode_any).await?;
 
                 if medication_type != MedicationType::Rezeptur {
                     return Err(DecodeError::InvalidFixedValue {
@@ -86,10 +88,11 @@ impl Decode for Medication {
                     form,
                     amount,
                     ingredient,
+                    batch,
                 })
             }
             Some(s) if icase_eq(s, PROFILE_MEDICATION_INGREDIENT) => {
-                let mut fields = Fields::new(&["code", "form", "amount", "ingredient"]);
+                let mut fields = Fields::new(&["code", "form", "amount", "ingredient", "batch"]);
 
                 let (medication_type, _code) = stream
                     .decode::<(MedicationType, Option<String>), _>(
@@ -102,6 +105,8 @@ impl Decode for Medication {
                 let ingredient = stream
                     .decode::<AskIngredient<'static>, _>(&mut fields, decode_ingredient)
                     .await?;
+
+                let batch: Option<Batch> = stream.decode_opt(&mut fields, decode_any).await?;
 
                 if medication_type != MedicationType::Wirkstoff {
                     return Err(DecodeError::InvalidFixedValue {
@@ -117,10 +122,11 @@ impl Decode for Medication {
                     form,
                     amount,
                     ingredient,
+                    batch,
                 })
             }
             Some(s) if icase_eq(s, PROFILE_MEDICATION_FREE_TEXT) => {
-                let mut fields = Fields::new(&["code", "form"]);
+                let mut fields = Fields::new(&["code", "form", "batch"]);
 
                 let (medication_type, code) = stream
                     .decode::<(MedicationType, Option<String>), _>(
@@ -131,6 +137,8 @@ impl Decode for Medication {
                 let form = stream
                     .decode_opt(&mut fields, decode_codeable_concept)
                     .await?;
+
+                let batch: Option<Batch> = stream.decode_opt(&mut fields, decode_any).await?;
 
                 let code = match code {
                     Some(code) => code,
@@ -150,16 +158,22 @@ impl Decode for Medication {
                     });
                 }
 
-                Data::FreeText(FreeTextData { code, form })
+                Data::FreeText(FreeTextData { code, form, batch })
             }
             Some(s) if icase_eq(s, PROFILE_MEDICATION_PZN) => {
-                let mut fields = Fields::new(&["code", "form", "amount"]);
+                let mut fields = Fields::new(&["code", "form", "amount", "batch"]);
 
                 let code = stream.decode(&mut fields, decode_codeable_concept).await?;
                 let form = stream.decode(&mut fields, decode_codeable_concept).await?;
                 let amount = stream.decode_opt(&mut fields, decode_amount).await?;
+                let batch = stream.decode_opt(&mut fields, decode_any).await?;
 
-                Data::Pzn(PznData { code, form, amount })
+                Data::Pzn(PznData {
+                    code,
+                    form,
+                    amount,
+                    batch,
+                })
             }
             Some(_) | None => {
                 return Err(DecodeError::InvalidProfile {
@@ -376,6 +390,28 @@ where
     }))
 }
 
+#[async_trait(?Send)]
+impl Decode for Batch {
+    async fn decode<S>(stream: &mut DecodeStream<S>) -> Result<Self, DecodeError<S::Error>>
+    where
+        S: DataStream,
+    {
+        let mut fields = Fields::new(&["lotNumber", "expirationDate"]);
+
+        stream.element().await?;
+
+        let lot_number = stream.decode_opt(&mut fields, decode_any).await?;
+        let expiration_date = stream.decode_opt(&mut fields, decode_any).await?;
+
+        stream.end().await?;
+
+        Ok(Batch {
+            lot_number,
+            expiration_date,
+        })
+    }
+}
+
 /* Encode */
 
 impl Encode for &Medication {
@@ -411,7 +447,8 @@ impl Encode for &Medication {
                         "ingredient",
                         data.ingredient.iter().map(PznIngredient::borrow),
                         encode_ingredient,
-                    )?;
+                    )?
+                    .encode_opt("batch", &data.batch, encode_any)?;
             }
             Data::Ingredient(data) => {
                 let code = (MedicationType::Wirkstoff, None);
@@ -424,20 +461,23 @@ impl Encode for &Medication {
                         "ingredient",
                         once(&data.ingredient).map(AskIngredient::borrow),
                         encode_ingredient,
-                    )?;
+                    )?
+                    .encode_opt("batch", &data.batch, encode_any)?;
             }
             Data::FreeText(data) => {
                 let code = (MedicationType::Freitext, Some(data.code.clone()));
 
                 stream
                     .encode("code", &code, encode_codeable_concept)?
-                    .encode_opt("form", &data.form, encode_codeable_concept)?;
+                    .encode_opt("form", &data.form, encode_codeable_concept)?
+                    .encode_opt("batch", &data.batch, encode_any)?;
             }
             Data::Pzn(data) => {
                 stream
                     .encode("code", &data.code, encode_codeable_concept)?
                     .encode("form", &data.form, encode_codeable_concept)?
-                    .encode_opt("amount", &data.amount, encode_amount)?;
+                    .encode_opt("amount", &data.amount, encode_amount)?
+                    .encode_opt("batch", &data.batch, encode_any)?;
             }
         }
 
@@ -563,6 +603,21 @@ where
     stream.end()?.end()?;
 
     Ok(())
+}
+
+impl Encode for &Batch {
+    fn encode<S>(self, stream: &mut EncodeStream<S>) -> Result<(), EncodeError<S::Error>>
+    where
+        S: DataStorage,
+    {
+        stream
+            .element()?
+            .encode_opt("lotNumber", &self.lot_number, encode_any)?
+            .encode_opt("expirationDate", &self.expiration_date, encode_any)?
+            .end()?;
+
+        Ok(())
+    }
 }
 
 /* Misc */
@@ -1105,6 +1160,10 @@ pub mod tests {
                         amount_free_text: Some("quantum satis".into()),
                     },
                 ],
+                batch: Some(Batch {
+                    lot_number: Some("1234567890abcde".into()),
+                    expiration_date: Some("2020-02-03T00:00:00+00:00".try_into().unwrap()),
+                }),
             }),
             extension: Some(Extension {
                 category: Category::Medicine,
@@ -1122,6 +1181,10 @@ pub mod tests {
             data: Data::FreeText(FreeTextData {
                 code: "Dummy-Impfstoff als Freitext".into(),
                 form: None,
+                batch: Some(Batch {
+                    lot_number: Some("1234567890abcde".into()),
+                    expiration_date: Some("2020-02-03T00:00:00+00:00".try_into().unwrap()),
+                }),
             }),
             extension: Some(Extension {
                 category: Category::Medicine,
@@ -1154,6 +1217,10 @@ pub mod tests {
                     dosage_form: None,
                     amount_free_text: None,
                 },
+                batch: Some(Batch {
+                    lot_number: Some("1234567890abcde".into()),
+                    expiration_date: Some("2020-02-03T00:00:00+00:00".try_into().unwrap()),
+                }),
             }),
             extension: Some(Extension {
                 category: Category::Medicine,
@@ -1182,6 +1249,10 @@ pub mod tests {
                     value: 12,
                     unit: "TAB".into(),
                     code: Some("{tbl}".into()),
+                }),
+                batch: Some(Batch {
+                    lot_number: Some("1234567890abcde".into()),
+                    expiration_date: Some("2020-02-03T00:00:00+00:00".try_into().unwrap()),
                 }),
             }),
             extension: Some(Extension {

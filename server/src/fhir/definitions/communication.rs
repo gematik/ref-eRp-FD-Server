@@ -897,6 +897,7 @@ pub mod tests {
                     unit: "TAB".into(),
                     code: Some("{tbl}".into()),
                 }),
+                batch: None,
             }),
             extension: Some(Extension {
                 category: Category::Medicine,

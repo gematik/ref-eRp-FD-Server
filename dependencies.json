@@ -163,7 +163,7 @@
   },
   {
     "name": "arc-swap",
-    "version": "0.4.7",
+    "version": "0.4.8",
     "authors": "Michal 'vorner' Vaner <vorner@vorner.cz>",
     "repository": "https://github.com/vorner/arc-swap",
     "license": "Apache-2.0 OR MIT",
@@ -378,17 +378,8 @@
     "description": "Low level interface to CloudABI. Contains all syscalls and related types."
   },
   {
-    "name": "console_error_panic_hook",
-    "version": "0.1.6",
-    "authors": "Nick Fitzgerald <fitzgen@gmail.com>",
-    "repository": "https://github.com/rustwasm/console_error_panic_hook",
-    "license": "Apache-2.0 OR MIT",
-    "license_file": null,
-    "description": "A panic hook for `wasm32-unknown-unknown` that logs panics to `console.error`"
-  },
-  {
     "name": "const_fn",
-    "version": "0.4.3",
+    "version": "0.4.4",
     "authors": "Taiki Endo <te316e89@gmail.com>",
     "repository": "https://github.com/taiki-e/const_fn",
     "license": "Apache-2.0 OR MIT",
@@ -748,7 +739,7 @@
   },
   {
     "name": "http",
-    "version": "0.2.1",
+    "version": "0.2.2",
     "authors": "Alex Crichton <alex@alexcrichton.com>|Carl Lerche <me@carllerche.com>|Sean McArthur <sean@seanmonstar.com>",
     "repository": "https://github.com/hyperium/http",
     "license": "Apache-2.0 OR MIT",
@@ -820,7 +811,7 @@
   },
   {
     "name": "indexmap",
-    "version": "1.6.0",
+    "version": "1.6.1",
     "authors": "bluss|Josh Stone <cuviper@gmail.com>",
     "repository": "https://github.com/bluss/indexmap",
     "license": "Apache-2.0 OR MIT",
@@ -1081,7 +1072,7 @@
   },
   {
     "name": "net2",
-    "version": "0.2.36",
+    "version": "0.2.37",
     "authors": "Alex Crichton <alex@alexcrichton.com>",
     "repository": "https://github.com/deprecrated/net2-rs",
     "license": "Apache-2.0 OR MIT",
@@ -1450,7 +1441,7 @@
   },
   {
     "name": "reqwest",
-    "version": "0.10.9",
+    "version": "0.10.10",
     "authors": "Sean McArthur <sean@seanmonstar.com>",
     "repository": "https://github.com/seanmonstar/reqwest",
     "license": "Apache-2.0 OR MIT",
@@ -1519,15 +1510,6 @@
     "license": "Apache-2.0 OR BSL-1.0",
     "license_file": null,
     "description": "Fast floating point to string conversion"
-  },
-  {
-    "name": "scoped-tls",
-    "version": "1.0.0",
-    "authors": "Alex Crichton <alex@alexcrichton.com>",
-    "repository": "https://github.com/alexcrichton/scoped-tls",
-    "license": "Apache-2.0 OR MIT",
-    "license_file": null,
-    "description": "Library implementation of the standard library's old `scoped_thread_local!` macro for providing scoped access to thread local storage (TLS) so any type can be stored into TLS."
   },
   {
     "name": "scopeguard",
@@ -1684,7 +1666,7 @@
   },
   {
     "name": "socket2",
-    "version": "0.3.17",
+    "version": "0.3.18",
     "authors": "Alex Crichton <alex@alexcrichton.com>",
     "repository": "https://github.com/alexcrichton/socket2-rs",
     "license": "Apache-2.0 OR MIT",
@@ -1774,7 +1756,7 @@
   },
   {
     "name": "subtle",
-    "version": "2.3.0",
+    "version": "2.4.0",
     "authors": "Isis Lovecruft <isis@patternsinthevoid.net>|Henry de Valence <hdevalence@hdevalence.ca>",
     "repository": "https://github.com/dalek-cryptography/subtle",
     "license": "BSD-3-Clause",
@@ -1900,7 +1882,7 @@
   },
   {
     "name": "tokio",
-    "version": "0.2.23",
+    "version": "0.2.24",
     "authors": "Tokio Contributors <team@tokio.rs>",
     "repository": "https://github.com/tokio-rs/tokio",
     "license": "MIT",
@@ -2134,7 +2116,7 @@
   },
   {
     "name": "vcpkg",
-    "version": "0.2.10",
+    "version": "0.2.11",
     "authors": "Jim McGrath <jimmc2@gmail.com>",
     "repository": "https://github.com/mcgoo/vcpkg-rs",
     "license": "Apache-2.0 OR MIT",
@@ -2239,24 +2221,6 @@
     "license": "Apache-2.0 OR MIT",
     "license_file": null,
     "description": "Shared support between wasm-bindgen and wasm-bindgen cli, an internal dependency."
-  },
-  {
-    "name": "wasm-bindgen-test",
-    "version": "0.3.19",
-    "authors": "The wasm-bindgen Developers",
-    "repository": "https://github.com/rustwasm/wasm-bindgen",
-    "license": "Apache-2.0 OR MIT",
-    "license_file": null,
-    "description": "Internal testing crate for wasm-bindgen"
-  },
-  {
-    "name": "wasm-bindgen-test-macro",
-    "version": "0.3.19",
-    "authors": "The wasm-bindgen Developers",
-    "repository": "https://github.com/rustwasm/wasm-bindgen",
-    "license": "Apache-2.0 OR MIT",
-    "license_file": null,
-    "description": "Internal testing macro for wasm-bindgen"
   },
   {
     "name": "web-sys",

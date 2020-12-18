@@ -1,3 +1,8 @@
+# Release 0.9.0
+Implemented features:
+* Implemented KBV eRezept FHIR Profile update
+* Implemented expiryDate and acceptDate for Task $activate operation
+
 # Release 0.8.0
 Implemented features:
 * Implemented OperationOutcome Resource for Errorneous Operations

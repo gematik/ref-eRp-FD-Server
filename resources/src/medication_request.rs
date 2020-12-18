@@ -38,6 +38,26 @@ pub struct Extension {
     pub bvg: bool,
     pub co_payment: Option<CoPayment>,
     pub accident_information: Option<AccidentInformation>,
+    pub multi_prescription: MultiPrescription,
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub struct MultiPrescription {
+    pub flag: bool,
+    pub series_element: Option<SeriesElement>,
+    pub time_range: Option<TimeRange>,
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub struct SeriesElement {
+    pub numerator: usize,
+    pub denominator: usize,
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub struct TimeRange {
+    pub start: Option<DateTime>,
+    pub end: Option<DateTime>,
 }
 
 #[derive(Clone, PartialEq, Debug)]

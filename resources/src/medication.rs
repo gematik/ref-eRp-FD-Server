@@ -15,7 +15,7 @@
  *
  */
 
-use super::primitives::Id;
+use super::primitives::{DateTime, Id};
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct Medication {
@@ -47,12 +47,20 @@ pub struct CompoundingData {
     pub form: String,
     pub amount: Amount,
     pub ingredient: Vec<Ingredient>,
+    pub batch: Option<Batch>,
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub struct Batch {
+    pub lot_number: Option<String>,
+    pub expiration_date: Option<DateTime>,
 }
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct FreeTextData {
     pub code: String,
     pub form: Option<String>,
+    pub batch: Option<Batch>,
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -60,6 +68,7 @@ pub struct IngredientData {
     pub form: String,
     pub amount: Option<Amount>,
     pub ingredient: Ingredient,
+    pub batch: Option<Batch>,
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -67,6 +76,7 @@ pub struct PznData {
     pub code: PznCode,
     pub form: PznForm,
     pub amount: Option<Amount>,
+    pub batch: Option<Batch>,
 }
 
 #[derive(Clone, PartialEq, Debug)]
