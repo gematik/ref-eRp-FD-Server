@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 gematik GmbH
+ * Copyright (c) 2021 gematik GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -640,7 +640,7 @@ const SYSTEM_LEGAL_BASIS: &str =
 const SYSTEM_PKV: &str = "https://fhir.kbv.de/CodeSystem/KBV_CS_SFHIR_KBV_PKV_TARIFF";
 const SYSTEM_TYPE: &str = "https://fhir.kbv.de/CodeSystem/KBV_CS_FOR_Formular_Art";
 const SYSTEM_PRF: &str = "https://fhir.kbv.de/NamingSystem/KBV_NS_FOR_Pruefnummer";
-const SYSTEM_SECTION: &str = "https://fhir.kbv.de/CodeSystem/KBV_CS_FOR_Section_Type";
+const SYSTEM_SECTION: &str = "https://fhir.kbv.de/CodeSystem/KBV_CS_ERP_Section_Type";
 
 #[cfg(test)]
 pub mod tests {

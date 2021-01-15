@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 gematik GmbH
+ * Copyright (c) 2021 gematik GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -84,7 +84,7 @@ pub async fn create(
 fn create_task(flow_type: FlowType) -> Result<Task, RequestError> {
     let id = Some(Id::generate().unwrap());
     let access_code = random_id();
-    let prescription_id = generate_prescription_id(FlowType::PharmaceuticalDrugs);
+    let prescription_id = generate_prescription_id(flow_type);
 
     Ok(Task {
         id,

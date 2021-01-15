@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 gematik GmbH
+ * Copyright (c) 2021 gematik GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -122,7 +122,10 @@ pub async fn create(
         match (&communication, task.status) {
             (Communication::Representative(_), Status::Ready) => (),
             (Communication::Representative(_), Status::InProgress) => (),
-            _ => return Err(Error::InvalidTaskStatus.as_req_err().with_type(accept)),
+            (Communication::Representative(_), _) => {
+                return Err(Error::InvalidTaskStatus.as_req_err().with_type(accept))
+            }
+            (_, _) => (),
         }
     }
 

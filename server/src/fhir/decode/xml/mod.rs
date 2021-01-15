@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 gematik GmbH
+ * Copyright (c) 2021 gematik GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -145,6 +145,25 @@ pub mod tests {
             r##"
                 <Test xmlns="http://hl7.org/fhir">
                     <name value="value1" />
+                    <name value="value2" />
+                </Test>
+            "##,
+        );
+        let actual = stream.xml::<Test>().await.unwrap();
+        let expected = Test {
+            name: vec!["value1".into(), "value2".into()],
+        };
+
+        assert_eq!(actual, expected);
+    }
+
+    #[tokio::test]
+    async fn decode_stream_with_comment() {
+        let mut stream = load_str(
+            r##"
+                <Test xmlns="http://hl7.org/fhir">
+                    <name value="value1" />
+                    <!-- This is a test comment -->
                     <name value="value2" />
                 </Test>
             "##,

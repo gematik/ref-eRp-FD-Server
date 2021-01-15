@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 gematik GmbH
+ * Copyright (c) 2021 gematik GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  *
  */
 
-use openssl::pkcs7::Pkcs7;
+use chrono::{DateTime, Utc};
 
 use crate::tasks::Tsl;
 
@@ -30,20 +30,9 @@ impl Cms {
         Self { bnetza }
     }
 
-    pub fn verify(&self, data: &str) -> Result<Vec<u8>, RequestError> {
-        let pkcs7 = if data.starts_with("-----BEGIN PKCS7-----") {
-            Pkcs7::from_pem(data.as_bytes())?
-        } else {
-            let data = format!(
-                "-----BEGIN PKCS7-----\n{}\n-----END PKCS7-----",
-                data.trim()
-            );
-
-            Pkcs7::from_pem(data.as_bytes())?
-        };
-
+    pub fn verify(&self, pem: &str) -> Result<(Vec<u8>, DateTime<Utc>), RequestError> {
         self.bnetza
-            .verify_pkcs7(pkcs7)
+            .verify_cms(pem)
             .map_err(RequestError::CmsContainerError)
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 gematik GmbH
+ * Copyright (c) 2021 gematik GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
  */
 
 use std::ops::Deref;
-use std::str::{from_utf8, Utf8Error};
+use std::str::{from_utf8_unchecked, Utf8Error};
 
 use chrono::Utc;
 use miscellaneous::jwt::{sign, Error as JwsError};
@@ -76,10 +76,10 @@ where
         // here to avoid the borrowing. No worries, the code is still safe, because the 'json'
         // method returns no references.
         let json = unsafe { (&*data).json()? };
-        let json = from_utf8(&json)?;
+        let json = unsafe { from_utf8_unchecked(&json) };
         canonize_json(json, &mut buf)?;
 
-        let data = sign(&buf, sig_key.clone(), Some(sig_cert), true)?;
+        let data = sign(sig_key.clone(), Some(sig_cert), &buf, true)?;
         let signatures = self.0.signatures_mut();
         signatures.retain(|sig| sig.type_ != type_ && sig.format != Some(SignatureFormat::Json));
         signatures.push(Signature {

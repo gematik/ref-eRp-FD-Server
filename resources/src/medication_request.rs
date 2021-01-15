@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 gematik GmbH
+ * Copyright (c) 2021 gematik GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,14 +38,13 @@ pub struct Extension {
     pub bvg: bool,
     pub co_payment: Option<CoPayment>,
     pub accident_information: Option<AccidentInformation>,
-    pub multi_prescription: MultiPrescription,
+    pub multi_prescription: Option<MultiPrescription>,
 }
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct MultiPrescription {
-    pub flag: bool,
-    pub series_element: Option<SeriesElement>,
-    pub time_range: Option<TimeRange>,
+    pub series_element: SeriesElement,
+    pub time_range: TimeRange,
 }
 
 #[derive(Clone, PartialEq, Debug)]

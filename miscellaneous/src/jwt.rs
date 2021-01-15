@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 gematik GmbH
+ * Copyright (c) 2021 gematik GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  *
  */
 
-use base64::encode;
+use base64::{encode, encode_config, URL_SAFE_NO_PAD};
 use jwt::{FromBase64, PKeyWithDigest, SigningAlgorithm, ToBase64, VerifyingAlgorithm};
 use openssl::{
     hash::MessageDigest,
@@ -39,10 +39,10 @@ enum Algorithm {
     BP256R1,
 }
 
-pub fn sign<T: ToBase64>(
-    claims: &T,
+pub fn sign(
     key: PKey<Private>,
     cert: Option<&X509>,
+    data: &[u8],
     detached: bool,
 ) -> Result<String, Error> {
     let key = PKeyWithDigest {
@@ -59,7 +59,7 @@ pub fn sign<T: ToBase64>(
     };
 
     let header = header.to_base64()?;
-    let claims = claims.to_base64()?;
+    let claims = encode_config(&data, URL_SAFE_NO_PAD);
     let signature = key.sign(&header, &claims)?;
 
     let claims = if detached { "" } else { &*claims };

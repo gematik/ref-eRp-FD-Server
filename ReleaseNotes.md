@@ -1,3 +1,9 @@
+# Release 0.10.0
+Implemented features:
+* Fixed CMS signature verification
+* Updated KBV FHIR Profile
+* Fixed JSON signature calculation
+
 # Release 0.9.0
 Implemented features:
 * Implemented KBV eRezept FHIR Profile update

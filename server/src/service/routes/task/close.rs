@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 gematik GmbH
+ * Copyright (c) 2021 gematik GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -95,7 +95,7 @@ pub async fn close(
         .as_req_err()
         .err_with_type(accept)?;
     if &medication_dispense.subject != subject {
-        return Err(Error::SubjectMimatch.as_req_err().with_type(accept));
+        return Err(Error::SubjectMismatch.as_req_err().with_type(accept));
     }
 
     let performer = access_token
@@ -103,7 +103,7 @@ pub async fn close(
         .as_req_err()
         .err_with_type(accept)?;
     if medication_dispense.performer != performer {
-        return Err(Error::PerfromerMimatch.as_req_err().with_type(accept));
+        return Err(Error::PerformerMismatch.as_req_err().with_type(accept));
     }
 
     if task.status != Status::InProgress || task.identifier.secret != query.secret {

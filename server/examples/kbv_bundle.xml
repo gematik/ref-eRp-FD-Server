@@ -58,7 +58,7 @@
                 <section>
                     <code>
                         <coding>
-                            <system value="https://fhir.kbv.de/CodeSystem/KBV_CS_FOR_Section_Type"/>
+                            <system value="https://fhir.kbv.de/CodeSystem/KBV_CS_ERP_Section_Type"/>
                             <code value="Prescription"/>
                         </coding>
                     </code>
@@ -69,7 +69,7 @@
                 <section>
                     <code>
                         <coding>
-                            <system value="https://fhir.kbv.de/CodeSystem/KBV_CS_FOR_Section_Type"/>
+                            <system value="https://fhir.kbv.de/CodeSystem/KBV_CS_ERP_Section_Type"/>
                             <code value="Coverage"/>
                         </coding>
                     </code>
@@ -80,7 +80,7 @@
                 <section>
                     <code>
                         <coding>
-                            <system value="https://fhir.kbv.de/CodeSystem/KBV_CS_FOR_Section_Type"/>
+                            <system value="https://fhir.kbv.de/CodeSystem/KBV_CS_ERP_Section_Type"/>
                             <code value="FOR_PractitionerRole"/>
                         </coding>
                     </code>

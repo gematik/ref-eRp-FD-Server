@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 gematik GmbH
+ * Copyright (c) 2021 gematik GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -159,11 +159,12 @@ impl ResponseError for TypedRequestError {
                 TaskError::EPrescriptionMissing => res.status(StatusCode::BAD_REQUEST),
                 TaskError::EPrescriptionMismatch => res.status(StatusCode::BAD_REQUEST),
                 TaskError::EPrescriptionNotFound(_) => res.status(StatusCode::INTERNAL_SERVER_ERROR).severity(Severity::Fatal),
+                TaskError::EPrescriptionAlreadyRegistered(_) => res.status(StatusCode::BAD_REQUEST),
                 TaskError::KvnrMissing => res.status(StatusCode::BAD_REQUEST).code(IssueType::SecurityUnknown),
                 TaskError::KvnrInvalid => res.status(StatusCode::BAD_REQUEST).code(IssueType::SecurityUnknown),
                 TaskError::SubjectMissing => res.status(StatusCode::BAD_REQUEST),
-                TaskError::SubjectMimatch => res.status(StatusCode::BAD_REQUEST),
-                TaskError::PerfromerMimatch => res.status(StatusCode::BAD_REQUEST),
+                TaskError::SubjectMismatch => res.status(StatusCode::BAD_REQUEST),
+                TaskError::PerformerMismatch => res.status(StatusCode::BAD_REQUEST),
                 TaskError::AcceptTimestampMissing => res.status(StatusCode::INTERNAL_SERVER_ERROR).severity(Severity::Fatal),
                 TaskError::InvalidStatus => res.status(StatusCode::BAD_REQUEST),
                 TaskError::InvalidUrl(_) => res.status(StatusCode::BAD_REQUEST),

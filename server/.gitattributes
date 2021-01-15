@@ -1,1 +1,3 @@
 examples/kbv_bundle.bin binary
+examples/kbv_bundle.xml binary
+examples/kbv_bundle_github_issue_12.xml binary

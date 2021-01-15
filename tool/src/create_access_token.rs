@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 gematik GmbH
+ * Copyright (c) 2021 gematik GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ use std::str::from_utf8;
 
 use miscellaneous::jwt::sign;
 use openssl::{pkey::PKey, x509::X509};
-use serde_json::{from_str, Value};
+use serde_json::{from_str, to_string, Value};
 use structopt::StructOpt;
 
 use super::misc::read_input;
@@ -61,6 +61,7 @@ pub fn execute(opts: Opts) {
     let claims = from_utf8(&claims).expect("Unable to interpret claims: Invalid UTF-8 string!");
     let claims =
         from_str::<Value>(&claims).expect("Unable to interpret claims: Invalid JSON format!");
+    let claims = to_string(&claims).expect("Unable to convert claims to JSON");
 
     let cert = opts.cert.map(|cert| {
         let cert = read(cert).expect("Unable to read certificate!");
@@ -69,7 +70,7 @@ pub fn execute(opts: Opts) {
     });
 
     let access_token =
-        sign(&claims, key, cert.as_ref(), false).expect("Unable to crate ACCESS_TOKEN");
+        sign(key, cert.as_ref(), claims.as_bytes(), false).expect("Unable to crate ACCESS_TOKEN");
 
     println!("{}", access_token);
 }

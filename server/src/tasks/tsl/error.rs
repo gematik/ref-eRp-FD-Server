@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 gematik GmbH
+ * Copyright (c) 2021 gematik GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -54,6 +54,9 @@ pub enum Error {
 
     #[error("Unable to find Issuer Certificate!")]
     UnknownIssuerCert,
+
+    #[error("Missing signing time in bundle CMS signature!")]
+    UnknownSigningTime,
 
     #[error("Empty Certificate Key!")]
     EmptyCertKey,

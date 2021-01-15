@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 gematik GmbH
+ * Copyright (c) 2021 gematik GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -358,7 +358,7 @@ impl Decode for DispenseRequest {
 }
 
 #[async_trait(?Send)]
-impl Decode for MultiPrescription {
+impl Decode for Option<MultiPrescription> {
     async fn decode<S>(stream: &mut DecodeStream<S>) -> Result<Self, DecodeError<S::Error>>
     where
         S: DataStream,
@@ -382,12 +382,12 @@ impl Decode for MultiPrescription {
                 "Nummerierung" => {
                     let mut fields = Fields::new(&["valueRatio"]);
 
-                    series_element = Some(stream.decode_opt(&mut fields, decode_any).await?);
+                    series_element = Some(stream.decode(&mut fields, decode_any).await?);
                 }
                 "Zeitraum" => {
                     let mut fields = Fields::new(&["valuePeriod"]);
 
-                    time_range = Some(stream.decode_opt(&mut fields, decode_any).await?);
+                    time_range = Some(stream.decode(&mut fields, decode_any).await?);
                 }
                 _ => (),
             }
@@ -400,20 +400,24 @@ impl Decode for MultiPrescription {
             url: "Kennzeichen".into(),
             path: stream.path().into(),
         })?;
-        let series_element = series_element.ok_or_else(|| DecodeError::MissingExtension {
-            url: "Nummerierung".into(),
-            path: stream.path().into(),
-        })?;
-        let time_range = time_range.ok_or_else(|| DecodeError::MissingExtension {
-            url: "Zeitraum".into(),
-            path: stream.path().into(),
-        })?;
 
-        Ok(MultiPrescription {
-            flag,
-            series_element,
-            time_range,
-        })
+        if flag {
+            let series_element = series_element.ok_or_else(|| DecodeError::MissingExtension {
+                url: "Nummerierung".into(),
+                path: stream.path().into(),
+            })?;
+            let time_range = time_range.ok_or_else(|| DecodeError::MissingExtension {
+                url: "Zeitraum".into(),
+                path: stream.path().into(),
+            })?;
+
+            Ok(Some(MultiPrescription {
+                series_element,
+                time_range,
+            }))
+        } else {
+            Ok(None)
+        }
     }
 }
 
@@ -593,33 +597,34 @@ impl Encode for &AccidentInformation {
     }
 }
 
-impl Encode for &MultiPrescription {
+impl Encode for &Option<MultiPrescription> {
     fn encode<S>(self, stream: &mut EncodeStream<S>) -> Result<(), EncodeError<S::Error>>
     where
         S: DataStorage,
     {
+        let flag = self.is_some();
+
         stream
             .array()?
             .element()?
             .attrib("url", "Kennzeichen", encode_any)?
-            .encode("valueBoolean", &self.flag, encode_any)?
+            .encode("valueBoolean", &flag, encode_any)?
             .end()?;
 
-        if let Some(series_element) = &self.series_element {
+        if let Some(multi_prescription) = self {
             stream
                 .element()?
                 .attrib("url", "Nummerierung", encode_any)?
-                .encode("valueRatio", series_element, encode_any)?
+                .encode("valueRatio", &multi_prescription.series_element, encode_any)?
                 .end()?;
-        }
 
-        if let Some(time_range) = &self.time_range {
             stream
                 .element()?
                 .attrib("url", "Zeitraum", encode_any)?
-                .encode("valuePeriod", time_range, encode_any)?
+                .encode("valuePeriod", &multi_prescription.time_range, encode_any)?
                 .end()?;
         }
+
         stream.end()?;
 
         Ok(())
@@ -874,17 +879,16 @@ pub mod tests {
                     date: "2020-05-01".try_into().unwrap(),
                     business: Some("Dummy-Betrieb".into()),
                 }),
-                multi_prescription: MultiPrescription {
-                    flag: true,
-                    series_element: Some(SeriesElement {
+                multi_prescription: Some(MultiPrescription {
+                    series_element: SeriesElement {
                         numerator: 2,
                         denominator: 4,
-                    }),
-                    time_range: Some(TimeRange {
+                    },
+                    time_range: TimeRange {
                         start: Some("2021-01-02".try_into().unwrap()),
                         end: Some("2021-03-30".try_into().unwrap()),
-                    }),
-                },
+                    },
+                }),
             },
             medication: "Medication/5fe6e06c-8725-46d5-aecd-e65e041ca3de".into(),
             subject: "Patient/9774f67f-a238-4daf-b4e6-679deeef3811".into(),

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 gematik GmbH
+ * Copyright (c) 2021 gematik GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -72,106 +72,132 @@ where
     }
 
     pub async fn next(&mut self) -> Result<Option<Element>, Error<E>> {
-        if let Some(element) = self.buffer.take() {
-            return Ok(Some(element));
-        }
-
-        match self.stream.peek().await? {
-            Some(b'<') => {
-                self.stream.take().await?;
+        loop {
+            if let Some(element) = self.buffer.take() {
+                return Ok(Some(element));
             }
-            Some(_) => {
-                let value = self.stream.take_while(|_, v| v != b'<').await?.unwrap();
-                let value = from_utf8(&value)?;
-                let value = value.to_owned();
-
-                return Ok(Some(Element::Text { value }));
-            }
-            None if !self.elements.is_empty() => return Err(StreamError::UnexpectedEof.into()),
-            None => return Ok(None),
-        }
-
-        self.stream.drop_whitespaces().await?;
-
-        let is_close = match self.stream.peek().await? {
-            Some(b'/') => {
-                self.stream.take().await?;
-
-                true
-            }
-            Some(_) => false,
-            None => return Err(StreamError::UnexpectedEof.into()),
-        };
-
-        self.stream.drop_whitespaces().await?;
-
-        let name = self
-            .stream
-            .take_while(is_ident)
-            .await?
-            .ok_or(StreamError::UnexpectedEof)?;
-        let name = from_utf8(&name)?;
-        let name = name.to_owned();
-
-        let mut attribs = Attribs::default();
-        let is_empty = loop {
-            self.stream.drop_whitespaces().await?;
 
             match self.stream.peek().await? {
+                Some(b'<') => {
+                    self.stream.take().await?;
+                }
+                Some(_) => {
+                    let value = self.stream.take_while(|_, v| v != b'<').await?.unwrap();
+                    let value = from_utf8(&value)?;
+                    let value = value.to_owned();
+
+                    return Ok(Some(Element::Text { value }));
+                }
+                None if !self.elements.is_empty() => return Err(StreamError::UnexpectedEof.into()),
+                None => return Ok(None),
+            }
+
+            self.stream.drop_whitespaces().await?;
+
+            let (is_close, is_comment) = match self.stream.peek().await? {
                 Some(b'/') => {
                     self.stream.take().await?;
-                    self.stream.drop_whitespaces().await?;
-                    self.stream.expect(b">").await?;
 
-                    break true;
+                    (true, false)
                 }
-                Some(b'>') => {
+                Some(b'!') => {
                     self.stream.take().await?;
 
-                    break false;
+                    (false, true)
                 }
-                Some(c) if is_ident(0, c) => {
-                    let attrib = self
-                        .stream
-                        .take_while(is_ident)
-                        .await?
-                        .ok_or(StreamError::UnexpectedEof)?;
-                    let attrib = from_utf8(&attrib)?;
-
-                    self.stream.drop_whitespaces().await?;
-                    self.stream.expect(b"=").await?;
-                    self.stream.drop_whitespaces().await?;
-                    self.stream.expect(b"\"").await?;
-
-                    let value = self
-                        .stream
-                        .take_while(|_, v| v != b'"')
-                        .await?
-                        .ok_or(StreamError::UnexpectedEof)?;
-                    let value = from_utf8(&value)?;
-
-                    self.stream.expect(b"\"").await?;
-
-                    attribs.0.push((attrib.into(), value.into()));
-                }
-                Some(_) => return Err(StreamError::UnexpectedIdent.into()),
+                Some(_) => (false, false),
                 None => return Err(StreamError::UnexpectedEof.into()),
-            }
-        };
+            };
 
-        match (is_close, is_empty) {
-            (true, true) => Err(Error::InvalidTag(name)),
-            (true, false) => match self.elements.pop() {
-                Some(tag) if name == tag => Ok(Some(Element::End)),
-                Some(tag) => Err(Error::InvalidCloseTag(tag, name)),
-                None => Err(Error::ExpectedEof),
-            },
-            (false, true) => Ok(Some(Element::Empty { name, attribs })),
-            (false, false) => {
-                self.elements.push(name.clone());
+            if is_comment {
+                self.stream.expect(b"--").await?;
 
-                Ok(Some(Element::Begin { name, attribs }))
+                let mut buf = [0; 3];
+                self.stream
+                    .drop_while(move |i, b| {
+                        let is_end = buf[i % 3] == b'-'
+                            && buf[(i + 1) % 3] == b'-'
+                            && buf[(i + 2) % 3] == b'>';
+
+                        buf[i % 3] = b;
+
+                        !is_end
+                    })
+                    .await?;
+
+                continue;
             }
+
+            self.stream.drop_whitespaces().await?;
+
+            let name = self
+                .stream
+                .take_while(is_ident)
+                .await?
+                .ok_or(StreamError::UnexpectedEof)?;
+            let name = from_utf8(&name)?;
+            let name = name.to_owned();
+
+            let mut attribs = Attribs::default();
+            let is_empty = loop {
+                self.stream.drop_whitespaces().await?;
+
+                match self.stream.peek().await? {
+                    Some(b'/') => {
+                        self.stream.take().await?;
+                        self.stream.drop_whitespaces().await?;
+                        self.stream.expect(b">").await?;
+
+                        break true;
+                    }
+                    Some(b'>') => {
+                        self.stream.take().await?;
+
+                        break false;
+                    }
+                    Some(c) if is_ident(0, c) => {
+                        let attrib = self
+                            .stream
+                            .take_while(is_ident)
+                            .await?
+                            .ok_or(StreamError::UnexpectedEof)?;
+                        let attrib = from_utf8(&attrib)?;
+
+                        self.stream.drop_whitespaces().await?;
+                        self.stream.expect(b"=").await?;
+                        self.stream.drop_whitespaces().await?;
+                        self.stream.expect(b"\"").await?;
+
+                        let value = self
+                            .stream
+                            .take_while(|_, v| v != b'"')
+                            .await?
+                            .ok_or(StreamError::UnexpectedEof)?;
+                        let value = from_utf8(&value)?;
+
+                        self.stream.expect(b"\"").await?;
+
+                        attribs.0.push((attrib.into(), value.into()));
+                    }
+                    Some(_) => return Err(StreamError::UnexpectedIdent.into()),
+                    None => return Err(StreamError::UnexpectedEof.into()),
+                }
+            };
+
+            return match (is_close, is_empty) {
+                (true, true) => Err(Error::InvalidTag(name)),
+                (true, false) => match self.elements.pop() {
+                    Some(tag) if name == tag => Ok(Some(Element::End)),
+                    Some(tag) => Err(Error::InvalidCloseTag(tag, name)),
+                    None => Err(Error::ExpectedEof),
+                },
+                (false, true) => Ok(Some(Element::Empty { name, attribs })),
+                (false, false) => {
+                    self.elements.push(name.clone());
+
+                    Ok(Some(Element::Begin { name, attribs }))
+                }
+            };
         }
     }
 }

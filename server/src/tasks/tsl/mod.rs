@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 gematik GmbH
+ * Copyright (c) 2021 gematik GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,9 +23,10 @@ mod update;
 use std::sync::Arc;
 
 use arc_swap::{ArcSwapOption, Guard};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 use openssl::{
-    pkcs7::{Pkcs7, Pkcs7Flags},
+    asn1::{Asn1Time, Asn1TimeRef},
+    cms::{CMSOptions, CmsContentInfo},
     stack::Stack,
     x509::{store::X509Store, X509VerifyResult},
 };
@@ -67,50 +68,86 @@ impl Tsl {
         self.0.load()
     }
 
-    pub fn verify_pkcs7(&self, pkcs7: Pkcs7) -> Result<Vec<u8>, Error> {
-        let flags = Pkcs7Flags::empty();
-        let certs = Stack::new()?;
-        let signer_certs = pkcs7.signer_certs(&certs, flags)?;
+    pub fn verify_cms(&self, pem: &str) -> Result<(Vec<u8>, DateTime<Utc>), Error> {
+        /* check and prepare the pem data */
+        let cms = if pem.starts_with("-----BEGIN PKCS7-----") {
+            CmsContentInfo::from_pem(pem.as_bytes())?
+        } else {
+            let pem = format!("-----BEGIN PKCS7-----\n{}\n-----END PKCS7-----", pem.trim());
 
+            CmsContentInfo::from_pem(pem.as_bytes())?
+        };
+
+        /* get the actual TSL data */
         let inner = self.load();
         let inner = match &*inner {
             Some(inner) => inner,
             None => return Err(Error::UnknownIssuerCert),
         };
 
-        let mut is_valid = false;
-        'signer_loop: for signer_cert in signer_certs {
-            let key = Certs::key(signer_cert.issuer_name())?;
-
-            if let Some(ca_certs) = inner.certs.entries().get(&key) {
-                for ca_cert in ca_certs {
-                    if ca_cert.issued(signer_cert) == X509VerifyResult::OK {
-                        let pub_key = ca_cert.public_key()?;
-
-                        if signer_cert.verify(&pub_key)? {
-                            is_valid = true;
-
-                            break 'signer_loop;
-                        }
-                    }
-                }
-            }
-        }
-
-        if !is_valid {
-            return Err(Error::UnknownIssuerCert);
-        }
-
+        /* verify the cms container
+         * (this will also set the 'signers' of the signers info) */
+        let certs = Stack::new()?;
         let mut data = Vec::new();
-        pkcs7.verify(
+        cms.verify(
             &certs,
             &inner.store,
             None,
             Some(&mut data),
-            Pkcs7Flags::NOVERIFY,
+            CMSOptions::NOVERIFY,
         )?;
 
-        Ok(data)
+        /* get verified signers */
+        let mut signer_count = 0;
+        let mut signing_time = Utc::now();
+        let signer_infos = cms.signer_infos()?;
+        for signer_info in signer_infos {
+            // 'signer' is only set if the CMS container
+            // was verified with that certificate before!
+            let signer_cert = match signer_info.signer() {
+                Ok(signer) => signer,
+                Err(_) => continue,
+            };
+            let key = Certs::key(signer_cert.issuer_name())?;
+            let ca_certs = inner
+                .certs
+                .entries()
+                .get(&key)
+                .ok_or(Error::UnknownIssuerCert)?;
+
+            let mut is_valid = false;
+            for ca_cert in ca_certs {
+                if ca_cert.issued(signer_cert) == X509VerifyResult::OK {
+                    let pub_key = ca_cert.public_key()?;
+
+                    if signer_cert.verify(&pub_key)? {
+                        is_valid = true;
+                        signer_count += 1;
+
+                        break;
+                    }
+                }
+            }
+
+            if !is_valid {
+                return Err(Error::UnknownIssuerCert);
+            }
+
+            let st = signer_info
+                .signing_time()?
+                .ok_or(Error::UnknownSigningTime)?;
+            let st = asn1_to_chrono(st);
+            if signing_time > st {
+                signing_time = st;
+            }
+        }
+
+        /* dobule check that at least one signer certificate was used */
+        if signer_count == 0 {
+            return Err(Error::UnknownIssuerCert);
+        }
+
+        Ok((data, signing_time))
     }
 }
 
@@ -164,3 +201,74 @@ pub fn prepare_tsl(tsl: &mut TrustServiceStatusList) {
 }
 
 pub fn prepare_no_op(_: &mut TrustServiceStatusList) {}
+
+fn asn1_to_chrono(time: &Asn1TimeRef) -> DateTime<Utc> {
+    let now = Utc::now();
+    let asn1_now = Asn1Time::from_unix(now.timestamp()).unwrap();
+    let diff = time.diff(&asn1_now).unwrap();
+
+    now - Duration::days(diff.days as _)
+        - Duration::seconds(diff.secs as _)
+        - Duration::nanoseconds(now.timestamp_subsec_nanos() as _)
+}
+
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+
+    use std::fs::{read, read_to_string};
+
+    use openssl::x509::store::X509StoreBuilder;
+
+    use super::extract::extract;
+
+    #[test]
+    fn test_cms_verify_gematik() {
+        verify_cms(
+            "./examples/cms.pem",
+            "./examples/kbv_bundle.xml",
+            DateTime::parse_from_rfc3339("2021-01-08T11:51:47Z")
+                .unwrap()
+                .into(),
+        );
+    }
+
+    #[test]
+    fn test_cms_verify_github_issue_12() {
+        verify_cms(
+            "./examples/cms_github_issue_12.pem",
+            "./examples/kbv_bundle_github_issue_12.xml",
+            DateTime::parse_from_rfc3339("2021-01-06T14:28:34Z")
+                .unwrap()
+                .into(),
+        );
+    }
+
+    fn verify_cms(cms: &str, content: &str, signing_time: DateTime<Utc>) {
+        let expected_data = read(content).unwrap();
+        let expected_signing_time = signing_time;
+
+        let cms = read_to_string(cms).unwrap();
+        let tsl = create_tsl();
+
+        let (actual_data, actual_signing_time) = tsl.verify_cms(&cms).unwrap();
+
+        assert_eq!(actual_data, expected_data);
+        assert_eq!(actual_signing_time, expected_signing_time);
+    }
+
+    fn create_tsl() -> Tsl {
+        let bnetza = read_to_string("./examples/Pseudo-BNetzA-VL-seq24.xml").unwrap();
+        let certs = extract(&bnetza, &prepare_no_op).unwrap();
+        let store = X509StoreBuilder::new().unwrap().build();
+
+        let inner = Inner {
+            xml: Default::default(),
+            sha2: None,
+            certs,
+            store,
+        };
+
+        Tsl(Arc::new(ArcSwapOption::from_pointee(inner)))
+    }
+}

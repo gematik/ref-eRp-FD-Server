@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 gematik GmbH
+ * Copyright (c) 2021 gematik GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,10 +24,9 @@ use actix_web::{
     HttpResponse,
 };
 use bytes::Bytes;
-use chrono::{Duration, Utc};
+use chrono::Duration;
 use futures::{future::ready, stream::once};
 use resources::{
-    primitives::DateTime,
     primitives::Id,
     task::{Status, TaskActivateParameters},
     types::FlowType,
@@ -84,7 +83,7 @@ pub async fn activate(
         .await
         .err_with_type(accept)?;
     let kbv_binary = KbvBinary(args.data);
-    let kbv_bundle = cms.verify(&kbv_binary.0).err_with_type(accept)?;
+    let (kbv_bundle, signing_time) = cms.verify(&kbv_binary.0).err_with_type(accept)?;
     let kbv_bundle = kbv_bundle.into();
     let kbv_bundle = Result::<Bytes, PayloadError>::Ok(kbv_bundle);
     let kbv_bundle: KbvBundle = once(ready(kbv_bundle))
@@ -123,6 +122,12 @@ pub async fn activate(
         match &task.identifier.access_code {
             Some(s) if *s == access_code => (),
             Some(_) | None => return Err(Error::Forbidden(id).as_req_err().with_type(accept)),
+        }
+
+        if state.e_prescriptions.contains_key(&kbv_bundle.id) {
+            return Err(Error::EPrescriptionAlreadyRegistered(kbv_bundle.id.clone())
+                .as_req_err()
+                .with_type(accept));
         }
     }
 
@@ -174,12 +179,11 @@ pub async fn activate(
     task.input.e_prescription = Some(e_prescription);
     task.input.patient_receipt = Some(patient_receipt);
 
-    let acpt_exp_dur = match task.extension.flow_type {
+    let (accept_duration, expiry_duration) = match task.extension.flow_type {
         FlowType::PharmaceuticalDrugs => (Duration::days(30), Duration::days(92)),
     };
-    let now = Utc::now(); //TODO: take date from QES signature in CMS/pkcs7
-    task.extension.accept_date = Some(DateTime::from(now.add(acpt_exp_dur.0)));
-    task.extension.expiry_date = Some(DateTime::from(now.add(acpt_exp_dur.1)));
+    task.extension.accept_date = Some(signing_time.add(accept_duration).into());
+    task.extension.expiry_date = Some(signing_time.add(expiry_duration).into());
 
     create_response(&**task, accept)
 }

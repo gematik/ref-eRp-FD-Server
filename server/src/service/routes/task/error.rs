@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 gematik GmbH
+ * Copyright (c) 2021 gematik GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,6 +41,9 @@ pub enum Error {
     #[error("Referenced e-Prescription was not found: {0}!")]
     EPrescriptionNotFound(Id),
 
+    #[error("ePrescription with this ID ({0}) was already registered!")]
+    EPrescriptionAlreadyRegistered(Id),
+
     #[error("Bundle is missing an KV-Nr.!")]
     KvnrMissing,
 
@@ -51,10 +54,10 @@ pub enum Error {
     SubjectMissing,
 
     #[error("Task Subject does not match!")]
-    SubjectMimatch,
+    SubjectMismatch,
 
     #[error("Task Performer does not match!")]
-    PerfromerMimatch,
+    PerformerMismatch,
 
     #[error("Accept Timestamp is missing!")]
     AcceptTimestampMissing,
