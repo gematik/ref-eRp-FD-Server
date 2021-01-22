@@ -142,6 +142,7 @@ impl Encode for &ErxComposition {
     {
         let meta = Meta {
             profiles: vec![PROFILE.into()],
+            ..Default::default()
         };
 
         stream

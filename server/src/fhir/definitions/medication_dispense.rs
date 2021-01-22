@@ -152,6 +152,7 @@ impl Encode for &MedicationDispense {
     {
         let meta = Meta {
             profiles: vec![PROFILE.into()],
+            ..Default::default()
         };
 
         stream

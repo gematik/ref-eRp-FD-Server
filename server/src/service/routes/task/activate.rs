@@ -34,7 +34,7 @@ use resources::{
 };
 
 use crate::{
-    fhir::{decode::XmlDecode, security::Signed},
+    fhir::{decode::XmlDecode, definitions::TaskContainer, security::Signed},
     service::{
         header::{Accept, Authorization, ContentType, XAccessCode},
         misc::{create_response, read_payload, Cms, DataType, Profession, SigCert, SigKey},
@@ -110,11 +110,12 @@ pub async fn activate(
     let mut state = state.lock().await;
 
     {
-        let task = match state.tasks.get(&id) {
-            Some(task) => task,
+        let task_meta = match state.tasks.get(&id) {
+            Some(task_meta) => task_meta,
             None => return Err(Error::NotFound(id).as_req_err().with_type(accept)),
         };
 
+        let task = task_meta.history.get();
         if Status::Draft != task.status {
             return Err(Error::InvalidStatus.as_req_err().with_type(accept));
         }
@@ -169,11 +170,12 @@ pub async fn activate(
         Entry::Vacant(entry) => entry.insert((kbv_binary, kbv_bundle)).1.id.clone(),
     };
 
-    let task = match state.tasks.get_mut(&id) {
-        Some(task) => task,
+    let task_meta = match state.tasks.get_mut(&id) {
+        Some(task_meta) => task_meta,
         None => return Err(Error::NotFound(id).as_req_err().with_type(accept)),
     };
 
+    let mut task = task_meta.history.get_mut();
     task.for_ = Some(kvnr);
     task.status = Status::Ready;
     task.input.e_prescription = Some(e_prescription);
@@ -185,5 +187,6 @@ pub async fn activate(
     task.extension.accept_date = Some(signing_time.add(accept_duration).into());
     task.extension.expiry_date = Some(signing_time.add(expiry_duration).into());
 
-    create_response(&**task, accept)
+    let v = task_meta.history.get_current();
+    create_response(TaskContainer(v), accept)
 }

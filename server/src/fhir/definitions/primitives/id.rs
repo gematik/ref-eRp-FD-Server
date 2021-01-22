@@ -58,14 +58,10 @@ impl Encode for &Id {
 
 impl ReferenceEx for Id {
     fn from_parts(value: String) -> Result<Self, String> {
-        if let Some(Ok(id)) = value.strip_prefix('#').map(TryInto::try_into) {
-            return Ok(id);
-        }
-
-        Err(value)
+        value.try_into()
     }
 
     fn reference(&self) -> String {
-        format!("#{}", self)
+        format!("{}", self)
     }
 }

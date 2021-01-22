@@ -427,6 +427,7 @@ impl Encode for &Medication {
                 Data::Pzn { .. } => PROFILE_MEDICATION_PZN,
             }
             .into()],
+            ..Default::default()
         };
 
         stream

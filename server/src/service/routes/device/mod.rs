@@ -29,7 +29,7 @@ use crate::fhir::definitions::RESOURCE_PROFILE_DEVICE;
 pub struct DeviceRoutes;
 
 #[capability_statement_resource(
-    type = Type::AuditEvent,
+    type = Type::Device,
     profile = RESOURCE_PROFILE_DEVICE,
 )]
 impl DeviceRoutes {

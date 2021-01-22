@@ -19,6 +19,7 @@ use async_trait::async_trait;
 use miscellaneous::str::icase_eq;
 use resources::{
     misc::Kvnr,
+    primitives::{Id, Instant},
     task::{Extension, Identifier, Input, Output, Status, Task},
     types::DocumentType,
 };
@@ -331,33 +332,50 @@ where
 
 /* Encode */
 
-impl Encode for &Task {
+pub struct TaskContainer<'a, T: AsTask>(pub &'a T);
+
+pub trait AsTask {
+    fn task(&self) -> &Task;
+    fn version_id(&self) -> Option<Id> {
+        None
+    }
+    fn last_updated(&self) -> Option<Instant> {
+        None
+    }
+}
+
+impl<T: AsTask> Encode for TaskContainer<'_, T> {
     fn encode<S>(self, stream: &mut EncodeStream<S>) -> Result<(), EncodeError<S::Error>>
     where
         S: DataStorage,
     {
+        let task = self.0;
         let meta = Meta {
+            version_id: task.version_id(),
+            last_updated: task.last_updated(),
             profiles: vec![PROFILE.into()],
         };
 
+        let task = task.task();
+
         stream
             .root("Task")?
-            .encode_opt("id", &self.id, encode_any)?
+            .encode_opt("id", &task.id, encode_any)?
             .encode("meta", meta, encode_any)?
-            .encode("extension", &self.extension, encode_any)?
-            .encode("identifier", &self.identifier, encode_any)?
-            .encode("status", &self.status, encode_any)?
+            .encode("extension", &task.extension, encode_any)?
+            .encode("identifier", &task.identifier, encode_any)?
+            .encode("status", &task.status, encode_any)?
             .encode("intent", "order", encode_any)?
-            .encode_opt("for", &self.for_, encode_for)?
-            .encode_opt("authoredOn", &self.authored_on, encode_any)?
-            .encode_opt("lastModified", &self.last_modified, encode_any)?
+            .encode_opt("for", &task.for_, encode_for)?
+            .encode_opt("authoredOn", &task.authored_on, encode_any)?
+            .encode_opt("lastModified", &task.last_modified, encode_any)?
             .encode_vec(
                 "performerType",
-                &self.performer_type,
+                &task.performer_type,
                 encode_codeable_concept,
             )?
-            .encode("input", &self.input, encode_any)?
-            .encode("output", &self.output, encode_any)?
+            .encode("input", &task.input, encode_any)?
+            .encode("output", &task.output, encode_any)?
             .end()?;
 
         Ok(())
@@ -550,7 +568,7 @@ const URL_FLOW_TYPE: &str = "https://gematik.de/fhir/StructureDefinition/Prescri
 const URL_ACCEPT_DATE: &str = "https://example.org/fhir/StructureDefinition/AcceptDate";
 const URL_EXPIRY_DATE: &str = "https://gematik.de/fhir/StructureDefinition/ExpiryDate";
 
-const SYSTEM_PRESCRIPTION_ID: &str = "https://gematik.de/fhir/Namingsystem/PrescriptionID";
+const SYSTEM_PRESCRIPTION_ID: &str = "https://gematik.de/fhir/NamingSystem/PrescriptionID";
 const SYSTEM_ACCESS_CODE: &str = "https://gematik.de/fhir/Namingsystem/AccessCode";
 const SYSTEM_SECRET: &str = "https://gematik.de/fhir/Namingsystem/Secret";
 
@@ -570,6 +588,12 @@ pub mod tests {
     };
 
     use super::super::super::tests::{trim_json_str, trim_xml_str};
+
+    impl AsTask for Task {
+        fn task(&self) -> &Task {
+            self
+        }
+    }
 
     #[tokio::test]
     async fn test_decode_json() {
@@ -595,7 +619,7 @@ pub mod tests {
     async fn test_encode_json() {
         let value = test_task();
 
-        let actual = (&value).json().unwrap();
+        let actual = TaskContainer(&value).json().unwrap();
         let actual = from_utf8(&actual).unwrap();
         let expected = read_to_string("./examples/task.json").unwrap();
 
@@ -606,7 +630,7 @@ pub mod tests {
     async fn test_encode_xml() {
         let value = test_task();
 
-        let actual = (&value).xml().unwrap();
+        let actual = TaskContainer(&value).xml().unwrap();
         let actual = from_utf8(&actual).unwrap();
         let expected = read_to_string("./examples/task.xml").unwrap();
 

@@ -23,11 +23,14 @@ use chrono::Utc;
 use resources::{primitives::Id, task::Status};
 use serde::Deserialize;
 
-use crate::service::{
-    header::{Accept, Authorization, XAccessCode},
-    misc::{create_response, DataType, Profession},
-    state::State,
-    AsReqErr, AsReqErrResult, TypedRequestError, TypedRequestResult,
+use crate::{
+    fhir::definitions::TaskContainer,
+    service::{
+        header::{Accept, Authorization, XAccessCode},
+        misc::{create_response, DataType, Profession},
+        state::State,
+        AsReqErr, AsReqErrResult, TypedRequestError, TypedRequestResult,
+    },
 };
 
 use super::Error;
@@ -69,12 +72,13 @@ pub async fn abort(
     let id = id.0;
     let kvnr = access_token.kvnr().ok();
     let mut state = state.lock().await;
-    let task = match state.get_task_mut(&id, &kvnr, &access_code) {
-        Some(Ok(task)) => task,
+    let task_meta = match state.get_task_mut(&id, &kvnr, &access_code) {
+        Some(Ok(task_meta)) => task_meta,
         Some(Err(())) => return Err(Error::Forbidden(id).as_req_err().with_type(accept)),
         None => return Err(Error::NotFound(id).as_req_err().with_type(accept)),
     };
 
+    let task = task_meta.history.get();
     let is_pharmacy = access_token.is_pharmacy();
     let is_in_progress = task.status == Status::InProgress;
 
@@ -86,6 +90,7 @@ pub async fn abort(
         return Err(Error::Forbidden(id).as_req_err().with_type(accept));
     }
 
+    let mut task = task_meta.history.get_mut();
     task.for_ = None;
     task.status = Status::Cancelled;
     task.identifier.secret = None;
@@ -96,7 +101,10 @@ pub async fn abort(
     let patient_receipt = task.input.patient_receipt.take();
     let _receipt = task.output.receipt.take();
 
-    let res = match create_response(&*task, accept) {
+    task_meta.history.clear();
+
+    let v = task_meta.history.get_current();
+    let res = match create_response(TaskContainer(v), accept) {
         Ok(res) => res,
         Err(err) => return Err(err),
     };

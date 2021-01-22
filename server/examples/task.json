@@ -25,7 +25,7 @@
     ],
     "identifier":[
         {
-            "system":"https://gematik.de/fhir/Namingsystem/PrescriptionID",
+            "system":"https://gematik.de/fhir/NamingSystem/PrescriptionID",
             "value":"160.123.456.789.123.58"
         },
         {
@@ -70,7 +70,7 @@
                 ]
             },
             "valueReference":{
-                "reference":"#Bundle/KbvPrescriptionExample"
+                "reference":"Bundle/KbvPrescriptionExample"
             }
         },
         {
@@ -84,7 +84,7 @@
                 ]
             },
             "valueReference":{
-                "reference":"#Bundle/KbvPatientReceiptExample"
+                "reference":"Bundle/KbvPatientReceiptExample"
             }
         }
     ],
@@ -100,7 +100,7 @@
                 ]
             },
             "valueReference":{
-                "reference":"#Bundle/KbvReceiptExample"
+                "reference":"Bundle/KbvReceiptExample"
             }
         }
     ]

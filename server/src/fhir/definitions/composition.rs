@@ -274,6 +274,7 @@ impl Encode for &Composition {
     {
         let meta = Meta {
             profiles: vec![PROFILE.into()],
+            ..Default::default()
         };
 
         stream
@@ -638,7 +639,7 @@ const URL_PKV: &str = "https://fhir.kbv.de/StructureDefinition/KBV_EX_FOR_PKV_Ta
 const SYSTEM_LEGAL_BASIS: &str =
     "https://fhir.kbv.de/CodeSystem/KBV_CS_SFHIR_KBV_STATUSKENNZEICHEN";
 const SYSTEM_PKV: &str = "https://fhir.kbv.de/CodeSystem/KBV_CS_SFHIR_KBV_PKV_TARIFF";
-const SYSTEM_TYPE: &str = "https://fhir.kbv.de/CodeSystem/KBV_CS_FOR_Formular_Art";
+const SYSTEM_TYPE: &str = "https://fhir.kbv.de/CodeSystem/KBV_CS_SFHIR_KBV_FORMULAR_ART";
 const SYSTEM_PRF: &str = "https://fhir.kbv.de/NamingSystem/KBV_NS_FOR_Pruefnummer";
 const SYSTEM_SECTION: &str = "https://fhir.kbv.de/CodeSystem/KBV_CS_ERP_Section_Type";
 

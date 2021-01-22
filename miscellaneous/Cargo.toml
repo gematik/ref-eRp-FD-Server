@@ -6,5 +6,5 @@ edition = "2018"
 [dependencies]
 base64 = "0.12"
 jwt = { version = "0.10", features = [ "openssl" ]}
-openssl = "=0.10.30"
+openssl = "=0.10.32"
 serde = { version = "1.0", features = [ "derive" ] }

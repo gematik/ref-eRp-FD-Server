@@ -16,14 +16,17 @@
  */
 
 use async_trait::async_trait;
+use resources::primitives::{Id, Instant};
 
 use crate::fhir::{
     decode::{decode_any, DataStream, Decode, DecodeError, DecodeStream, Fields},
     encode::{encode_any, DataStorage, Encode, EncodeError, EncodeStream},
 };
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Meta {
+    pub version_id: Option<Id>,
+    pub last_updated: Option<Instant>,
     pub profiles: Vec<String>,
 }
 
@@ -33,15 +36,21 @@ impl Decode for Meta {
     where
         S: DataStream,
     {
-        let mut fields = Fields::new(&["profile"]);
+        let mut fields = Fields::new(&["versionId", "lastUpdated", "profile"]);
 
         stream.root("Meta").await?;
 
+        let version_id = stream.decode_opt(&mut fields, decode_any).await?;
+        let last_updated = stream.decode_opt(&mut fields, decode_any).await?;
         let profiles = stream.decode_vec(&mut fields, decode_any).await?;
 
         stream.end().await?;
 
-        Ok(Meta { profiles })
+        Ok(Meta {
+            version_id,
+            last_updated,
+            profiles,
+        })
     }
 }
 
@@ -52,6 +61,8 @@ impl Encode for Meta {
     {
         stream
             .element()?
+            .encode_opt("versionId", &self.version_id, encode_any)?
+            .encode_opt("lastUpdated", &self.last_updated, encode_any)?
             .encode_vec("profile", self.profiles, encode_any)?
             .end()?;
 

@@ -60,11 +60,12 @@ pub async fn accept(
 
     let id = id.0;
     let mut state = state.lock().await;
-    let mut task = match state.tasks.get_mut(&id) {
-        Some(task) => task,
+    let mut task_meta = match state.tasks.get_mut(&id) {
+        Some(task_meta) => task_meta,
         None => return Err(Error::NotFound(id).as_req_err().with_type(accept)),
     };
 
+    let task = task_meta.history.get();
     match &task.identifier.access_code {
         Some(ac) if ac == &access_code.0 => (),
         Some(_) => return Err(Error::Forbidden(id).as_req_err().with_type(accept)),
@@ -79,7 +80,9 @@ pub async fn accept(
         _ => (),
     }
 
-    task.accept_timestamp = Some(Utc::now());
+    task_meta.accept_timestamp = Some(Utc::now());
+
+    let mut task = task_meta.history.get_mut();
     task.status = Status::InProgress;
     task.identifier.secret = Some(random_id());
 
@@ -98,9 +101,10 @@ pub async fn accept(
         .as_req_err()
         .err_with_type(accept)?;
 
-    let task = state.tasks.get(&id).unwrap();
+    let task_meta = state.tasks.get(&id).unwrap();
+    let v = task_meta.history.get_current();
     let mut bundle = Bundle::new(Type::Collection);
-    bundle.entries.push(Entry::new(Resource::Task(task)));
+    bundle.entries.push(Entry::new(Resource::TaskVersion(v)));
     bundle
         .entries
         .push(Entry::new(Resource::Binary(&e_prescription.0)));

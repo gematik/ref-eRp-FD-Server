@@ -72,11 +72,12 @@ pub async fn close(
         .await
         .err_with_type(accept)?;
     let mut state = state.lock().await;
-    let task = match state.tasks.get_mut(&id) {
-        Some(task) => task,
+    let task_meta = match state.tasks.get_mut(&id) {
+        Some(task_meta) => task_meta,
         None => return Err(Error::NotFound(id).as_req_err().with_type(accept)),
     };
 
+    let task = task_meta.history.get();
     let prescription_id = task
         .identifier
         .prescription_id
@@ -120,7 +121,7 @@ pub async fn close(
                 beneficiary: performer,
                 date: now.clone().into(),
                 author: DEVICE.id.clone().into(),
-                event_start: task
+                event_start: task_meta
                     .accept_timestamp
                     .ok_or(Error::AcceptTimestampMissing)
                     .as_req_err()
@@ -136,6 +137,7 @@ pub async fn close(
     medication_dispense.id = Some(Id::generate().unwrap());
     medication_dispense.supporting_information = Some(format!("/Task/{}", id));
 
+    let task = task_meta.history.get_mut();
     task.status = Status::Completed;
     task.output.receipt = Some(erx_bundle.id.clone());
 

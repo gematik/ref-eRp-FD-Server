@@ -247,6 +247,7 @@ impl Decode for Type {
             "Communication" => Ok(Self::Communication),
             "MedicationDispense" => Ok(Self::MedicationDispense),
             "AuditEvent" => Ok(Self::AuditEvent),
+            "Device" => Ok(Self::Device),
             _ => Err(DecodeError::InvalidValue {
                 value,
                 path: stream.path().into(),
@@ -442,6 +443,7 @@ impl Encode for &Type {
             Type::Communication => "Communication",
             Type::MedicationDispense => "MedicationDispense",
             Type::AuditEvent => "AuditEvent",
+            Type::Device => "Device",
         };
 
         stream.value(value)?;

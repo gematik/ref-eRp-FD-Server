@@ -196,6 +196,7 @@ impl Encode for &KbvBundle {
     {
         let meta = Meta {
             profiles: vec![PROFILE.into()],
+            ..Default::default()
         };
 
         let signature =

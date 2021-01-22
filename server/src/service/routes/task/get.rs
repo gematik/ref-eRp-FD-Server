@@ -28,6 +28,7 @@ use resources::{
     task::Status,
     Task,
 };
+use serde::Deserialize;
 
 use crate::service::{
     header::{Accept, Authorization, XAccessCode},
@@ -46,6 +47,12 @@ pub struct QueryArgs {
     sort: Option<Sort<SortArgs>>,
     count: Option<usize>,
     page_id: Option<usize>,
+}
+
+#[derive(Deserialize)]
+pub struct PathArgs {
+    id: Id,
+    version: usize,
 }
 
 impl FromQuery for QueryArgs {
@@ -83,6 +90,12 @@ impl FromStr for SortArgs {
     }
 }
 
+enum TaskReference {
+    All,
+    One(Id),
+    Version(Id, usize),
+}
+
 pub async fn get_all(
     state: Data<State>,
     accept: Accept,
@@ -93,7 +106,7 @@ pub async fn get_all(
 ) -> Result<HttpResponse, TypedRequestError> {
     get(
         &state,
-        None,
+        TaskReference::All,
         accept,
         id_token,
         access_code,
@@ -112,7 +125,28 @@ pub async fn get_one(
 ) -> Result<HttpResponse, TypedRequestError> {
     get(
         &state,
-        Some(id.into_inner()),
+        TaskReference::One(id.into_inner()),
+        accept,
+        id_token,
+        access_code,
+        QueryArgs::default(),
+        "",
+    )
+    .await
+}
+
+pub async fn get_version(
+    state: Data<State>,
+    args: Path<PathArgs>,
+    accept: Accept,
+    id_token: Authorization,
+    access_code: Option<XAccessCode>,
+) -> Result<HttpResponse, TypedRequestError> {
+    let PathArgs { id, version } = args.into_inner();
+
+    get(
+        &state,
+        TaskReference::Version(id, version),
         accept,
         id_token,
         access_code,
@@ -125,7 +159,7 @@ pub async fn get_one(
 #[allow(unreachable_code)]
 async fn get(
     state: &State,
-    id: Option<Id>,
+    reference: TaskReference,
     accept: Accept,
     access_token: Authorization,
     access_code: Option<XAccessCode>,
@@ -146,97 +180,125 @@ async fn get(
     let kvnr = access_token.kvnr().ok();
     let state = state.lock().await;
 
-    let mut tasks = Vec::new();
-    let is_collection = if let Some(id) = id {
-        match state.get_task(&id, &kvnr, &access_code) {
-            Some(Ok(task)) => tasks.push(task),
-            Some(Err(())) => return Err(Error::Forbidden(id).as_req_err().with_type(accept)),
-            None => return Err(Error::NotFound(id).as_req_err().with_type(accept)),
-        }
+    let bundle = match reference {
+        TaskReference::One(id) => {
+            let task_meta = match state.get_task(&id, &kvnr, &access_code) {
+                Some(Ok(task_meta)) => task_meta,
+                Some(Err(())) => return Err(Error::Forbidden(id).as_req_err().with_type(accept)),
+                None => return Err(Error::NotFound(id).as_req_err().with_type(accept)),
+            };
 
-        false
-    } else {
-        for task in state.iter_tasks(kvnr, access_code) {
-            if check_query(&query, task) {
-                tasks.push(task);
-            }
-        }
+            let v = task_meta.history.get_current();
 
-        true
-    };
-
-    // Sort the result
-    if let Some(sort) = &query.sort {
-        tasks.sort_by(|a, b| {
-            sort.cmp(|arg| match arg {
-                SortArgs::AuthoredOn => {
-                    let a: Option<DateTime<Utc>> = a.authored_on.clone().map(Into::into);
-                    let b: Option<DateTime<Utc>> = b.authored_on.clone().map(Into::into);
-
-                    a.cmp(&b)
-                }
-                SortArgs::LastModified => {
-                    let a: Option<DateTime<Utc>> = a.last_modified.clone().map(Into::into);
-                    let b: Option<DateTime<Utc>> = b.last_modified.clone().map(Into::into);
-
-                    a.cmp(&b)
-                }
-            })
-        });
-    }
-
-    // Create the response
-    let page_id = query.page_id.unwrap_or_default();
-    let (skip, take) = if let Some(count) = query.count {
-        (page_id * count, count)
-    } else {
-        (0, usize::MAX)
-    };
-
-    let mut bundle = Bundle::new(Type::Searchset);
-    for task in tasks.iter().skip(skip).take(take) {
-        bundle.entries.push(Entry::new(Resource::Task(task)));
-
-        if let Some(id) = task.input.e_prescription.as_ref() {
-            if let Some(res) = state.e_prescriptions.get(id) {
-                bundle.entries.push(Entry::new(Resource::Binary(&res.0)));
-            }
-        }
-
-        if let Some(id) = task.input.patient_receipt.as_ref() {
-            if let Some(res) = state.patient_receipts.get(id) {
-                bundle.entries.push(Entry::new(Resource::Bundle(res)));
-            }
-        }
-    }
-
-    if is_collection {
-        bundle.total = Some(tasks.len());
-
-        if let Some(count) = query.count {
-            let page_count = ((tasks.len() - 1) / count) + 1;
+            let mut bundle = Bundle::new(Type::Searchset);
+            bundle.entries.push(Entry::new(Resource::TaskVersion(v)));
 
             bundle
-                .link
-                .push((Relation::Self_, make_uri(query_str, page_id)));
-            bundle.link.push((Relation::First, make_uri(query_str, 0)));
-            bundle
-                .link
-                .push((Relation::Last, make_uri(query_str, page_count - 1)));
-
-            if page_id > 0 {
-                bundle
-                    .link
-                    .push((Relation::Previous, make_uri(query_str, page_id - 1)));
-            }
-
-            if page_id + 1 < page_count {
-                bundle
-                    .link
-                    .push((Relation::Next, make_uri(query_str, page_id + 1)));
-            }
         }
-    }
+        TaskReference::Version(id, version) => {
+            let task_meta = match state.get_task(&id, &kvnr, &access_code) {
+                Some(Ok(task_meta)) => task_meta,
+                Some(Err(())) => return Err(Error::Forbidden(id).as_req_err().with_type(accept)),
+                None => return Err(Error::NotFound(id).as_req_err().with_type(accept)),
+            };
+
+            let v = match task_meta.history.get_version(version) {
+                Some(v) => v,
+                None => return Err(Error::Gone(id).as_req_err().with_type(accept)),
+            };
+
+            let mut bundle = Bundle::new(Type::Searchset);
+            bundle.entries.push(Entry::new(Resource::TaskVersion(v)));
+
+            bundle
+        }
+        TaskReference::All => {
+            let mut tasks = Vec::new();
+            for task_meta in state.iter_tasks(kvnr, access_code) {
+                let v = task_meta.history.get_current();
+                if check_query(&query, &v.resource) {
+                    tasks.push(v);
+                }
+            }
+
+            // Sort the result
+            if let Some(sort) = &query.sort {
+                tasks.sort_by(|a, b| {
+                    sort.cmp(|arg| match arg {
+                        SortArgs::AuthoredOn => {
+                            let a: Option<DateTime<Utc>> =
+                                a.resource.authored_on.clone().map(Into::into);
+                            let b: Option<DateTime<Utc>> =
+                                b.resource.authored_on.clone().map(Into::into);
+
+                            a.cmp(&b)
+                        }
+                        SortArgs::LastModified => {
+                            let a: Option<DateTime<Utc>> =
+                                a.resource.last_modified.clone().map(Into::into);
+                            let b: Option<DateTime<Utc>> =
+                                b.resource.last_modified.clone().map(Into::into);
+
+                            a.cmp(&b)
+                        }
+                    })
+                });
+            }
+
+            // Create the bundle
+            let page_id = query.page_id.unwrap_or_default();
+            let (skip, take) = if let Some(count) = query.count {
+                (page_id * count, count)
+            } else {
+                (0, usize::MAX)
+            };
+
+            let mut bundle = Bundle::new(Type::Searchset);
+            for v in tasks.iter().skip(skip).take(take) {
+                bundle.entries.push(Entry::new(Resource::TaskVersion(v)));
+
+                if let Some(id) = v.resource.input.e_prescription.as_ref() {
+                    if let Some(res) = state.e_prescriptions.get(id) {
+                        bundle.entries.push(Entry::new(Resource::Binary(&res.0)));
+                    }
+                }
+
+                if let Some(id) = v.resource.input.patient_receipt.as_ref() {
+                    if let Some(res) = state.patient_receipts.get(id) {
+                        bundle.entries.push(Entry::new(Resource::Bundle(res)));
+                    }
+                }
+            }
+
+            bundle.total = Some(tasks.len());
+
+            if let Some(count) = query.count {
+                let page_count = ((tasks.len() - 1) / count) + 1;
+
+                bundle
+                    .link
+                    .push((Relation::Self_, make_uri(query_str, page_id)));
+                bundle.link.push((Relation::First, make_uri(query_str, 0)));
+                bundle
+                    .link
+                    .push((Relation::Last, make_uri(query_str, page_count - 1)));
+
+                if page_id > 0 {
+                    bundle
+                        .link
+                        .push((Relation::Previous, make_uri(query_str, page_id - 1)));
+                }
+
+                if page_id + 1 < page_count {
+                    bundle
+                        .link
+                        .push((Relation::Next, make_uri(query_str, page_id + 1)));
+                }
+            }
+
+            bundle
+        }
+    };
 
     create_response(&bundle, accept)
 }

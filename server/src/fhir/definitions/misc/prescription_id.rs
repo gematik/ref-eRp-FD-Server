@@ -69,6 +69,6 @@ impl IdentifierEx for PrescriptionId {
     }
 
     fn system() -> Option<&'static str> {
-        Some("https://gematik.de/fhir/Namingsystem/PrescriptionID")
+        Some("https://gematik.de/fhir/NamingSystem/PrescriptionID")
     }
 }

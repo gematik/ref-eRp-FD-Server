@@ -561,9 +561,10 @@ impl ResponseBuilder {
             }],
         };
 
+        #[allow(unreachable_patterns)]
         match data_type {
             #[cfg(feature = "support-xml")]
-            DataType::Xml => {
+            DataType::Xml | DataType::Any | DataType::Unknown => {
                 use crate::fhir::encode::XmlEncode;
 
                 let xml = out.xml().unwrap();
@@ -573,7 +574,7 @@ impl ResponseBuilder {
             }
 
             #[cfg(feature = "support-json")]
-            DataType::Json => {
+            DataType::Json | DataType::Any | DataType::Unknown => {
                 use crate::fhir::encode::JsonEncode;
 
                 let json = out.json().unwrap();
@@ -581,8 +582,6 @@ impl ResponseBuilder {
                 res.content_type(DataType::Json.as_mime().to_string())
                     .body(json)
             }
-
-            DataType::Any | DataType::Unknown => panic!("Data type of response was not specified"),
         }
     }
 }

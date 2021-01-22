@@ -128,7 +128,7 @@ pub mod tests {
                 name: "system".into(),
             },
             Item::Value {
-                value: "https://gematik.de/fhir/Namingsystem/PrescriptionID".into(),
+                value: "https://gematik.de/fhir/NamingSystem/PrescriptionID".into(),
                 extension: vec![],
             },
             Item::Field {
@@ -303,7 +303,7 @@ pub mod tests {
                 name: "reference".into(),
             },
             Item::Value {
-                value: "#Bundle/KbvPrescriptionExample".into(),
+                value: "Bundle/KbvPrescriptionExample".into(),
                 extension: vec![],
             },
             Item::End,
@@ -350,7 +350,7 @@ pub mod tests {
                 name: "reference".into(),
             },
             Item::Value {
-                value: "#Bundle/KbvPatientReceiptExample".into(),
+                value: "Bundle/KbvPatientReceiptExample".into(),
                 extension: vec![],
             },
             Item::End,
@@ -402,7 +402,7 @@ pub mod tests {
                 name: "reference".into(),
             },
             Item::Value {
-                value: "#Bundle/KbvReceiptExample".into(),
+                value: "Bundle/KbvReceiptExample".into(),
                 extension: vec![],
             },
             Item::End,
@@ -563,6 +563,30 @@ pub mod tests {
                 ],
             },
             Item::End,
+            Item::End,
+        ];
+
+        iter(items.into_iter())
+    }
+
+    pub fn stream_extended_value_empty() -> impl Stream<Item = Item> {
+        let items = vec![
+            Item::Root {
+                name: "Test".into(),
+            },
+            Item::Field {
+                name: "name".into(),
+            },
+            Item::Value {
+                value: "value".into(),
+                extension: vec![
+                    Item::Field {
+                        name: "extension".into(),
+                    },
+                    Item::Array,
+                    Item::End,
+                ],
+            },
             Item::End,
         ];
 

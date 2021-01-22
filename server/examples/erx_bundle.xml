@@ -4,7 +4,7 @@
         <profile value="https://gematik.de/fhir/StructureDefinition/erxReceipt"/>
     </meta>
     <identifier>
-        <system value="https://gematik.de/fhir/Namingsystem/PrescriptionID"/>
+        <system value="https://gematik.de/fhir/NamingSystem/PrescriptionID"/>
         <value value="160.123.456.789.123.58"/>
     </identifier>
     <type value="document"/>

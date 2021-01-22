@@ -1,3 +1,9 @@
+# Release 0.11.0
+Implemented features:
+* Implement Task History
+* Validate IDP Public Key against CA-Certificate in TSL
+* Updated rust openssl to v0.10.32
+
 # Release 0.10.0
 Implemented features:
 * Fixed CMS signature verification

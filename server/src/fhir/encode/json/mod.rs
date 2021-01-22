@@ -70,8 +70,8 @@ pub mod tests {
     use super::super::{
         super::tests::trim_json_str,
         tests::{
-            stream_extended_array, stream_extended_value, stream_resource, stream_task,
-            stream_task_create_parameters,
+            stream_extended_array, stream_extended_value, stream_extended_value_empty,
+            stream_resource, stream_task, stream_task_create_parameters,
         },
     };
 
@@ -156,6 +156,21 @@ pub mod tests {
                     "fuu":"bar2"
                 }]
             }]
+        }"##;
+
+        assert_eq!(trim_json_str(&expected), trim_json_str(&actual));
+    }
+
+    #[tokio::test]
+    async fn encode_extended_value_empty() {
+        let stream = stream_extended_value_empty();
+        let stream = Json::new(stream);
+
+        let actual = stream.into_bytes().await.unwrap();
+        let actual = from_utf8(&actual).unwrap();
+        let expected = r##"{
+            "resourceType":"Test",
+            "name":"value"
         }"##;
 
         assert_eq!(trim_json_str(&expected), trim_json_str(&actual));

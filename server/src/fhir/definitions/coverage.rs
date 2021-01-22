@@ -220,6 +220,7 @@ impl Encode for &Coverage {
     {
         let meta = Meta {
             profiles: vec![PROFILE.into()],
+            ..Default::default()
         };
 
         stream

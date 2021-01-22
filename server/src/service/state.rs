@@ -17,7 +17,6 @@
 
 use std::collections::HashMap;
 use std::convert::TryInto;
-use std::ops::{Deref, DerefMut};
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -33,7 +32,7 @@ use url::Url;
 
 use crate::fhir::security::Signed;
 
-use super::{header::XAccessCode, routes::task::Error as TaskError, RequestError};
+use super::{header::XAccessCode, misc::History, routes::task::Error as TaskError, RequestError};
 
 #[derive(Default, Clone)]
 pub struct State(Arc<Mutex<Inner>>);
@@ -50,7 +49,7 @@ pub struct Inner {
 }
 
 pub struct TaskMeta {
-    pub task: Task,
+    pub history: History<Task>,
     pub accept_timestamp: Option<DateTime<Utc>>,
 }
 
@@ -102,14 +101,15 @@ impl Inner {
         id: &Id,
         kvnr: &Option<Kvnr>,
         access_code: &Option<XAccessCode>,
-    ) -> Option<Result<&Task, ()>> {
-        let task = match self.tasks.get(&id) {
+    ) -> Option<Result<&TaskMeta, ()>> {
+        let task_meta = match self.tasks.get(&id) {
             Some(task) => task,
             None => return None,
         };
 
+        let task = task_meta.history.get();
         if task_matches(task, kvnr, access_code) {
-            Some(Ok(task))
+            Some(Ok(task_meta))
         } else {
             Some(Err(()))
         }
@@ -120,14 +120,15 @@ impl Inner {
         id: &Id,
         kvnr: &Option<Kvnr>,
         access_code: &Option<XAccessCode>,
-    ) -> Option<Result<&mut Task, ()>> {
-        let task = match self.tasks.get_mut(&id) {
-            Some(task) => task,
+    ) -> Option<Result<&mut TaskMeta, ()>> {
+        let task_meta = match self.tasks.get_mut(&id) {
+            Some(task_meta) => task_meta,
             None => return None,
         };
 
+        let task = task_meta.history.get();
         if task_matches(task, kvnr, access_code) {
-            Some(Ok(task))
+            Some(Ok(task_meta))
         } else {
             Some(Err(()))
         }
@@ -138,9 +139,10 @@ impl Inner {
         kvnr: Option<Kvnr>,
         access_code: Option<XAccessCode>,
     ) -> impl Iterator<Item = &TaskMeta> {
-        self.tasks.iter().filter_map(move |(_, task)| {
+        self.tasks.iter().filter_map(move |(_, task_meta)| {
+            let task = task_meta.history.get();
             if task_matches(task, &kvnr, &access_code) {
-                Some(task)
+                Some(task_meta)
             } else {
                 None
             }
@@ -194,23 +196,9 @@ impl Inner {
 impl From<Task> for TaskMeta {
     fn from(task: Task) -> Self {
         Self {
-            task,
+            history: History::new(task),
             accept_timestamp: None,
         }
-    }
-}
-
-impl Deref for TaskMeta {
-    type Target = Task;
-
-    fn deref(&self) -> &Self::Target {
-        &self.task
-    }
-}
-
-impl DerefMut for TaskMeta {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.task
     }
 }
 

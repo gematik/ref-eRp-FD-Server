@@ -82,6 +82,7 @@ impl Encode for &Patient {
     {
         let meta = Meta {
             profiles: vec![PROFILE.into()],
+            ..Default::default()
         };
 
         stream

@@ -15,19 +15,41 @@
  *
  */
 
-use rand::{distributions::Standard, thread_rng, Rng};
-use resources::{KbvBinary, KbvBundle, Task};
+use std::convert::TryInto;
 
-use crate::fhir::{
-    definitions::EncodeBundleResource,
-    encode::{DataStorage, Encode, EncodeError, EncodeStream},
+use rand::{distributions::Standard, thread_rng, Rng};
+use resources::{
+    primitives::{Id, Instant},
+    KbvBinary, KbvBundle, Task,
+};
+
+use crate::{
+    fhir::{
+        definitions::{AsTask, EncodeBundleResource, TaskContainer},
+        encode::{DataStorage, Encode, EncodeError, EncodeStream},
+    },
+    service::misc::Version,
 };
 
 #[derive(Clone)]
 pub enum Resource<'a> {
-    Task(&'a Task),
+    TaskVersion(&'a Version<Task>),
     Binary(&'a KbvBinary),
     Bundle(&'a KbvBundle),
+}
+
+impl AsTask for Version<Task> {
+    fn task(&self) -> &Task {
+        &self.resource
+    }
+
+    fn version_id(&self) -> Option<Id> {
+        Some(self.id.to_string().try_into().unwrap())
+    }
+
+    fn last_updated(&self) -> Option<Instant> {
+        Some(self.timestamp.into())
+    }
 }
 
 impl EncodeBundleResource for Resource<'_> {}
@@ -38,7 +60,7 @@ impl Encode for Resource<'_> {
         S: DataStorage,
     {
         match self {
-            Self::Task(v) => v.encode(stream),
+            Self::TaskVersion(v) => TaskContainer(v).encode(stream),
             Self::Binary(v) => v.encode(stream),
             Self::Bundle(v) => v.encode(stream),
         }

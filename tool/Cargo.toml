@@ -6,7 +6,7 @@ edition = "2018"
 [dependencies]
 bytes = "0.5"
 miscellaneous = "0.1"
-openssl = "=0.10.30"
+openssl = "=0.10.32"
 rand = "0.7"
 serde_json = "1.0"
 structopt = "0.3"

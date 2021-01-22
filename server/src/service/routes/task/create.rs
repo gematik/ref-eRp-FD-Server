@@ -32,10 +32,13 @@ use resources::{
     types::{FlowType, PerformerType},
 };
 
-use crate::service::{
-    header::{Accept, Authorization, ContentType},
-    misc::{create_response_with, read_payload, DataType, Profession},
-    AsReqErrResult, RequestError, State, TypedRequestError, TypedRequestResult,
+use crate::{
+    fhir::definitions::TaskContainer,
+    service::{
+        header::{Accept, Authorization, ContentType},
+        misc::{create_response_with, read_payload, DataType, Profession},
+        AsReqErrResult, RequestError, State, TypedRequestError, TypedRequestResult,
+    },
 };
 
 use super::misc::random_id;
@@ -73,12 +76,13 @@ pub async fn create(
     let id = task.id.clone().unwrap();
 
     let mut state = state.lock().await;
-    let task = match state.tasks.entry(id) {
+    let task_meta = match state.tasks.entry(id) {
         Entry::Occupied(entry) => entry.into_mut(),
         Entry::Vacant(entry) => entry.insert(task.into()),
     };
 
-    create_response_with(&**task, accept, StatusCode::CREATED)
+    let v = task_meta.history.get_current();
+    create_response_with(TaskContainer(v), accept, StatusCode::CREATED, |_| ())
 }
 
 fn create_task(flow_type: FlowType) -> Result<Task, RequestError> {

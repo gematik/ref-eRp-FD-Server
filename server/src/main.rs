@@ -46,7 +46,7 @@ async fn run(opts: Options) -> Result<(), Error> {
 
     let tsl = Tsl::from_url(opts.tsl, prepare_tsl, true);
     let bnetza = Tsl::from_url(opts.bnetza, prepare_no_op, false);
-    let puk_token = PukToken::from_url(opts.token)?;
+    let puk_token = PukToken::from_url(tsl.clone(), opts.token)?;
 
     let handle = Service::new(
         opts.enc_key,
@@ -125,11 +125,11 @@ struct Options {
 
     /// BNetzA-VL containing all valid QES-CA-certificates in Germany.
     #[structopt(verbatim_doc_comment, long = "bnetza")]
-    bnetza: Option<Url>,
+    bnetza: Url,
 
     /// URL to load TSL (Trust Status List) from.
     #[structopt(verbatim_doc_comment, long = "tsl")]
-    tsl: Option<Url>,
+    tsl: Url,
 
     /// File to load log configuration from.
     #[structopt(

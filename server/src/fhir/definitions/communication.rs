@@ -401,6 +401,7 @@ impl Encode for &Communication {
                 Communication::DispenseReq(_) => PROFILE_DISPENSE_REQ.into(),
                 Communication::Representative(_) => PROFILE_REPRESENTATIVE.into(),
             }],
+            ..Default::default()
         };
 
         stream

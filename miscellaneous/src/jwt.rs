@@ -69,18 +69,20 @@ pub fn sign(
     Ok(jwt)
 }
 
+pub fn extract<T>(jwt: &str) -> Result<T, Error>
+where
+    T: FromBase64,
+{
+    let (_, claims_str, _) = split(jwt)?;
+
+    T::from_base64(claims_str)
+}
+
 pub fn verify<T>(jwt: &str, key: Option<PKey<Public>>) -> Result<T, Error>
 where
     T: FromBase64,
 {
-    let mut access_token = jwt.split('.');
-    let header_str = access_token.next().ok_or(Error::NoHeaderComponent)?;
-    let claims_str = access_token.next().ok_or(Error::NoClaimsComponent)?;
-    let signature_str = access_token.next().ok_or(Error::NoSignatureComponent)?;
-
-    if access_token.next().is_some() {
-        return Err(Error::TooManyComponents);
-    }
+    let (header_str, claims_str, signature_str) = split(jwt)?;
 
     let header = Header::from_base64(header_str)?;
     let claims = T::from_base64(claims_str);
@@ -110,6 +112,20 @@ where
     }
 
     claims
+}
+
+fn split(jwt: &str) -> Result<(&str, &str, &str), Error> {
+    let mut access_token = jwt.split('.');
+
+    let header_str = access_token.next().ok_or(Error::NoHeaderComponent)?;
+    let claims_str = access_token.next().ok_or(Error::NoClaimsComponent)?;
+    let signature_str = access_token.next().ok_or(Error::NoSignatureComponent)?;
+
+    if access_token.next().is_some() {
+        return Err(Error::TooManyComponents);
+    }
+
+    Ok((header_str, claims_str, signature_str))
 }
 
 fn cert_to_key(cert: String) -> Result<PKey<Public>, Error> {

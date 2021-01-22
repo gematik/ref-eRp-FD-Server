@@ -19,6 +19,7 @@ pub mod access_token;
 pub mod cms;
 pub mod data_type;
 pub mod from_query;
+pub mod history;
 pub mod search;
 pub mod sort;
 
@@ -26,6 +27,7 @@ pub use access_token::{AccessToken, Error as AccessTokenError, Profession};
 pub use cms::Cms;
 pub use data_type::DataType;
 pub use from_query::{FromQuery, Query, QueryValue};
+pub use history::{History, Version};
 pub use search::Search;
 pub use sort::Sort;
 
@@ -126,16 +128,18 @@ pub fn create_response<T>(
 where
     T: Encode,
 {
-    create_response_with(response, data_type, StatusCode::OK)
+    create_response_with(response, data_type, StatusCode::OK, |_| ())
 }
 
-pub fn create_response_with<T>(
+pub fn create_response_with<T, F>(
     response: T,
     data_type: DataType,
     status: StatusCode,
+    f: F,
 ) -> Result<HttpResponse, TypedRequestError>
 where
     T: Encode,
+    F: FnOnce(&mut HttpResponseBuilder),
 {
     match data_type {
         #[cfg(feature = "support-xml")]
@@ -144,9 +148,12 @@ where
 
             let xml = response.xml().as_req_err().err_with_type(data_type)?;
 
-            Ok(HttpResponseBuilder::new(status)
-                .content_type(DataType::Xml.as_mime().to_string())
-                .body(xml))
+            let mut res = HttpResponseBuilder::new(status);
+            res.content_type(DataType::Xml.as_mime().to_string());
+
+            f(&mut res);
+
+            Ok(res.body(xml))
         }
 
         #[cfg(feature = "support-json")]
@@ -155,9 +162,12 @@ where
 
             let json = response.json().as_req_err().err_with_type(data_type)?;
 
-            Ok(HttpResponseBuilder::new(status)
-                .content_type(DataType::Json.as_mime().to_string())
-                .body(json))
+            let mut res = HttpResponseBuilder::new(status);
+            res.content_type(DataType::Json.as_mime().to_string());
+
+            f(&mut res);
+
+            Ok(res.body(json))
         }
 
         DataType::Any | DataType::Unknown => panic!("Data type of response was not specified"),

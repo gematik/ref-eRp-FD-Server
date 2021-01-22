@@ -39,11 +39,8 @@ pub enum Error {
     #[error("Unsupported URL Scheme: {0}")]
     UnsupportedScheme(String),
 
-    #[error("Fetch PUK_TOKEN_URI failed: {0}")]
-    FetchDiscoveryDocumentFailed(StatusCode),
-
-    #[error("Fetch PUK_TOKEN failed: {0}")]
-    FetchPukTokenFailed(StatusCode),
+    #[error("Fetch failed: {0} - {1}")]
+    FetchFailed(StatusCode, String),
 
     #[error("Missing Certificate in JWKS!")]
     MissingCert,

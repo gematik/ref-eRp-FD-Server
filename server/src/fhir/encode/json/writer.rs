@@ -357,7 +357,7 @@ impl Writer {
 
         swap(&mut self.buffer, buffer);
 
-        Ok(true)
+        Ok(!buffer.is_empty())
     }
 }
 

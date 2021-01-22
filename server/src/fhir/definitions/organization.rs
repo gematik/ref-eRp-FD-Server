@@ -118,6 +118,7 @@ impl Encode for &Organization {
     {
         let meta = Meta {
             profiles: vec![PROFILE.into()],
+            ..Default::default()
         };
 
         stream

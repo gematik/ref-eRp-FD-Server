@@ -120,6 +120,7 @@ impl Encode for &Practitioner {
     {
         let meta = Meta {
             profiles: vec![PROFILE.into()],
+            ..Default::default()
         };
 
         stream

@@ -28,7 +28,7 @@ use openssl::{
     asn1::{Asn1Time, Asn1TimeRef},
     cms::{CMSOptions, CmsContentInfo},
     stack::Stack,
-    x509::{store::X509Store, X509VerifyResult},
+    x509::{store::X509Store, X509Ref, X509VerifyResult},
 };
 use tokio::task::spawn;
 use url::Url;
@@ -51,15 +51,13 @@ pub struct Inner {
 }
 
 impl Tsl {
-    pub fn from_url<F>(url: Option<Url>, prepare: F, load_hash: bool) -> Self
+    pub fn from_url<F>(url: Url, prepare: F, load_hash: bool) -> Self
     where
         F: Fn(&mut TrustServiceStatusList) + Send + Sync + 'static,
     {
         let tsl = Self(Arc::new(ArcSwapOption::from(None)));
 
-        if let Some(url) = url {
-            spawn(update(url, tsl.clone(), prepare, load_hash));
-        }
+        spawn(update(url, tsl.clone(), prepare, load_hash));
 
         tsl
     }
@@ -108,30 +106,9 @@ impl Tsl {
                 Ok(signer) => signer,
                 Err(_) => continue,
             };
-            let key = Certs::key(signer_cert.issuer_name())?;
-            let ca_certs = inner
-                .certs
-                .entries()
-                .get(&key)
-                .ok_or(Error::UnknownIssuerCert)?;
 
-            let mut is_valid = false;
-            for ca_cert in ca_certs {
-                if ca_cert.issued(signer_cert) == X509VerifyResult::OK {
-                    let pub_key = ca_cert.public_key()?;
-
-                    if signer_cert.verify(&pub_key)? {
-                        is_valid = true;
-                        signer_count += 1;
-
-                        break;
-                    }
-                }
-            }
-
-            if !is_valid {
-                return Err(Error::UnknownIssuerCert);
-            }
+            inner.verify(&signer_cert)?;
+            signer_count += 1;
 
             let st = signer_info
                 .signing_time()?
@@ -148,6 +125,34 @@ impl Tsl {
         }
 
         Ok((data, signing_time))
+    }
+}
+
+impl Inner {
+    pub fn verify(&self, cert: &X509Ref) -> Result<(), Error> {
+        let key = Certs::key(cert.issuer_name())?;
+        let ca_certs = self
+            .certs
+            .entries()
+            .get(&key)
+            .ok_or(Error::UnknownIssuerCert)?;
+
+        check_cert_time(cert)?;
+
+        for ca_cert in ca_certs {
+            if ca_cert.issued(cert) == X509VerifyResult::OK {
+                if check_cert_time(ca_cert).is_err() {
+                    continue;
+                }
+
+                let pub_key = ca_cert.public_key()?;
+                if cert.verify(&pub_key)? {
+                    return Ok(());
+                }
+            }
+        }
+
+        Err(Error::UnknownIssuerCert)
     }
 }
 
@@ -212,6 +217,20 @@ fn asn1_to_chrono(time: &Asn1TimeRef) -> DateTime<Utc> {
         - Duration::nanoseconds(now.timestamp_subsec_nanos() as _)
 }
 
+fn check_cert_time(cert: &X509Ref) -> Result<(), Error> {
+    let now = Utc::now();
+    let not_after = asn1_to_chrono(cert.not_after());
+    let not_before = asn1_to_chrono(cert.not_before());
+
+    if now < not_before {
+        return Err(Error::CertNotValidYet);
+    } else if now > not_after {
+        return Err(Error::CertNotValidAnymore);
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 pub mod tests {
     use super::*;
@@ -227,7 +246,7 @@ pub mod tests {
         verify_cms(
             "./examples/cms.pem",
             "./examples/kbv_bundle.xml",
-            DateTime::parse_from_rfc3339("2021-01-08T11:51:47Z")
+            DateTime::parse_from_rfc3339("2021-01-15T11:24:43Z")
                 .unwrap()
                 .into(),
         );

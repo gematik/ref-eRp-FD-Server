@@ -31,6 +31,8 @@ use url::Url;
 use from_file::from_file;
 use from_web::from_web;
 
+use super::Tsl;
+
 #[derive(Clone)]
 pub struct PukToken(Arc<ArcSwapOption<Inner>>);
 
@@ -39,9 +41,9 @@ pub struct Inner {
 }
 
 impl PukToken {
-    pub fn from_url(url: Url) -> Result<Self, Error> {
+    pub fn from_url(tsl: Tsl, url: Url) -> Result<Self, Error> {
         match url.scheme() {
-            "http" | "https" => from_web(url),
+            "http" | "https" => from_web(tsl, url),
             "file" => from_file(url),
             s => Err(Error::UnsupportedScheme(s.into())),
         }

@@ -179,6 +179,7 @@ impl Encode for &AuditEvent {
     {
         let meta = Meta {
             profiles: vec![PROFILE.into()],
+            ..Default::default()
         };
 
         stream

@@ -254,7 +254,11 @@ impl ResourceMacro {
                 let rest = &mut capability_statement.rest[0];
 
                 for res in &mut rest.resource {
-                    if res.type_ == #type_ && res.profile == #profile {
+                    if res.type_ == #type_ {
+                        if res.profile != #profile {
+                            panic!("Capability Statement defines the same type twice with different profiles (type: {:?}, profile: {} != {})!", #type_, res.profile, #profile);
+                        }
+
                         self.update_resource(res);
                         return;
                     }

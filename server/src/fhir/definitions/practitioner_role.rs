@@ -89,6 +89,7 @@ impl Encode for &PractitionerRole {
     {
         let meta = Meta {
             profiles: vec![PROFILE.into()],
+            ..Default::default()
         };
 
         stream

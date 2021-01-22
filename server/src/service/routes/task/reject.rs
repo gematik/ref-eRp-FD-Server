@@ -22,11 +22,14 @@ use actix_web::{
 use resources::{primitives::Id, task::Status};
 use serde::Deserialize;
 
-use crate::service::{
-    header::{Accept, Authorization},
-    misc::{create_response, DataType, Profession},
-    state::State,
-    AsReqErr, AsReqErrResult, TypedRequestError, TypedRequestResult,
+use crate::{
+    fhir::definitions::TaskContainer,
+    service::{
+        header::{Accept, Authorization},
+        misc::{create_response, DataType, Profession},
+        state::State,
+        AsReqErr, AsReqErrResult, TypedRequestError, TypedRequestResult,
+    },
 };
 
 use super::Error;
@@ -58,18 +61,22 @@ pub async fn reject(
 
     let id = id.0;
     let mut state = state.lock().await;
-    let mut task = match state.tasks.get_mut(&id) {
-        Some(task) => task,
+    let mut task_meta = match state.tasks.get_mut(&id) {
+        Some(task_meta) => task_meta,
         None => return Err(Error::NotFound(id).as_req_err().with_type(accept)),
     };
 
+    let task = task_meta.history.get();
     if task.status != Status::InProgress || task.identifier.secret != query.secret {
         return Err(Error::Forbidden(id).as_req_err().with_type(accept));
     }
 
+    task_meta.accept_timestamp = None;
+
+    let mut task = task_meta.history.get_mut();
     task.status = Status::Ready;
     task.identifier.secret = None;
-    task.accept_timestamp = None;
 
-    create_response(&**task, accept)
+    let v = task_meta.history.get_current();
+    create_response(TaskContainer(v), accept)
 }

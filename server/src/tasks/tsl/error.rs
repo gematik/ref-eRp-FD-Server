@@ -58,6 +58,12 @@ pub enum Error {
     #[error("Missing signing time in bundle CMS signature!")]
     UnknownSigningTime,
 
+    #[error("Certificate is not valid yet!")]
+    CertNotValidYet,
+
+    #[error("Certificate is not valid anymore!")]
+    CertNotValidAnymore,
+
     #[error("Empty Certificate Key!")]
     EmptyCertKey,
 }

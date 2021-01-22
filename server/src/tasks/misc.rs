@@ -46,7 +46,7 @@ impl Client {
             Vec::new()
         };
 
-        let mut http = HttpClient::builder();
+        let mut http = HttpClient::builder().user_agent("ref-erx-fd-server");
 
         if let Ok(http_proxy) = var("http_proxy") {
             http = http.proxy(Proxy::http(&http_proxy)?);
@@ -57,7 +57,10 @@ impl Client {
         }
 
         let http_proxy = http.build()?;
-        let http_no_proxy = HttpClient::builder().no_proxy().build()?;
+        let http_no_proxy = HttpClient::builder()
+            .user_agent("ref-erx-fd-server")
+            .no_proxy()
+            .build()?;
 
         Ok(Self {
             http_proxy,

@@ -109,6 +109,7 @@ impl Encode for &Device {
     {
         let meta = Meta {
             profiles: vec![PROFILE.into()],
+            ..Default::default()
         };
 
         stream

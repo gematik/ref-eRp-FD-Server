@@ -98,6 +98,7 @@ impl Encode for &OperationOutcome {
     {
         let meta = Meta {
             profiles: vec![PROFILE.into()],
+            ..Default::default()
         };
 
         stream

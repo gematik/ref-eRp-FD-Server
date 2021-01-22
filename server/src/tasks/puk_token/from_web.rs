@@ -21,21 +21,21 @@ use std::time::Duration;
 
 use arc_swap::ArcSwapOption;
 use log::{error, info, warn};
-use miscellaneous::jwt::verify;
-use openssl::{
-    pkey::{PKey, Public},
-    x509::X509,
-};
+use miscellaneous::jwt::{extract, verify};
+use openssl::x509::X509;
 use serde::Deserialize;
 use tokio::{spawn, time::delay_for};
 use url::Url;
 
-use super::{super::misc::Client, Error, Inner, PukToken};
+use super::{
+    super::{misc::Client, Tsl},
+    Error, Inner, PukToken,
+};
 
-pub fn from_web(url: Url) -> Result<PukToken, Error> {
+pub fn from_web(tsl: Tsl, url: Url) -> Result<PukToken, Error> {
     let puk_token = PukToken(Arc::new(ArcSwapOption::from(None)));
 
-    spawn(update_task(url, puk_token.clone()));
+    spawn(update_task(tsl, url, puk_token.clone()));
 
     Ok(puk_token)
 }
@@ -43,19 +43,15 @@ pub fn from_web(url: Url) -> Result<PukToken, Error> {
 #[derive(Deserialize)]
 struct DiscoveryDocument {
     puk_uri_token: String,
+    puk_uri_disc: String,
 }
 
 #[derive(Deserialize)]
 struct Jwks {
-    keys: Vec<JwksKey>,
-}
-
-#[derive(Deserialize)]
-struct JwksKey {
     x5c: Vec<String>,
 }
 
-async fn update_task(url: Url, pub_token: PukToken) {
+async fn update_task(tsl: Tsl, url: Url, pub_token: PukToken) {
     let client = match Client::new() {
         Ok(client) => client,
         Err(err) => {
@@ -68,14 +64,34 @@ async fn update_task(url: Url, pub_token: PukToken) {
         }
     };
 
+    // wait until we have fetched the TSL
+    delay_for(Duration::from_secs(5)).await;
+
     loop {
-        let mut retry_timeout = 30u64;
+        let mut retry_timeout = 10u64;
+
+        macro_rules! ok {
+            ($e:expr, $msg:tt $(, $args:expr)*) => {
+                match $e {
+                    Ok(value) => value,
+                    Err(err) => {
+                        warn!($msg, $($args,)* err);
+
+                        delay_for(Duration::from_secs(retry_timeout)).await;
+                        retry_timeout = min(15 * 60, (retry_timeout as f64 * 1.2) as u64);
+
+                        continue;
+                    }
+                }
+            };
+        }
 
         let next = loop {
-            let discovery_document = match fetch_discovery_document(&client, url.clone()).await {
-                Ok(discovery_document) => discovery_document,
-                Err(err) => {
-                    warn!("Unable to fetch discovery document: {}", err);
+            let tsl = tsl.load();
+            let tsl = match &*tsl {
+                Some(tsl) => tsl,
+                None => {
+                    warn!("Unable to fetch PUK_TOKEN: TSL was not fetched yet");
 
                     delay_for(Duration::from_secs(retry_timeout)).await;
                     retry_timeout = min(15 * 60, (retry_timeout as f64 * 1.2) as u64);
@@ -84,32 +100,54 @@ async fn update_task(url: Url, pub_token: PukToken) {
                 }
             };
 
-            let url = match Url::parse(&discovery_document.puk_uri_token) {
-                Ok(url) => url,
-                Err(err) => {
-                    warn!(
-                        "Invalid puk_uri_token ({}): {}",
-                        &discovery_document.puk_uri_token, err
-                    );
+            let (raw, discovery_document) = ok!(
+                fetch_discovery_document(&client, url.clone()).await,
+                "Unable to fetch discovery document: {}"
+            );
 
-                    delay_for(Duration::from_secs(retry_timeout)).await;
-                    retry_timeout = min(15 * 60, (retry_timeout as f64 * 1.2) as u64);
+            let uri_disc = ok!(
+                Url::parse(&discovery_document.puk_uri_disc),
+                "Invalid puk_uri_disc ({}): {}",
+                &discovery_document.puk_uri_disc
+            );
 
-                    continue;
-                }
-            };
+            let cert_disc = ok!(
+                fetch_cert(&client, uri_disc).await,
+                "Unable to fetch PUK_DISC_KEY: {}"
+            );
 
-            let public_key = match fetch_pub_key(&client, url).await {
-                Ok(public_key) => public_key,
-                Err(err) => {
-                    warn!("Unable to fetch PUK_TOKEN: {}", err);
+            ok!(tsl.verify(&cert_disc), "Unable to verify PUK_DISC_KEY: {}");
 
-                    delay_for(Duration::from_secs(retry_timeout)).await;
-                    retry_timeout = min(15 * 60, (retry_timeout as f64 * 1.2) as u64);
+            let key_disc = ok!(
+                cert_disc.public_key(),
+                "Unable to extract public key from PUK_DISC_KEY: {}"
+            );
 
-                    continue;
-                }
-            };
+            let discovery_document = ok!(
+                verify::<DiscoveryDocument>(&raw, Some(key_disc)),
+                "Unable to verify discovery document: {}"
+            );
+
+            let uri_token = ok!(
+                Url::parse(&discovery_document.puk_uri_token),
+                "Invalid puk_uri_token ({}): {}",
+                &discovery_document.puk_uri_token
+            );
+
+            let cert_token = ok!(
+                fetch_cert(&client, uri_token).await,
+                "Unable to fetch PUK_TOKEN_KEY: {}"
+            );
+
+            ok!(
+                tsl.verify(&cert_token),
+                "Unable to verify PUK_TOKEN_KEY: {}"
+            );
+
+            let public_key = ok!(
+                cert_disc.public_key(),
+                "Unable to extract public key from PUK_TOKEN_KEY: {}"
+            );
 
             break Inner { public_key };
         };
@@ -122,39 +160,41 @@ async fn update_task(url: Url, pub_token: PukToken) {
     }
 }
 
-async fn fetch_discovery_document(client: &Client, url: Url) -> Result<DiscoveryDocument, Error> {
+async fn fetch_discovery_document(
+    client: &Client,
+    url: Url,
+) -> Result<(String, DiscoveryDocument), Error> {
     let res = client.get(url)?.send().await?;
+
     if res.status() != 200 {
-        return Err(Error::FetchDiscoveryDocumentFailed(res.status()));
+        let status = res.status();
+        let text = res.text().await.unwrap_or_default();
+
+        return Err(Error::FetchFailed(status, text));
     }
 
-    let discovery_document = res.text().await?;
-    let discovery_document = verify(&discovery_document, None)?;
+    let raw = res.text().await?;
+    let parsed = extract(&raw)?;
 
-    Ok(discovery_document)
+    Ok((raw, parsed))
 }
 
-async fn fetch_pub_key(client: &Client, url: Url) -> Result<PKey<Public>, Error> {
+async fn fetch_cert(client: &Client, url: Url) -> Result<X509, Error> {
     let res = client.get(url)?.send().await?;
     if res.status() != 200 {
-        return Err(Error::FetchPukTokenFailed(res.status()));
+        let status = res.status();
+        let text = res.text().await.unwrap_or_default();
+
+        return Err(Error::FetchFailed(status, text));
     }
 
     let jwks = res.json::<Jwks>().await?;
-    let cert = jwks
-        .keys
-        .first()
-        .ok_or(Error::MissingCert)?
-        .x5c
-        .first()
-        .ok_or(Error::MissingCert)?;
+    let cert = jwks.x5c.first().ok_or(Error::MissingCert)?;
     let cert = format!(
         "-----BEGIN CERTIFICATE-----\n{}\n-----END CERTIFICATE-----",
         cert
     );
     let cert = X509::from_pem(cert.as_bytes())?;
 
-    let pub_key = cert.public_key()?;
-
-    Ok(pub_key)
+    Ok(cert)
 }

@@ -114,11 +114,12 @@ pub async fn create(
 
         let kvnr = access_token.kvnr().ok();
 
-        let task = state
+        let task_meta = state
             .get_task(&task_id, &kvnr, &access_code)
             .ok_or_else(|| Error::UnknownTask(task_id).as_req_err().with_type(accept))?
             .map_err(|()| Error::UnauthorizedTaskAccess.as_req_err().with_type(accept))?;
 
+        let task = task_meta.history.get();
         match (&communication, task.status) {
             (Communication::Representative(_), Status::Ready) => (),
             (Communication::Representative(_), Status::InProgress) => (),
@@ -135,7 +136,7 @@ pub async fn create(
         Entry::Vacant(entry) => entry.insert(communication),
     };
 
-    create_response_with(&*communication, accept, StatusCode::CREATED)
+    create_response_with(&*communication, accept, StatusCode::CREATED, |_| ())
 }
 
 const MAX_CONTENT_SIZE: usize = 10 * 1024;

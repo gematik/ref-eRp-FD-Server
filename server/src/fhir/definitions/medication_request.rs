@@ -326,6 +326,7 @@ impl Decode for DispenseRequest {
                 let end = stream.decode_opt(&mut fields, decode_any).await?;
 
                 stream.end().await?;
+                stream.end_substream().await?;
 
                 (Some(start), end)
             } else {
@@ -482,6 +483,7 @@ impl Encode for &MedicationRequest {
     {
         let meta = Meta {
             profiles: vec![PROFILE.into()],
+            ..Default::default()
         };
 
         stream
