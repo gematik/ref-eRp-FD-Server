@@ -21,56 +21,54 @@ mod header;
 mod middleware;
 mod misc;
 mod routes;
-mod state;
 
-use std::fs::read;
 use std::net::{SocketAddr, ToSocketAddrs};
-use std::path::PathBuf;
 
 use actix_rt::System;
 use actix_web::{dev::Server, App, HttpServer};
-use openssl::{ec::EcKey, pkey::PKey, x509::X509};
+use openssl::{ec::EcKey, pkey::Private, x509::X509};
 use tokio::task::LocalSet;
 
-use crate::tasks::{PukToken, Tsl};
+use crate::{
+    error::Error,
+    state::State,
+    tasks::{PukToken, Tsl},
+};
 
 pub use error::{
-    AsReqErr, AsReqErrResult, Error, RequestError, TypedRequestError, TypedRequestResult,
+    AsAuditEventOutcome, AsReqErr, AsReqErrResult, RequestError, TypedRequestError,
+    TypedRequestResult,
 };
 use middleware::{ExtractAccessToken, HeaderCheck, Logging, Vau};
-use misc::{Cms, SigCert, SigKey};
+use misc::Cms;
 use routes::configure_routes;
-use state::State;
 
 pub struct Service {
-    enc_key: PathBuf,
-    enc_cert: PathBuf,
-    sig_key: PathBuf,
-    sig_cert: PathBuf,
     puk_token: PukToken,
     tsl: Tsl,
     bnetza: Tsl,
+    state: State,
+    enc_key: EcKey<Private>,
+    enc_cert: X509,
     addresses: Vec<SocketAddr>,
 }
 
 impl Service {
     pub fn new(
-        enc_key: PathBuf,
-        enc_cert: PathBuf,
-        sig_key: PathBuf,
-        sig_cert: PathBuf,
         puk_token: PukToken,
         tsl: Tsl,
         bnetza: Tsl,
+        state: State,
+        enc_key: EcKey<Private>,
+        enc_cert: X509,
     ) -> Self {
         Self {
-            enc_key,
-            enc_cert,
-            sig_key,
-            sig_cert,
             puk_token,
             tsl,
             bnetza,
+            state,
+            enc_key,
+            enc_cert,
             addresses: Vec::new(),
         }
     }
@@ -83,28 +81,21 @@ impl Service {
         Ok(self)
     }
 
-    pub fn run(&self, local: &LocalSet) -> Result<Server, Error> {
-        let state = State::default();
+    pub fn run(self, local: &LocalSet) -> Result<Server, Error> {
+        let Self {
+            puk_token,
+            tsl,
+            bnetza,
+            state,
+            enc_key,
+            enc_cert,
+            addresses,
+        } = self;
+
+        let cms = Cms::new(bnetza);
         let system = System::run_in_tokio("actix-web", &local);
 
         local.spawn_local(system);
-
-        let enc_key = read(&self.enc_key)?;
-        let enc_key = EcKey::private_key_from_pem(&enc_key).map_err(Error::OpenSslError)?;
-
-        let enc_cert = read(&self.enc_cert)?;
-        let enc_cert = X509::from_pem(&enc_cert)?;
-
-        let sig_key = read(&self.sig_key)?;
-        let sig_key = EcKey::private_key_from_pem(&sig_key).map_err(Error::OpenSslError)?;
-        let sig_key = PKey::from_ec_key(sig_key)?;
-
-        let sig_cert = read(&self.sig_cert)?;
-        let sig_cert = X509::from_pem(&sig_cert)?;
-
-        let puk_token = self.puk_token.clone();
-        let tsl = self.tsl.clone();
-        let cms = Cms::new(self.bnetza.clone());
 
         let mut server = HttpServer::new(move || {
             App::new()
@@ -115,13 +106,11 @@ impl Service {
                 .data(state.clone())
                 .data(tsl.clone())
                 .data(cms.clone())
-                .data(SigKey(sig_key.clone()))
-                .data(SigCert(sig_cert.clone()))
                 .app_data(puk_token.clone())
                 .configure(configure_routes)
         });
 
-        for addr in &self.addresses {
+        for addr in addresses {
             server = server.bind(addr)?;
         }
 

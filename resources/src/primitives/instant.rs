@@ -19,10 +19,11 @@ use std::convert::TryFrom;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::ops::{Deref, DerefMut};
 
-use chrono::{DateTime, FixedOffset, Utc};
+use chrono::{serde::ts_nanoseconds, DateTime, FixedOffset, Utc};
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct Instant(DateTime<Utc>);
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Instant(#[serde(with = "ts_nanoseconds")] DateTime<Utc>);
 
 impl From<DateTime<Utc>> for Instant {
     fn from(v: DateTime<Utc>) -> Self {

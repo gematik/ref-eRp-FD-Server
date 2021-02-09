@@ -15,6 +15,8 @@
  *
  */
 
+use serde::{Deserialize, Serialize};
+
 use super::{
     misc::PrescriptionId,
     primitives::{Id, Instant},
@@ -22,10 +24,10 @@ use super::{
     PractitionerRole, Signature, WithSignature,
 };
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct KbvBinary(pub String);
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct KbvBundle {
     pub id: Id,
     pub identifier: PrescriptionId,
@@ -34,7 +36,7 @@ pub struct KbvBundle {
     pub signature: Vec<Signature>,
 }
 
-#[derive(Default, Clone, PartialEq, Debug)]
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Entry {
     pub composition: Option<(String, Composition)>,
     pub medication_request: Option<(String, MedicationRequest)>,

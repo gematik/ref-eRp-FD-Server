@@ -97,10 +97,10 @@ pub mod tests {
                 extension: vec![],
             },
             Item::Field {
-                name: "valueDateTime".into(),
+                name: "valueDate".into(),
             },
             Item::Value {
-                value: "2020-03-02T08:25:05+00:00".into(),
+                value: "2020-03-02".into(),
                 extension: vec![],
             },
             Item::End,
@@ -111,10 +111,10 @@ pub mod tests {
                 extension: vec![],
             },
             Item::Field {
-                name: "valueDateTime".into(),
+                name: "valueDate".into(),
             },
             Item::Value {
-                value: "2020-05-02T08:25:05+00:00".into(),
+                value: "2020-05-02".into(),
                 extension: vec![],
             },
             Item::End,

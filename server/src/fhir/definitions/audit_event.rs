@@ -49,14 +49,25 @@ impl Decode for AuditEvent {
         S: DataStream,
     {
         let mut fields = Fields::new(&[
-            "id", "meta", "type", "subType", "action", "recorded", "outcome", "agent", "source",
+            "id",
+            "meta",
+            "text",
+            "type",
+            "subType",
+            "action",
+            "recorded",
+            "outcome",
+            "outcomeDescription",
+            "agent",
+            "source",
             "entity",
         ]);
 
         stream.root("AuditEvent").await?;
 
-        let id = stream.decode_opt(&mut fields, decode_any).await?;
+        let id = stream.decode(&mut fields, decode_any).await?;
         let meta = stream.decode::<Meta, _>(&mut fields, decode_any).await?;
+        let text = stream.decode_opt(&mut fields, decode_any).await?;
         let _type = {
             stream.begin_substream(&mut fields).await?;
             stream.element().await?;
@@ -72,6 +83,7 @@ impl Decode for AuditEvent {
         let action = stream.decode(&mut fields, decode_code).await?;
         let recorded = stream.decode(&mut fields, decode_any).await?;
         let outcome = stream.decode(&mut fields, decode_code).await?;
+        let outcome_description = stream.decode_opt(&mut fields, decode_any).await?;
         let agent = stream.decode(&mut fields, decode_any).await?;
         let source = stream.decode(&mut fields, decode_any).await?;
         let entity = stream.decode(&mut fields, decode_any).await?;
@@ -87,10 +99,12 @@ impl Decode for AuditEvent {
 
         Ok(AuditEvent {
             id,
+            text,
             sub_type,
             action,
             recorded,
             outcome,
+            outcome_description,
             agent,
             source,
             entity,
@@ -110,7 +124,7 @@ impl Decode for Agent {
 
         let type_ = stream.decode(&mut fields, decode_codeable_concept).await?;
         let who = stream
-            .decode(&mut fields, decode_identifier_reference)
+            .decode_opt(&mut fields, decode_identifier_reference)
             .await?;
         let name = stream.decode(&mut fields, decode_any).await?;
         let requestor = stream.decode(&mut fields, decode_any).await?;
@@ -150,7 +164,7 @@ impl Decode for Entity {
     where
         S: DataStream,
     {
-        let mut fields = Fields::new(&["what", "name", "description"]);
+        let mut fields = Fields::new(&["what", "name", "description", "detail"]);
 
         stream.element().await?;
 
@@ -184,8 +198,9 @@ impl Encode for &AuditEvent {
 
         stream
             .root("AuditEvent")?
-            .encode_opt("id", &self.id, encode_any)?
+            .encode("id", &self.id, encode_any)?
             .encode("meta", meta, encode_any)?
+            .encode_opt("text", &self.text, encode_any)?
             .field_name("type")?
             .element()?
             .encode("system", SYSTEM_TYPE, encode_any)?
@@ -195,6 +210,7 @@ impl Encode for &AuditEvent {
             .encode("action", &self.action, encode_code)?
             .encode("recorded", &self.recorded, encode_any)?
             .encode("outcome", &self.outcome, encode_code)?
+            .encode_opt("outcomeDescription", &self.outcome_description, encode_any)?
             .encode_vec("agent", once(&self.agent), encode_any)?
             .encode("source", &self.source, encode_any)?
             .encode_vec("entity", once(&self.entity), encode_any)?
@@ -212,7 +228,7 @@ impl Encode for &Agent {
         stream
             .element()?
             .encode("type", &self.type_, encode_codeable_concept)?
-            .encode("who", &self.who, encode_identifier_reference)?
+            .encode_opt("who", &self.who, encode_identifier_reference)?
             .encode("name", &self.name, encode_any)?
             .encode("requestor", &self.requestor, encode_any)?
             .end()?;
@@ -244,8 +260,9 @@ impl Encode for &Entity {
             .element()?
             .encode("what", &self.what, encode_reference)?
             .encode("name", &self.name, encode_any)?
-            .encode("description", &self.description, encode_any)?
-            .end()?;
+            .encode("description", &self.description, encode_any)?;
+
+        stream.end()?;
 
         Ok(())
     }
@@ -492,7 +509,7 @@ pub mod tests {
     use std::fs::read_to_string;
     use std::str::from_utf8;
 
-    use resources::misc::{Kvnr, TelematikId};
+    use resources::misc::{Kvnr, ParticipantId, TelematikId};
 
     use crate::fhir::{
         decode::{tests::load_stream, JsonDecode, XmlDecode},
@@ -545,14 +562,16 @@ pub mod tests {
 
     pub fn test_audit_event() -> AuditEvent {
         AuditEvent {
-            id: None,
+            id: "5fe6e06c-8725-46d5-aecd-e65e041ca3af".try_into().unwrap(),
+            text: None,
             sub_type: SubType::Read,
             action: Action::Create,
             recorded: "2020-02-27T08:04:27.434+00:00".try_into().unwrap(),
             outcome: Outcome::Success,
+            outcome_description: None,
             agent: Agent {
                 type_: ParticipationRoleType::HumanUser,
-                who: TelematikId::new("606358750"),
+                who: Some(ParticipantId::TelematikId(TelematikId::new("606358750"))),
                 name: "Praxis Dr. Müller".into(),
                 requestor: false,
             },

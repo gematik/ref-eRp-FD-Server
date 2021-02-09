@@ -15,20 +15,22 @@
  *
  */
 
-#[derive(Clone, Debug, PartialEq)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Name {
     pub given: String,
     pub family: Family,
     pub prefix: Option<Prefix>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Prefix {
     pub value: String,
     pub qualifier: bool,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Family {
     pub value: String,
     pub prefix: Option<String>,

@@ -19,7 +19,6 @@ pub mod access_token;
 pub mod cms;
 pub mod data_type;
 pub mod from_query;
-pub mod history;
 pub mod search;
 pub mod sort;
 
@@ -27,25 +26,17 @@ pub use access_token::{AccessToken, Error as AccessTokenError, Profession};
 pub use cms::Cms;
 pub use data_type::DataType;
 pub use from_query::{FromQuery, Query, QueryValue};
-pub use history::{History, Version};
 pub use search::Search;
 pub use sort::Sort;
 
 use std::convert::TryInto;
 
 use actix_web::{dev::HttpResponseBuilder, http::StatusCode, web::Payload, HttpResponse};
-use openssl::{
-    pkey::{PKey, Private},
-    x509::X509,
-};
 use resources::device::{Device, DeviceName, Status, Type};
 
 use crate::fhir::{decode::Decode, encode::Encode};
 
 use super::{AsReqErrResult, RequestError, TypedRequestError, TypedRequestResult};
-
-pub struct SigKey(pub PKey<Private>);
-pub struct SigCert(pub X509);
 
 lazy_static! {
     pub static ref DEVICE: Device = Device {

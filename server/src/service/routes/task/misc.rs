@@ -17,10 +17,9 @@
 
 use std::convert::TryInto;
 
-use rand::{distributions::Standard, thread_rng, Rng};
 use resources::{
     primitives::{Id, Instant},
-    KbvBinary, KbvBundle, Task,
+    ErxBundle, KbvBinary, KbvBundle, Task,
 };
 
 use crate::{
@@ -28,14 +27,15 @@ use crate::{
         definitions::{AsTask, EncodeBundleResource, TaskContainer},
         encode::{DataStorage, Encode, EncodeError, EncodeStream},
     },
-    service::misc::Version,
+    state::Version,
 };
 
 #[derive(Clone)]
 pub enum Resource<'a> {
     TaskVersion(&'a Version<Task>),
-    Binary(&'a KbvBinary),
-    Bundle(&'a KbvBundle),
+    KbvBinary(&'a KbvBinary),
+    KbvBundle(&'a KbvBundle),
+    ErxBundle(&'a ErxBundle),
 }
 
 impl AsTask for Version<Task> {
@@ -61,17 +61,9 @@ impl Encode for Resource<'_> {
     {
         match self {
             Self::TaskVersion(v) => TaskContainer(v).encode(stream),
-            Self::Binary(v) => v.encode(stream),
-            Self::Bundle(v) => v.encode(stream),
+            Self::KbvBinary(v) => v.encode(stream),
+            Self::KbvBundle(v) => v.encode(stream),
+            Self::ErxBundle(v) => v.encode(stream),
         }
     }
-}
-
-pub fn random_id() -> String {
-    thread_rng()
-        .sample_iter(&Standard)
-        .take(32)
-        .map(|x: u8| format!("{:02x}", x))
-        .collect::<Vec<_>>()
-        .join("")
 }

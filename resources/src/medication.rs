@@ -15,16 +15,18 @@
  *
  */
 
+use serde::{Deserialize, Serialize};
+
 use super::primitives::{DateTime, Id};
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Medication {
     pub id: Id,
     pub data: Data,
     pub extension: Option<Extension>,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum Data {
     Compounding(CompoundingData),
     FreeText(FreeTextData),
@@ -32,7 +34,7 @@ pub enum Data {
     Pzn(PznData),
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Extension {
     pub category: Category,
     pub vaccine: bool,
@@ -41,7 +43,7 @@ pub struct Extension {
     pub standard_size: Option<StandardSize>,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct CompoundingData {
     pub code: Option<String>,
     pub form: String,
@@ -50,20 +52,20 @@ pub struct CompoundingData {
     pub batch: Option<Batch>,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Batch {
     pub lot_number: Option<String>,
     pub expiration_date: Option<DateTime>,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct FreeTextData {
     pub code: String,
     pub form: Option<String>,
     pub batch: Option<Batch>,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct IngredientData {
     pub form: String,
     pub amount: Option<Amount>,
@@ -71,7 +73,7 @@ pub struct IngredientData {
     pub batch: Option<Batch>,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct PznData {
     pub code: PznCode,
     pub form: PznForm,
@@ -79,26 +81,26 @@ pub struct PznData {
     pub batch: Option<Batch>,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct PznCode {
     pub text: String,
     pub code: String,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct PznForm {
     pub system: String,
     pub code: String,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Amount {
     pub value: usize,
     pub unit: String,
     pub code: Option<String>,
 }
 
-#[derive(Default, Clone, PartialEq, Debug)]
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Ingredient {
     pub code: Option<String>,
     pub text: Option<String>,
@@ -107,14 +109,14 @@ pub struct Ingredient {
     pub amount_free_text: Option<String>,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum Category {
     Medicine,
     BTM,
     AMVV,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum StandardSize {
     N1,
     N2,

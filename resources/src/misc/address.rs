@@ -15,7 +15,9 @@
  *
  */
 
-#[derive(Clone, Debug, PartialEq)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Address {
     pub address: String,
     pub street: Option<String>,

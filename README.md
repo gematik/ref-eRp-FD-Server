@@ -303,13 +303,12 @@ In order to do so, add the following lines after the last occurence of TSPServic
             </StatusStartingTime>
         </ServiceInformation>
     </TSPService>
-    ---
 
-    Replace "ADD_CUSTOM_CERTIFICATE_HERE" with your self generated certficate. If you followed chapter
-    "Generating Credentials" instructions, your QES certificate could be found in qes_id.cert. Make sure
-    to drop the "-----BEGIN CERTIFICATE-----" and "-----END CERTIFICATE-----" lines and remove all line
-    breaks. The replacement for "ADD_CUSTOM_CERTIFICATE_HERE" must be a single line.
+Replace "ADD\_CUSTOM\_CERTIFICATE\_HERE" with your self generated certficate. If you followed chapter
+"Generating Credentials" instructions, your QES certificate could be found in qes\_id.cert. Make sure
+to drop the "-----BEGIN CERTIFICATE-----" and "-----END CERTIFICATE-----" lines and remove all line
+breaks. The replacement for "ADD\_CUSTOM\_CERTIFICATE\_HERE" must be a single line.
 
-    Hint: This method of adding own certifactes to the list is only valid for now. In a later release we
-    will check the signature of the list, so a manipulation is impossible! But we will provide a new method
-    to add custom certificates with the release that checks the signature.
+Hint: This method of adding own certifactes to the list is only valid for now. In a later release we
+will check the signature of the list, so a manipulation is impossible! But we will provide a new method
+to add custom certificates with the release that checks the signature.

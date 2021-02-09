@@ -15,12 +15,14 @@
  *
  */
 
+use serde::{Deserialize, Serialize};
+
 use super::{
     misc::Code,
     primitives::{DateTime, Id},
 };
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Coverage {
     pub id: Id,
     pub extension: Extension,
@@ -30,7 +32,7 @@ pub struct Coverage {
     pub payor: Payor,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Extension {
     pub special_group: Option<Code>,
     pub dmp_mark: Option<Code>,
@@ -38,7 +40,7 @@ pub struct Extension {
     pub wop: Option<Code>,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Payor {
     pub display: String,
     pub value: Option<String>,

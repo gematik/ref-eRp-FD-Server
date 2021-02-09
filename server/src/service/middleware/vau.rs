@@ -38,7 +38,10 @@ use log::error;
 use openssl::{ec::EcKey, pkey::Private, x509::X509};
 use vau::{decode, encode, Decrypter, Encrypter, Error as VauError, UserPseudonymGenerator};
 
-use crate::service::{misc::AccessTokenError, Error, RequestError, TypedRequestResult};
+use crate::{
+    error::Error,
+    service::{misc::AccessTokenError, RequestError, TypedRequestResult},
+};
 
 use super::extract_access_token::extract_access_token;
 

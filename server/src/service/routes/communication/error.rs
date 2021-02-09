@@ -26,8 +26,11 @@ pub enum Error {
     #[error("Missing Field: 'basedOn'!")]
     MissingFieldBasedOn,
 
-    #[error("Sender is not equal to recipient!")]
-    SenderNotEqualRecipient,
+    #[error("Sender is equal to recipient!")]
+    SenderEqualRecipient,
+
+    #[error("Invalid Sender!")]
+    InvalidSender,
 
     #[error("Unknown Task: {0}!")]
     UnknownTask(Id),
@@ -38,9 +41,12 @@ pub enum Error {
     #[error("Invalid Task Status!")]
     InvalidTaskStatus,
 
-    #[error("Not Found: {0}!")]
+    #[error("Invalid Task Uri: {0}!")]
+    InvalidTaskUri(String),
+
+    #[error("Not Found: /Communication/{0}!")]
     NotFound(Id),
 
-    #[error("Unauthorized: {0}!")]
+    #[error("Unauthorized: /Communication/{0}!")]
     Unauthorized(Id),
 }

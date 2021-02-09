@@ -124,12 +124,12 @@ impl Decode for Extension {
                     flow_type = Some(stream.decode(&mut fields, decode_coding).await?);
                 }
                 x if icase_eq(x, URL_ACCEPT_DATE) => {
-                    let mut fields = Fields::new(&["valueDateTime"]);
+                    let mut fields = Fields::new(&["valueDate"]);
 
                     accept_date = Some(stream.decode(&mut fields, decode_any).await?)
                 }
                 x if icase_eq(x, URL_EXPIRY_DATE) => {
-                    let mut fields = Fields::new(&["valueDateTime"]);
+                    let mut fields = Fields::new(&["valueDate"]);
 
                     expiry_date = Some(stream.decode(&mut fields, decode_any).await?)
                 }
@@ -398,7 +398,7 @@ impl Encode for &Extension {
             stream
                 .element()?
                 .attrib("url", URL_ACCEPT_DATE, encode_any)?
-                .encode("valueDateTime", accept_date, encode_any)?
+                .encode("valueDate", accept_date, encode_any)?
                 .end()?;
         }
 
@@ -406,7 +406,7 @@ impl Encode for &Extension {
             stream
                 .element()?
                 .attrib("url", URL_EXPIRY_DATE, encode_any)?
-                .encode("valueDateTime", expiry_date, encode_any)?
+                .encode("valueDate", expiry_date, encode_any)?
                 .end()?;
         }
 
@@ -641,8 +641,8 @@ pub mod tests {
         Task {
             id: None,
             extension: Extension {
-                accept_date: Some("2020-03-02T08:25:05+00:00".try_into().unwrap()),
-                expiry_date: Some("2020-05-02T08:25:05+00:00".try_into().unwrap()),
+                accept_date: Some("2020-03-02".try_into().unwrap()),
+                expiry_date: Some("2020-05-02".try_into().unwrap()),
                 flow_type: FlowType::PharmaceuticalDrugs,
             },
             identifier: Identifier {

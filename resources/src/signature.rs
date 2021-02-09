@@ -15,6 +15,8 @@
  *
  */
 
+use serde::{Deserialize, Serialize};
+
 use crate::primitives::Instant;
 
 pub trait WithSignature {
@@ -23,7 +25,7 @@ pub trait WithSignature {
     fn signatures_mut(&mut self) -> &mut Vec<Signature>;
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Signature {
     pub type_: Type,
     pub when: Instant,
@@ -32,7 +34,7 @@ pub struct Signature {
     pub format: Option<Format>,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum Type {
     AuthorsSignature,
     CoauthorsSignature,
@@ -54,7 +56,7 @@ pub enum Type {
     TimestampSignature,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum Format {
     Xml,
     Json,

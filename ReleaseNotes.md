@@ -1,3 +1,10 @@
+# Release 0.12.0
+Implemented features:
+* Implement Task GET for Supplier Interface
+* Audit-Events creation
+* Unique Prescription ID
+* Persist State to File
+
 # Release 0.11.0
 Implemented features:
 * Implement Task History

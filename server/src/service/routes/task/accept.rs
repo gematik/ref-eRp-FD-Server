@@ -19,24 +19,21 @@ use actix_web::{
     web::{Data, Path},
     HttpResponse,
 };
-use chrono::Utc;
 use resources::{
     bundle::{Bundle, Entry, Type},
     primitives::Id,
-    task::Status,
 };
 
-use crate::service::{
-    header::{Accept, Authorization, XAccessCode},
-    misc::{create_response, DataType, Profession},
+use crate::{
+    service::{
+        header::{Accept, Authorization, XAccessCode},
+        misc::{create_response, DataType, Profession},
+        AsReqErrResult, TypedRequestError, TypedRequestResult,
+    },
     state::State,
-    AsReqErr, AsReqErrResult, TypedRequestError, TypedRequestResult,
 };
 
-use super::{
-    misc::{random_id, Resource},
-    Error,
-};
+use super::misc::Resource;
 
 pub async fn accept(
     state: Data<State>,
@@ -58,56 +55,19 @@ pub async fn accept(
         .as_req_err()
         .err_with_type(accept)?;
 
-    let id = id.0;
+    let id = id.into_inner();
+    let agent = (&*access_token).into();
     let mut state = state.lock().await;
-    let mut task_meta = match state.tasks.get_mut(&id) {
-        Some(task_meta) => task_meta,
-        None => return Err(Error::NotFound(id).as_req_err().with_type(accept)),
-    };
-
-    let task = task_meta.history.get();
-    match &task.identifier.access_code {
-        Some(ac) if ac == &access_code.0 => (),
-        Some(_) => return Err(Error::Forbidden(id).as_req_err().with_type(accept)),
-        None => return Err(Error::Gone(id).as_req_err().with_type(accept)),
-    }
-
-    match task.status {
-        Status::Completed | Status::InProgress | Status::Draft => {
-            return Err(Error::Conflict(id).as_req_err().with_type(accept))
-        }
-        Status::Cancelled => return Err(Error::Gone(id).as_req_err().with_type(accept)),
-        _ => (),
-    }
-
-    task_meta.accept_timestamp = Some(Utc::now());
-
-    let mut task = task_meta.history.get_mut();
-    task.status = Status::InProgress;
-    task.identifier.secret = Some(random_id());
-
-    let e_prescription = task
-        .input
-        .e_prescription
-        .as_ref()
-        .ok_or(Error::EPrescriptionMissing)
-        .as_req_err()
-        .err_with_type(accept)?
-        .clone();
-    let e_prescription = state
-        .e_prescriptions
-        .get(&e_prescription)
-        .ok_or(Error::EPrescriptionNotFound(e_prescription))
+    let (task, e_prescription) = state
+        .task_accept(id, access_code, agent)
         .as_req_err()
         .err_with_type(accept)?;
 
-    let task_meta = state.tasks.get(&id).unwrap();
-    let v = task_meta.history.get_current();
     let mut bundle = Bundle::new(Type::Collection);
-    bundle.entries.push(Entry::new(Resource::TaskVersion(v)));
+    bundle.entries.push(Entry::new(Resource::TaskVersion(task)));
     bundle
         .entries
-        .push(Entry::new(Resource::Binary(&e_prescription.0)));
+        .push(Entry::new(Resource::KbvBinary(e_prescription)));
 
     create_response(&bundle, accept)
 }

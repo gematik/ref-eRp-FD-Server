@@ -15,25 +15,27 @@
  *
  */
 
+use serde::{Deserialize, Serialize};
+
 use super::{
     misc::{Kvnr, PrescriptionId, TelematikId},
     primitives::{DateTime, Id},
 };
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct MedicationDispense {
     pub id: Option<Id>,
     pub prescription_id: PrescriptionId,
     pub medication: String,
     pub subject: Kvnr,
-    pub supporting_information: Option<String>,
+    pub supporting_information: Vec<String>,
     pub performer: TelematikId,
     pub when_prepared: Option<DateTime>,
     pub when_handed_over: DateTime,
     pub dosage_instruction: Vec<DosageInstruction>,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct DosageInstruction {
     pub text: Option<String>,
 }

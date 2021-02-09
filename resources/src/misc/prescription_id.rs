@@ -18,8 +18,11 @@
 use std::convert::TryInto;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::str::FromStr;
+use std::sync::atomic::{AtomicU64, Ordering};
 
+use chrono::{DateTime, NaiveDateTime, Utc};
 use regex::Regex;
+use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
 use thiserror::Error;
 
 use super::super::types::FlowType;
@@ -27,7 +30,7 @@ use super::super::types::FlowType;
 #[derive(Debug, Clone, PartialEq)]
 pub struct PrescriptionId {
     flow_type: FlowType,
-    number: usize,
+    number: u64,
 }
 
 #[derive(Debug, Error)]
@@ -46,8 +49,40 @@ pub enum FromStrError {
 }
 
 impl PrescriptionId {
-    pub fn new(flow_type: FlowType, number: usize) -> Self {
+    pub fn new(flow_type: FlowType, number: u64) -> Self {
         Self { flow_type, number }
+    }
+
+    pub fn generate(flow_type: FlowType) -> Result<Self, ()> {
+        const MAX_COUNTER: u64 = 100;
+
+        static LAST_TIMESTAMP: AtomicU64 = AtomicU64::new(0);
+        static LAST_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+        let timestamp = timestamp();
+        let last_timestamp = LAST_TIMESTAMP
+            .fetch_update(Ordering::Acquire, Ordering::Acquire, |_| Some(timestamp))
+            .unwrap();
+
+        let counter = if timestamp != last_timestamp {
+            LAST_COUNTER.store(1, Ordering::Release);
+
+            0
+        } else {
+            let counter = LAST_COUNTER
+                .fetch_update(Ordering::Acquire, Ordering::Acquire, |c| c.checked_add(1))
+                .map_err(|_| ())?;
+
+            if counter >= MAX_COUNTER {
+                return Err(());
+            }
+
+            counter
+        };
+
+        let number = timestamp * MAX_COUNTER + counter;
+
+        Ok(Self::new(flow_type, number))
     }
 }
 
@@ -86,7 +121,7 @@ impl FromStr for PrescriptionId {
             return Err(FromStrError::InvalidChecksum);
         }
 
-        Ok(PrescriptionId::new(flow_type, number as usize))
+        Ok(PrescriptionId::new(flow_type, number))
     }
 }
 
@@ -108,6 +143,28 @@ impl Display for PrescriptionId {
         )
     }
 }
+impl Serialize for PrescriptionId {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let s = format!("{}", self);
+
+        serializer.serialize_str(&s)
+    }
+}
+
+impl<'de> Deserialize<'de> for PrescriptionId {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+
+        Self::from_str(&s)
+            .map_err(|err| D::Error::custom(format!("Invalid Prescription ID: {}", err)))
+    }
+}
 
 fn calc_iso_7064_checksum(value: u64) -> Option<u64> {
     const MODULO: u64 = 97;
@@ -123,6 +180,18 @@ fn verify_iso_7064_checksum(value: u64) -> bool {
     const MODULO: u64 = 97;
 
     (value % MODULO) == 1
+}
+
+fn timestamp() -> u64 {
+    const MAX_TIMESTAMP: u64 = 10_000_000_000;
+
+    // 01.01.2021 00:00:00
+    let start_timestamp = NaiveDateTime::from_timestamp(1_609_459_200, 0);
+    let start_timestamp = DateTime::<Utc>::from_utc(start_timestamp, Utc);
+
+    let timestamp = Utc::now() - start_timestamp;
+
+    timestamp.num_seconds() as u64 % MAX_TIMESTAMP
 }
 
 #[cfg(test)]

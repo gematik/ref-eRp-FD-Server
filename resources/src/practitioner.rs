@@ -15,12 +15,14 @@
  *
  */
 
+use serde::{Deserialize, Serialize};
+
 use super::{
     misc::{Code, Name},
     primitives::Id,
 };
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Practitioner {
     pub id: Id,
     pub identifier: Option<Identifier>,
@@ -28,13 +30,13 @@ pub struct Practitioner {
     pub qualification: Qualification,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Qualification {
     pub type_: Code,
     pub job_title: String,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Identifier {
     ANR(String),
     ZANR(String),

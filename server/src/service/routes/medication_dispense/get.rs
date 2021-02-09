@@ -26,16 +26,17 @@ use resources::{
     bundle::{Bundle, Entry, Relation, Type},
     misc::TelematikId,
     primitives::Id,
+    MedicationDispense,
 };
 
-use crate::service::{
-    header::{Accept, Authorization},
-    misc::{create_response, DataType, FromQuery, Profession, Query, QueryValue, Search, Sort},
+use crate::{
+    service::{
+        header::{Accept, Authorization},
+        misc::{create_response, DataType, FromQuery, Profession, Query, QueryValue, Search, Sort},
+        AsReqErrResult, TypedRequestError, TypedRequestResult,
+    },
     state::State,
-    AsReqErr, AsReqErrResult, TypedRequestError, TypedRequestResult,
 };
-
-use super::Error;
 
 #[derive(Default)]
 pub struct QueryArgs {
@@ -104,33 +105,9 @@ pub async fn get_all(
     let state = state.lock().await;
 
     // Collect results
-    let mut results = Vec::new();
-    for medication_dispense in state.medication_dispense.values() {
-        if medication_dispense.subject != kvnr {
-            continue;
-        }
-
-        for expected in &query.when_handed_over {
-            if !expected.matches(&medication_dispense.when_handed_over.clone().into()) {
-                continue;
-            }
-        }
-
-        for expected in &query.when_prepared {
-            match &medication_dispense.when_prepared {
-                Some(actual) if !expected.matches(&actual.clone().into()) => continue,
-                _ => (),
-            }
-        }
-
-        for expected in &query.performer {
-            if !expected.matches(&medication_dispense.performer) {
-                continue;
-            }
-        }
-
-        results.push(medication_dispense);
-    }
+    let mut results = state
+        .medication_dispense_iter(&kvnr, |md| check_query(&query, md))
+        .collect::<Vec<_>>();
 
     // Sort the result
     if let Some(sort) = &query.sort {
@@ -222,16 +199,35 @@ pub async fn get_one(
     let id = id.0;
     let kvnr = access_token.kvnr().as_req_err().err_with_type(accept)?;
     let state = state.lock().await;
-    let medication_dispense = match state.medication_dispense.get(&id) {
-        Some(medication_dispense) => medication_dispense,
-        None => return Err(Error::NotFound(id).as_req_err().with_type(accept)),
-    };
-
-    if medication_dispense.subject != kvnr {
-        return Err(Error::Forbidden(id).as_req_err().with_type(accept));
-    }
+    let medication_dispense = state
+        .medication_dispense_get(id, &kvnr)
+        .as_req_err()
+        .err_with_type(accept)?;
 
     create_response(medication_dispense, accept)
+}
+
+fn check_query(query: &QueryArgs, value: &MedicationDispense) -> bool {
+    for expected in &query.when_handed_over {
+        if !expected.matches(&value.when_handed_over.clone().into()) {
+            return false;
+        }
+    }
+
+    for expected in &query.when_prepared {
+        match &value.when_prepared {
+            Some(actual) if !expected.matches(&actual.clone().into()) => return false,
+            _ => (),
+        }
+    }
+
+    for expected in &query.performer {
+        if !expected.matches(&value.performer) {
+            return false;
+        }
+    }
+
+    true
 }
 
 fn make_uri(query: &str, page_id: usize) -> String {

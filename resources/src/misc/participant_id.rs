@@ -17,15 +17,33 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum InsuranceId {
-    Iknr(String),
+use super::{Kvnr, TelematikId};
+
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
+pub enum ParticipantId {
+    Kvnr(Kvnr),
+    TelematikId(TelematikId),
 }
 
-impl Into<String> for InsuranceId {
-    fn into(self) -> String {
+impl ParticipantId {
+    pub fn kvnr(&self) -> Option<&Kvnr> {
         match self {
-            Self::Iknr(s) => s,
+            Self::Kvnr(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn telematik_id(&self) -> Option<&TelematikId> {
+        match self {
+            Self::TelematikId(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn as_string(&self) -> &String {
+        match self {
+            Self::Kvnr(v) => v.as_string(),
+            Self::TelematikId(v) => v.as_string(),
         }
     }
 }

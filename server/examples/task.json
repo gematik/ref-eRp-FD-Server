@@ -16,11 +16,11 @@
         },
         {
             "url":"https://example.org/fhir/StructureDefinition/AcceptDate",
-            "valueDateTime":"2020-03-02T08:25:05+00:00"
+            "valueDate":"2020-03-02"
         },
         {
             "url":"https://gematik.de/fhir/StructureDefinition/ExpiryDate",
-            "valueDateTime":"2020-05-02T08:25:05+00:00"
+            "valueDate":"2020-05-02"
         }
     ],
     "identifier":[

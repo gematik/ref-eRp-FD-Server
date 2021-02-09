@@ -20,6 +20,7 @@ mod code;
 mod insurance_id;
 mod kvnr;
 mod name;
+mod participant_id;
 mod prescription_id;
 mod telematik_id;
 
@@ -28,5 +29,6 @@ pub use code::Code;
 pub use insurance_id::InsuranceId;
 pub use kvnr::Kvnr;
 pub use name::{Family, Name, Prefix};
+pub use participant_id::ParticipantId;
 pub use prescription_id::PrescriptionId;
 pub use telematik_id::TelematikId;

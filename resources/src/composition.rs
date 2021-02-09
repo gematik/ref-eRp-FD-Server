@@ -15,9 +15,11 @@
  *
  */
 
+use serde::{Deserialize, Serialize};
+
 use super::primitives::{DateTime, Id};
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Composition {
     pub id: Id,
     pub extension: Extension,
@@ -29,19 +31,19 @@ pub struct Composition {
     pub section: Section,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Extension {
     pub legal_basis: Option<LegalBasis>,
     pub pkv: Option<PKV>,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Author {
     pub doctor: String,
     pub prf: Option<String>,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Section {
     pub prescription: Option<String>,
     pub practice_supply: Option<String>,
@@ -49,7 +51,7 @@ pub struct Section {
     pub practitioner_role: Option<String>,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum LegalBasis {
     None,
     Asv,
@@ -61,7 +63,7 @@ pub enum LegalBasis {
     SubstituteRegulationWithTss,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum PKV {
     Standard,
     Basic,

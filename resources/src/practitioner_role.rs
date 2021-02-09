@@ -15,9 +15,11 @@
  *
  */
 
+use serde::{Deserialize, Serialize};
+
 use super::primitives::Id;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct PractitionerRole {
     pub id: Id,
     pub practitioner: String,

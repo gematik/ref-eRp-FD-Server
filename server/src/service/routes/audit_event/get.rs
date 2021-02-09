@@ -25,23 +25,22 @@ use chrono::{DateTime, Utc};
 use resources::{
     audit_event::{AuditEvent, SubType},
     bundle::{Bundle, Entry, Relation, Type},
-    misc::TelematikId,
     primitives::Id,
 };
 
-use crate::service::{
-    header::{Accept, Authorization},
-    misc::{create_response, DataType, FromQuery, Profession, Query, QueryValue, Search, Sort},
+use crate::{
+    service::{
+        header::{Accept, Authorization},
+        misc::{create_response, DataType, FromQuery, Profession, Query, QueryValue, Search, Sort},
+        AsReqErrResult, TypedRequestError, TypedRequestResult,
+    },
     state::State,
-    AsReqErr, AsReqErrResult, TypedRequestError, TypedRequestResult,
 };
-
-use super::Error;
 
 #[derive(Default, Debug)]
 pub struct QueryArgs {
     date: Vec<Search<DateTime<Utc>>>,
-    agent: Vec<Search<TelematikId>>,
+    agent: Vec<Search<String>>,
     sub_type: Vec<Search<SubType>>,
     sort: Option<Sort<SortArgs>>,
     count: Option<usize>,
@@ -108,12 +107,8 @@ pub async fn get_all(
     let kvnr = access_token.kvnr().as_req_err().err_with_type(accept)?;
 
     let state = state.lock().await;
-
-    // Find all communications
     let mut events: Vec<&AuditEvent> = state
-        .audit_events
-        .values()
-        .filter(|av| av.entity.name == kvnr && check_query(&query, av))
+        .audit_event_iter(&kvnr, |av| check_query(&query, av))
         .collect();
 
     // Sort the result
@@ -163,7 +158,7 @@ pub async fn get_all(
 
     for result in events.into_iter().skip(skip).take(take) {
         let mut entry = Entry::new(result);
-        entry.url = result.id.as_ref().map(|id| format!("/AuditEvent/{}", id));
+        entry.url = Some(format!("/AuditEvent/{}", &result.id));
 
         bundle.entries.push(entry);
     }
@@ -217,10 +212,10 @@ pub async fn get_one(
     let kvnr = access_token.kvnr().as_req_err().err_with_type(accept)?;
 
     let state = state.lock().await;
-    let event = match state.audit_events.get(&id) {
-        Some(event) if event.entity.name == kvnr => event,
-        _ => return Err(Error::NotFound(id).as_req_err().with_type(accept)),
-    };
+    let event = state
+        .audit_event_get(id, &kvnr)
+        .as_req_err()
+        .err_with_type(accept)?;
 
     create_response(event, accept)
 }
@@ -233,7 +228,11 @@ fn check_query(query: &QueryArgs, event: &AuditEvent) -> bool {
     }
 
     for qreceived in &query.agent {
-        if !qreceived.matches(&event.agent.who) {
+        if let Some(who) = &event.agent.who {
+            if !qreceived.matches(who.as_string()) {
+                return false;
+            }
+        } else {
             return false;
         }
     }

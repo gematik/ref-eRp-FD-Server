@@ -19,8 +19,10 @@ mod create;
 mod delete;
 mod error;
 mod get;
+mod state;
 
 pub use error::Error;
+pub use state::CommunicationRefMut;
 
 use create::create;
 use delete::delete_one;

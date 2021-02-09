@@ -15,9 +15,11 @@
  *
  */
 
+use serde::{Deserialize, Serialize};
+
 use super::{misc::Address, primitives::Id};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Organization {
     pub id: Id,
     pub name: Option<String>,
@@ -26,14 +28,14 @@ pub struct Organization {
     pub address: Option<Address>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Telecom {
     pub phone: String,
     pub fax: Option<String>,
     pub mail: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Identifier {
     IK(String),
     BS(String),

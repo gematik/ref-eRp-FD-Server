@@ -15,6 +15,8 @@
  *
  */
 
+use serde::{Deserialize, Serialize};
+
 use super::{
     misc::{InsuranceId, Kvnr, TelematikId},
     primitives::{DateTime, Id},
@@ -22,7 +24,7 @@ use super::{
     Medication,
 };
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum Communication {
     InfoReq(Inner<InfoReqExtensions, TelematikId, Kvnr>),
     Reply(Inner<ReplyExtensions, Kvnr, TelematikId>),
@@ -30,7 +32,7 @@ pub enum Communication {
     Representative(Inner<RepresentativeExtensions, Kvnr, Kvnr>),
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Inner<E, R, S>
 where
     E: Clone + PartialEq,
@@ -47,13 +49,13 @@ where
     pub payload: Payload<E>,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Payload<E: Clone + PartialEq> {
     pub content: String,
     pub extensions: Option<E>,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct InfoReqExtensions {
     pub insurance_provider: InsuranceId,
     pub substitution_allowed: bool,
@@ -61,28 +63,28 @@ pub struct InfoReqExtensions {
     pub preferred_supply_options: Option<SupplyOptions>,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct ReplyExtensions {
     pub availability: Option<Availability>,
     pub offered_supply_options: Option<SupplyOptions>,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct DispenseReqExtensions {
     pub insurance_provider: Option<InsuranceId>,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct RepresentativeExtensions;
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct SupplyOptions {
     pub on_premise: bool,
     pub delivery: bool,
     pub shipment: bool,
 }
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
 pub enum Availability {
     Now,
     Today,

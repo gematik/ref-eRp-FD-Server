@@ -10,10 +10,10 @@
         </valueCoding>
     </extension>
     <extension url="https://example.org/fhir/StructureDefinition/AcceptDate">
-        <valueDateTime value="2020-03-02T08:25:05+00:00"/>
+        <valueDate value="2020-03-02"/>
     </extension>
     <extension url="https://gematik.de/fhir/StructureDefinition/ExpiryDate">
-        <valueDateTime value="2020-05-02T08:25:05+00:00"/>
+        <valueDate value="2020-05-02"/>
     </extension>
     <identifier>
         <system value="https://gematik.de/fhir/NamingSystem/PrescriptionID"/>

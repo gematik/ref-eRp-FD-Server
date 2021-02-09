@@ -19,8 +19,7 @@ use actix_web::{
     web::{Data, Path, Query},
     HttpResponse,
 };
-use chrono::Utc;
-use resources::{primitives::Id, task::Status};
+use resources::primitives::Id;
 use serde::Deserialize;
 
 use crate::{
@@ -28,12 +27,10 @@ use crate::{
     service::{
         header::{Accept, Authorization, XAccessCode},
         misc::{create_response, DataType, Profession},
-        state::State,
-        AsReqErr, AsReqErrResult, TypedRequestError, TypedRequestResult,
+        AsReqErrResult, TypedRequestError, TypedRequestResult,
     },
+    state::State,
 };
-
-use super::Error;
 
 #[derive(Deserialize)]
 pub struct QueryArgs {
@@ -69,53 +66,17 @@ pub async fn abort(
         .as_req_err()
         .err_with_type(accept)?;
 
-    let id = id.0;
+    let id = id.into_inner();
     let kvnr = access_token.kvnr().ok();
-    let mut state = state.lock().await;
-    let task_meta = match state.get_task_mut(&id, &kvnr, &access_code) {
-        Some(Ok(task_meta)) => task_meta,
-        Some(Err(())) => return Err(Error::Forbidden(id).as_req_err().with_type(accept)),
-        None => return Err(Error::NotFound(id).as_req_err().with_type(accept)),
-    };
-
-    let task = task_meta.history.get();
     let is_pharmacy = access_token.is_pharmacy();
-    let is_in_progress = task.status == Status::InProgress;
+    let secret = query.into_inner().secret;
+    let agent = (&*access_token).into();
 
-    if is_pharmacy != is_in_progress {
-        return Err(Error::Forbidden(id).as_req_err().with_type(accept));
-    }
+    let mut state = state.lock().await;
+    let task = state
+        .task_abort(id, kvnr, access_code, is_pharmacy, secret, agent)
+        .as_req_err()
+        .err_with_type(accept)?;
 
-    if is_pharmacy && (query.secret.is_none() || task.identifier.secret != query.secret) {
-        return Err(Error::Forbidden(id).as_req_err().with_type(accept));
-    }
-
-    let mut task = task_meta.history.get_mut();
-    task.for_ = None;
-    task.status = Status::Cancelled;
-    task.identifier.secret = None;
-    task.identifier.access_code = None;
-    task.last_modified = Some(Utc::now().into());
-
-    let e_prescription = task.input.e_prescription.take();
-    let patient_receipt = task.input.patient_receipt.take();
-    let _receipt = task.output.receipt.take();
-
-    task_meta.history.clear();
-
-    let v = task_meta.history.get_current();
-    let res = match create_response(TaskContainer(v), accept) {
-        Ok(res) => res,
-        Err(err) => return Err(err),
-    };
-
-    if let Some(e_prescription) = e_prescription {
-        state.e_prescriptions.remove(&e_prescription);
-    }
-
-    if let Some(patient_receipt) = patient_receipt {
-        state.patient_receipts.remove(&patient_receipt);
-    }
-
-    Ok(res)
+    create_response(TaskContainer(task), accept)
 }

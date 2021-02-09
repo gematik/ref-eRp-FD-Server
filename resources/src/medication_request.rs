@@ -15,9 +15,11 @@
  *
  */
 
+use serde::{Deserialize, Serialize};
+
 use super::primitives::{Date, DateTime, Id};
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct MedicationRequest {
     pub id: Id,
     pub extension: Extension,
@@ -32,7 +34,7 @@ pub struct MedicationRequest {
     pub substitution_allowed: bool,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Extension {
     pub emergency_service_fee: bool,
     pub bvg: bool,
@@ -41,53 +43,53 @@ pub struct Extension {
     pub multi_prescription: Option<MultiPrescription>,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct MultiPrescription {
     pub series_element: SeriesElement,
     pub time_range: TimeRange,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct SeriesElement {
     pub numerator: usize,
     pub denominator: usize,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct TimeRange {
     pub start: Option<DateTime>,
     pub end: Option<DateTime>,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct AccidentInformation {
     pub cause: AccidentCause,
     pub date: Date,
     pub business: Option<String>,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Dosage {
     pub dosage_mark: Option<bool>,
     pub text: Option<String>,
     pub patient_instruction: Option<String>,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct DispenseRequest {
     pub quantity: usize,
     pub validity_period_start: Option<DateTime>,
     pub validity_period_end: Option<DateTime>,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum CoPayment {
     NotExceptFrom,
     ExceptFrom,
     ArtificialFertilization,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum AccidentCause {
     Accident,
     WorkAccident,

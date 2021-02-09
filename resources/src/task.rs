@@ -15,13 +15,15 @@
  *
  */
 
+use serde::{Deserialize, Serialize};
+
 use super::{
     misc::{Kvnr, PrescriptionId},
-    primitives::{DateTime, Id},
+    primitives::{Date, DateTime, Id},
     types::{FlowType, PerformerType},
 };
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Task {
     pub id: Option<Id>,
     pub extension: Extension,
@@ -35,7 +37,7 @@ pub struct Task {
     pub output: Output,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TaskCreateParameters {
     pub flow_type: FlowType,
 }
@@ -45,32 +47,32 @@ pub struct TaskActivateParameters {
     pub data: String,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Extension {
     pub flow_type: FlowType,
-    pub accept_date: Option<DateTime>,
-    pub expiry_date: Option<DateTime>,
+    pub accept_date: Option<Date>,
+    pub expiry_date: Option<Date>,
 }
 
-#[derive(Clone, Default, Debug, PartialEq)]
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Identifier {
     pub prescription_id: Option<PrescriptionId>,
     pub access_code: Option<String>,
     pub secret: Option<String>,
 }
 
-#[derive(Clone, Default, Debug, PartialEq)]
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Input {
     pub e_prescription: Option<Id>,
     pub patient_receipt: Option<Id>,
 }
 
-#[derive(Clone, Default, Debug, PartialEq)]
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Output {
     pub receipt: Option<Id>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Status {
     Draft,
     Requested,

@@ -28,14 +28,16 @@ use resources::{
     Communication,
 };
 
-use crate::service::{
-    header::{Accept, Authorization},
-    misc::{create_response, DataType, FromQuery, Profession, Query, QueryValue, Search, Sort},
-    state::{CommunicationMatch, State},
-    AsReqErr, AsReqErrResult, TypedRequestError, TypedRequestResult,
+use crate::{
+    service::{
+        header::{Accept, Authorization},
+        misc::{create_response, DataType, FromQuery, Profession, Query, QueryValue, Search, Sort},
+        AsReqErrResult, TypedRequestError, TypedRequestResult,
+    },
+    state::State,
 };
 
-use super::Error;
+use super::CommunicationRefMut;
 
 #[derive(Default, Debug)]
 pub struct QueryArgs {
@@ -50,9 +52,9 @@ impl FromQuery for QueryArgs {
     fn parse_key_value_pair(&mut self, key: &str, value: QueryValue<'_>) -> Result<(), String> {
         match key {
             "sent" => self.sent.push(value.ok()?.parse()?),
-            "received" => self.sent.push(value.ok()?.parse()?),
-            "sender" => self.sent.push(value.ok()?.parse()?),
-            "recipient" => self.sent.push(value.ok()?.parse()?),
+            "received" => self.received.push(value.ok()?.parse()?),
+            "sender" => self.sender.push(value.ok()?.parse()?),
+            "recipient" => self.recipient.push(value.ok()?.parse()?),
             "_sort" => self.sort = Some(value.ok()?.parse()?),
             _ => (),
         }
@@ -106,36 +108,20 @@ pub async fn get_all(
         .err_with_type(accept)?;
 
     let query = query.0;
-    let kvnr = access_token.kvnr().ok();
-    let telematik_id = access_token.telematik_id().ok();
-
-    let mut state = state.lock().await;
+    let participant_id = access_token.id().as_req_err().err_with_type(accept)?;
 
     // Find all communications
-    let mut communications: Vec<&Communication> = Vec::new();
-    for communication in state.iter_communications(kvnr, telematik_id) {
-        match communication {
-            CommunicationMatch::Sender(c) => {
-                if check_query(&query, c) {
-                    communications.push(c);
-                }
-            }
-            CommunicationMatch::Recipient(c) => {
-                if check_query(&query, c) {
-                    if c.received().is_none() {
-                        c.set_received(Utc::now().into());
-                    }
-
-                    communications.push(c);
-                }
-            }
-            _ => unreachable!(),
-        }
-    }
+    let mut state = state.lock().await;
+    let mut communications = state
+        .communication_iter_mut(participant_id, |c| check_query(&query, c))
+        .collect::<Vec<_>>();
 
     // Sort the result
     if let Some(sort) = &query.sort {
         communications.sort_by(|a, b| {
+            let a = &*a;
+            let b = &*b;
+
             sort.cmp(|arg| match arg {
                 SortArgs::Sent => {
                     let a: Option<DateTime<Utc>> = a.sent().clone().map(Into::into);
@@ -168,6 +154,17 @@ pub async fn get_all(
     // Generate the response
     let mut bundle = Bundle::new(Type::Searchset);
     for c in communications {
+        let c = match c {
+            CommunicationRefMut::Sender(c) => &*c,
+            CommunicationRefMut::Recipient(c) => {
+                if c.received().is_none() {
+                    c.set_received(Utc::now().into());
+                }
+
+                &*c
+            }
+        };
+
         bundle.entries.push(Entry::new(c));
     }
 
@@ -197,28 +194,26 @@ pub async fn get_one(
         .err_with_type(accept)?;
 
     let id = id.into_inner();
-    let kvnr = access_token.kvnr().ok();
-    let telematik_id = access_token.telematik_id().ok();
+    let participant_id = access_token.id().as_req_err().err_with_type(accept)?;
 
     let mut state = state.lock().await;
-    let communication = match state.get_communication(&id, &kvnr, &telematik_id) {
-        CommunicationMatch::NotFound => {
-            return Err(Error::NotFound(id).as_req_err().with_type(accept))
-        }
-        CommunicationMatch::Unauthorized => {
-            return Err(Error::Unauthorized(id).as_req_err().with_type(accept))
-        }
-        CommunicationMatch::Sender(c) => c,
-        CommunicationMatch::Recipient(c) => {
+    let communication = state
+        .communication_get_mut(id, &participant_id)
+        .as_req_err()
+        .err_with_type(accept)?;
+
+    let communication = match communication {
+        CommunicationRefMut::Sender(c) => &*c,
+        CommunicationRefMut::Recipient(c) => {
             if c.received().is_none() {
                 c.set_received(Utc::now().into());
             }
 
-            c
+            &*c
         }
     };
 
-    create_response(&*communication, accept)
+    create_response(communication, accept)
 }
 
 fn check_query(query: &QueryArgs, communication: &Communication) -> bool {

@@ -19,10 +19,22 @@ use std::convert::TryFrom;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::ops::Deref;
 
+use chrono::{Date as ChronoDate, TimeZone};
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Date(String);
+
+impl<TZ> From<ChronoDate<TZ>> for Date
+where
+    TZ: TimeZone,
+    <TZ as TimeZone>::Offset: Display,
+{
+    fn from(v: ChronoDate<TZ>) -> Self {
+        Self(format!("{}", v.format("%Y-%m-%d")))
+    }
+}
 
 impl TryFrom<&str> for Date {
     type Error = String;

@@ -30,11 +30,16 @@ use resources::{
 };
 use serde::Deserialize;
 
-use crate::service::{
-    header::{Accept, Authorization, XAccessCode},
-    misc::{create_response, DataType, FromQuery, Profession, Query, QueryValue, Search, Sort},
-    state::State,
-    AsReqErr, AsReqErrResult, TypedRequestError, TypedRequestResult,
+use crate::{
+    service::{
+        header::{Accept, Authorization, XAccessCode},
+        misc::{
+            create_response, AccessToken, DataType, FromQuery, Profession, Query, QueryValue,
+            Search, Sort,
+        },
+        AsReqErrResult, TypedRequestError, TypedRequestResult,
+    },
+    state::{Inner as StateInner, State, Version},
 };
 
 use super::{misc::Resource, Error};
@@ -177,53 +182,48 @@ async fn get(
         .as_req_err()
         .err_with_type(accept)?;
 
-    let kvnr = access_token.kvnr().ok();
-    let state = state.lock().await;
+    let kvnr = Some(access_token.kvnr().as_req_err().err_with_type(accept)?);
+    let agent = (&*access_token).into();
+    let mut state = state.lock().await;
 
-    let bundle = match reference {
+    match reference {
         TaskReference::One(id) => {
-            let task_meta = match state.get_task(&id, &kvnr, &access_code) {
-                Some(Ok(task_meta)) => task_meta,
-                Some(Err(())) => return Err(Error::Forbidden(id).as_req_err().with_type(accept)),
-                None => return Err(Error::NotFound(id).as_req_err().with_type(accept)),
-            };
-
-            let v = task_meta.history.get_current();
+            let (state, task) = state
+                .task_get(id, None, kvnr, access_code, agent)
+                .as_req_err()
+                .err_with_type(accept)?;
 
             let mut bundle = Bundle::new(Type::Searchset);
-            bundle.entries.push(Entry::new(Resource::TaskVersion(v)));
+            add_task_to_bundle(&mut bundle, &task, &access_token, Some(&state))
+                .as_req_err()
+                .err_with_type(accept)?;
 
-            bundle
+            create_response(&bundle, accept)
         }
-        TaskReference::Version(id, version) => {
-            let task_meta = match state.get_task(&id, &kvnr, &access_code) {
-                Some(Ok(task_meta)) => task_meta,
-                Some(Err(())) => return Err(Error::Forbidden(id).as_req_err().with_type(accept)),
-                None => return Err(Error::NotFound(id).as_req_err().with_type(accept)),
-            };
-
-            let v = match task_meta.history.get_version(version) {
-                Some(v) => v,
-                None => return Err(Error::Gone(id).as_req_err().with_type(accept)),
-            };
+        TaskReference::Version(id, version_id) => {
+            let (_, task) = state
+                .task_get(id, Some(version_id), kvnr, access_code, agent)
+                .as_req_err()
+                .err_with_type(accept)?;
 
             let mut bundle = Bundle::new(Type::Searchset);
-            bundle.entries.push(Entry::new(Resource::TaskVersion(v)));
+            add_task_to_bundle(&mut bundle, &task, &access_token, None)
+                .as_req_err()
+                .err_with_type(accept)?;
 
-            bundle
+            create_response(&bundle, accept)
         }
         TaskReference::All => {
-            let mut tasks = Vec::new();
-            for task_meta in state.iter_tasks(kvnr, access_code) {
-                let v = task_meta.history.get_current();
-                if check_query(&query, &v.resource) {
-                    tasks.push(v);
-                }
-            }
+            let mut tasks = state
+                .task_iter(kvnr, access_code, agent, |t| check_query(&query, t))
+                .collect::<Vec<_>>();
 
             // Sort the result
             if let Some(sort) = &query.sort {
                 tasks.sort_by(|a, b| {
+                    let a = a.unlogged();
+                    let b = b.unlogged();
+
                     sort.cmp(|arg| match arg {
                         SortArgs::AuthoredOn => {
                             let a: Option<DateTime<Utc>> =
@@ -254,20 +254,10 @@ async fn get(
             };
 
             let mut bundle = Bundle::new(Type::Searchset);
-            for v in tasks.iter().skip(skip).take(take) {
-                bundle.entries.push(Entry::new(Resource::TaskVersion(v)));
-
-                if let Some(id) = v.resource.input.e_prescription.as_ref() {
-                    if let Some(res) = state.e_prescriptions.get(id) {
-                        bundle.entries.push(Entry::new(Resource::Binary(&res.0)));
-                    }
-                }
-
-                if let Some(id) = v.resource.input.patient_receipt.as_ref() {
-                    if let Some(res) = state.patient_receipts.get(id) {
-                        bundle.entries.push(Entry::new(Resource::Bundle(res)));
-                    }
-                }
+            for task in tasks.iter().skip(skip).take(take) {
+                add_task_to_bundle(&mut bundle, &task, &access_token, None)
+                    .as_req_err()
+                    .err_with_type(accept)?;
             }
 
             bundle.total = Some(tasks.len());
@@ -296,11 +286,9 @@ async fn get(
                 }
             }
 
-            bundle
+            create_response(&bundle, accept)
         }
-    };
-
-    create_response(&bundle, accept)
+    }
 }
 
 fn check_query(query: &QueryArgs, task: &Task) -> bool {
@@ -335,4 +323,66 @@ fn make_uri(query: &str, page_id: usize) -> String {
     } else {
         format!("/Task?{}&pageId={}", query, page_id)
     }
+}
+
+fn add_task_to_bundle<'b, 's>(
+    bundle: &'b mut Bundle<Resource<'s>>,
+    task: &'s Version<Task>,
+    access_token: &AccessToken,
+    state: Option<&'s StateInner>,
+) -> Result<(), Error>
+where
+    's: 'b,
+{
+    bundle.entries.push(Entry::new(Resource::TaskVersion(task)));
+
+    let state = match state {
+        Some(state) => state,
+        None => return Ok(()),
+    };
+
+    #[cfg(feature = "interface-supplier")]
+    {
+        if access_token.is_pharmacy() {
+            if let Some(id) = task.resource.output.receipt.as_ref() {
+                let receipt = state
+                    .erx_receipts
+                    .get(id)
+                    .ok_or_else(|| Error::ErxReceiptNotFound(id.clone()))?;
+
+                bundle
+                    .entries
+                    .push(Entry::new(Resource::ErxBundle(receipt)));
+            }
+        }
+    }
+
+    #[cfg(feature = "interface-patient")]
+    {
+        if access_token.is_patient() {
+            if let Some(id) = task.resource.input.patient_receipt.as_ref() {
+                let patient_receipt = state
+                    .patient_receipts
+                    .get(id)
+                    .ok_or_else(|| Error::PatientReceiptNotFound(id.clone()))?;
+
+                bundle
+                    .entries
+                    .push(Entry::new(Resource::KbvBundle(patient_receipt)));
+            }
+
+            if let Some(id) = task.resource.output.receipt.as_ref() {
+                let receipt = state
+                    .erx_receipts
+                    .get(id)
+                    .ok_or_else(|| Error::ErxReceiptNotFound(id.clone()))?;
+
+                bundle
+                    .entries
+                    .push(Entry::new(Resource::ErxBundle(receipt)));
+            }
+        }
+    }
+
+    Ok(())
 }

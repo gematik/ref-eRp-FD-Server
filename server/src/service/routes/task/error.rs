@@ -18,18 +18,23 @@
 use resources::primitives::Id;
 use thiserror::Error;
 
+use crate::fhir::security::SignedError;
+
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("Not Found: {0}!")]
+    #[error("Signed Error: {0}")]
+    SignedError(SignedError),
+
+    #[error("Not Found: /Task/{0}!")]
     NotFound(Id),
 
-    #[error("Forbidden: {0}!")]
+    #[error("Forbidden: /Task/{0}!")]
     Forbidden(Id),
 
-    #[error("Conflict: {0}!")]
+    #[error("Conflict: /Task/{0}!")]
     Conflict(Id),
 
-    #[error("Gone: {0}!")]
+    #[error("Gone: /Task/{0}!")]
     Gone(Id),
 
     #[error("Missing e-Prescription Reference!")]
@@ -44,11 +49,20 @@ pub enum Error {
     #[error("ePrescription with this ID ({0}) was already registered!")]
     EPrescriptionAlreadyRegistered(Id),
 
+    #[error("Referenced Patient Receipt was not found: {0}!")]
+    PatientReceiptNotFound(Id),
+
+    #[error("Referenced Erx Receipt was not found: {0}!")]
+    ErxReceiptNotFound(Id),
+
     #[error("Bundle is missing an KV-Nr.!")]
     KvnrMissing,
 
     #[error("Bundle contains an invalid KV-Nr.!")]
     KvnrInvalid,
+
+    #[error("Unablt to convert Access Token to Audit Event Agent!")]
+    AuditEventAgentInvalid,
 
     #[error("Task is missing the Subject!")]
     SubjectMissing,
@@ -67,4 +81,13 @@ pub enum Error {
 
     #[error("Invalid URL: {0}!")]
     InvalidUrl(String),
+
+    #[error("Unable to generate prescription id (try again later)!")]
+    GeneratePrescriptionId,
+}
+
+impl From<SignedError> for Error {
+    fn from(err: SignedError) -> Self {
+        Self::SignedError(err)
+    }
 }

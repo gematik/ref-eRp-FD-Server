@@ -17,44 +17,48 @@
 
 use std::str::FromStr;
 
+use serde::{Deserialize, Serialize};
+
 use super::{
-    misc::{Kvnr, PrescriptionId, TelematikId},
+    misc::{Kvnr, ParticipantId, PrescriptionId},
     primitives::{Id, Instant},
 };
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct AuditEvent {
-    pub id: Option<Id>,
+    pub id: Id,
+    pub text: Option<String>,
     pub sub_type: SubType,
     pub action: Action,
     pub recorded: Instant,
     pub outcome: Outcome,
+    pub outcome_description: Option<String>,
     pub agent: Agent,
     pub source: Source,
     pub entity: Entity,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Agent {
     pub type_: ParticipationRoleType,
-    pub who: TelematikId,
+    pub who: Option<ParticipantId>,
     pub name: String,
     pub requestor: bool,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Source {
     pub observer: String,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Entity {
     pub what: String,
     pub name: Kvnr,
     pub description: PrescriptionId,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Action {
     Create,
     Read,
@@ -63,7 +67,7 @@ pub enum Action {
     Execute,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Outcome {
     Success,
     MinorFailure,
@@ -71,12 +75,12 @@ pub enum Outcome {
     MajorFailure,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ParticipationRoleType {
     HumanUser,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 pub enum SubType {
     Read,
     VRead,

@@ -20,10 +20,11 @@ use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::ops::Deref;
 
 use chrono::{DateTime as ChronoDateTime, TimeZone, Utc};
+use serde::{Deserialize, Serialize};
 
 use regex::Regex;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DateTime(String);
 
 impl<TZ> From<ChronoDateTime<TZ>> for DateTime

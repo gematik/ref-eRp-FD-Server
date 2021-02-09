@@ -15,13 +15,15 @@
  *
  */
 
+use serde::{Deserialize, Serialize};
+
 use super::{
     misc::PrescriptionId,
     primitives::{Id, Instant},
     Device, ErxComposition, Signature, WithSignature,
 };
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct ErxBundle {
     pub id: Id,
     pub identifier: PrescriptionId,
@@ -30,7 +32,7 @@ pub struct ErxBundle {
     pub signature: Vec<Signature>,
 }
 
-#[derive(Default, Clone, PartialEq, Debug)]
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Entry {
     pub composition: Option<ErxComposition>,
     pub device: Option<Device>,

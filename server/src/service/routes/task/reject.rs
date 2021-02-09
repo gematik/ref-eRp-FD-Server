@@ -19,7 +19,7 @@ use actix_web::{
     web::{Data, Path, Query},
     HttpResponse,
 };
-use resources::{primitives::Id, task::Status};
+use resources::primitives::Id;
 use serde::Deserialize;
 
 use crate::{
@@ -27,12 +27,10 @@ use crate::{
     service::{
         header::{Accept, Authorization},
         misc::{create_response, DataType, Profession},
-        state::State,
-        AsReqErr, AsReqErrResult, TypedRequestError, TypedRequestResult,
+        AsReqErrResult, TypedRequestError, TypedRequestResult,
     },
+    state::State,
 };
-
-use super::Error;
 
 #[derive(Deserialize)]
 pub struct QueryArgs {
@@ -59,24 +57,14 @@ pub async fn reject(
         .as_req_err()
         .err_with_type(accept)?;
 
-    let id = id.0;
+    let id = id.into_inner();
+    let secret = query.into_inner().secret;
+    let agent = (&*access_token).into();
     let mut state = state.lock().await;
-    let mut task_meta = match state.tasks.get_mut(&id) {
-        Some(task_meta) => task_meta,
-        None => return Err(Error::NotFound(id).as_req_err().with_type(accept)),
-    };
+    let task = state
+        .task_reject(id, secret, agent)
+        .as_req_err()
+        .err_with_type(accept)?;
 
-    let task = task_meta.history.get();
-    if task.status != Status::InProgress || task.identifier.secret != query.secret {
-        return Err(Error::Forbidden(id).as_req_err().with_type(accept));
-    }
-
-    task_meta.accept_timestamp = None;
-
-    let mut task = task_meta.history.get_mut();
-    task.status = Status::Ready;
-    task.identifier.secret = None;
-
-    let v = task_meta.history.get_current();
-    create_response(TaskContainer(v), accept)
+    create_response(TaskContainer(task), accept)
 }

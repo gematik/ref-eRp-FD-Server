@@ -15,24 +15,18 @@
  *
  */
 
-use std::collections::hash_map::Entry;
-use std::ops::Deref;
-
 use actix_web::{
     http::StatusCode,
     web::{Data, Payload},
     HttpResponse,
 };
-use chrono::Utc;
-use resources::{primitives::Id, task::Status, Communication};
+use resources::Communication;
 
 use crate::service::{
     header::{Accept, Authorization, ContentType},
     misc::{access_token::Profession, create_response_with, read_payload, DataType},
-    AsReqErr, AsReqErrResult, State, TypedRequestError, TypedRequestResult,
+    AsReqErrResult, State, TypedRequestError, TypedRequestResult,
 };
-
-use super::Error;
 
 pub async fn create(
     state: Data<State>,
@@ -58,85 +52,16 @@ pub async fn create(
         .as_req_err()
         .err_with_type(accept)?;
 
-    let mut communication = read_payload::<Communication>(data_type, payload)
+    let participant_id = access_token.id().as_req_err().err_with_type(accept)?;
+    let communication = read_payload::<Communication>(data_type, payload)
         .await
         .err_with_type(accept)?;
 
-    if communication.content().as_bytes().len() > MAX_CONTENT_SIZE {
-        return Err(Error::ContentSizeExceeded.as_req_err().with_type(accept));
-    }
-
-    if let Communication::DispenseReq(c) = &communication {
-        if c.based_on.is_none() {
-            return Err(Error::MissingFieldBasedOn.as_req_err().with_type(accept));
-        }
-    }
-
-    communication.set_id(Some(Id::generate().unwrap()));
-    communication.set_sent(Utc::now().into());
-    match &mut communication {
-        Communication::InfoReq(c) => {
-            c.sender = Some(access_token.kvnr().as_req_err().err_with_type(accept)?)
-        }
-        Communication::Reply(c) => {
-            c.sender = Some(
-                access_token
-                    .telematik_id()
-                    .as_req_err()
-                    .err_with_type(accept)?,
-            )
-        }
-        Communication::DispenseReq(c) => {
-            c.sender = Some(access_token.kvnr().as_req_err().err_with_type(accept)?)
-        }
-        Communication::Representative(c) => {
-            c.sender = Some(access_token.kvnr().as_req_err().err_with_type(accept)?)
-        }
-    }
-
-    let sender_eq_recipient = match &mut communication {
-        Communication::InfoReq(c) => c.recipient.deref() == c.sender.as_deref().unwrap(),
-        Communication::Reply(c) => c.recipient.deref() == c.sender.as_deref().unwrap(),
-        Communication::DispenseReq(c) => c.recipient.deref() == c.sender.as_deref().unwrap(),
-        Communication::Representative(c) => c.recipient.deref() == c.sender.as_deref().unwrap(),
-    };
-
-    if sender_eq_recipient {
-        return Err(Error::SenderNotEqualRecipient
-            .as_req_err()
-            .with_type(accept));
-    }
-
     let mut state = state.lock().await;
-
-    if let Some(based_on) = communication.based_on() {
-        let (task_id, access_code) = State::parse_task_url(&based_on).err_with_type(accept)?;
-
-        let kvnr = access_token.kvnr().ok();
-
-        let task_meta = state
-            .get_task(&task_id, &kvnr, &access_code)
-            .ok_or_else(|| Error::UnknownTask(task_id).as_req_err().with_type(accept))?
-            .map_err(|()| Error::UnauthorizedTaskAccess.as_req_err().with_type(accept))?;
-
-        let task = task_meta.history.get();
-        match (&communication, task.status) {
-            (Communication::Representative(_), Status::Ready) => (),
-            (Communication::Representative(_), Status::InProgress) => (),
-            (Communication::Representative(_), _) => {
-                return Err(Error::InvalidTaskStatus.as_req_err().with_type(accept))
-            }
-            (_, _) => (),
-        }
-    }
-
-    let id = communication.id().clone().unwrap();
-    let communication = match state.communications.entry(id) {
-        Entry::Occupied(entry) => entry.into_mut(),
-        Entry::Vacant(entry) => entry.insert(communication),
-    };
+    let communication = state
+        .communication_create(participant_id, communication)
+        .as_req_err()
+        .err_with_type(accept)?;
 
     create_response_with(&*communication, accept, StatusCode::CREATED, |_| ())
 }
-
-const MAX_CONTENT_SIZE: usize = 10 * 1024;

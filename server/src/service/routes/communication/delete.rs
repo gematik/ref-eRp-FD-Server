@@ -21,14 +21,14 @@ use actix_web::{
 };
 use resources::primitives::Id;
 
-use crate::service::{
-    header::{Accept, Authorization},
-    misc::{DataType, Profession},
-    state::{CommunicationMatch, State},
-    AsReqErr, AsReqErrResult, TypedRequestError, TypedRequestResult,
+use crate::{
+    service::{
+        header::{Accept, Authorization},
+        misc::{DataType, Profession},
+        AsReqErrResult, TypedRequestError, TypedRequestResult,
+    },
+    state::State,
 };
-
-use super::Error;
 
 pub async fn delete_one(
     state: Data<State>,
@@ -53,21 +53,13 @@ pub async fn delete_one(
         .err_with_type(accept)?;
 
     let id = id.into_inner();
-    let kvnr = access_token.kvnr().ok();
-    let telematik_id = access_token.telematik_id().ok();
+    let participant_id = access_token.id().as_req_err().err_with_type(accept)?;
 
     let mut state = state.lock().await;
-    match state.get_communication(&id, &kvnr, &telematik_id) {
-        CommunicationMatch::NotFound => {
-            return Err(Error::NotFound(id).as_req_err().with_type(accept))
-        }
-        CommunicationMatch::Unauthorized | CommunicationMatch::Recipient(_) => {
-            return Err(Error::Unauthorized(id).as_req_err().with_type(accept))
-        }
-        CommunicationMatch::Sender(_) => (),
-    }
-
-    state.communications.remove(&id);
+    state
+        .communication_delete(id, &participant_id)
+        .as_req_err()
+        .err_with_type(accept)?;
 
     Ok(HttpResponse::NoContent().finish())
 }

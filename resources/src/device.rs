@@ -15,9 +15,11 @@
  *
  */
 
+use serde::{Deserialize, Serialize};
+
 use super::primitives::Id;
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Device {
     pub id: Id,
     pub status: Status,
@@ -26,13 +28,13 @@ pub struct Device {
     pub version: String,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct DeviceName {
     pub name: String,
     pub type_: Type,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum Status {
     Active,
     Inactive,
@@ -40,7 +42,7 @@ pub enum Status {
     Unknown,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum Type {
     UdiLabelName,
     UserFriendlyName,

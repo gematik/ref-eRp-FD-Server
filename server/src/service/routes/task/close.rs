@@ -15,29 +15,21 @@
  *
  */
 
-use std::collections::hash_map::Entry;
-
 use actix_web::{
     web::{Data, Path, Payload, Query},
     HttpResponse,
 };
-use chrono::Utc;
-use resources::{
-    erx_bundle::{Entry as ErxEntry, ErxBundle},
-    primitives::Id,
-    task::Status,
-    ErxComposition, MedicationDispense,
-};
+use resources::{primitives::Id, MedicationDispense};
 use serde::Deserialize;
 
-use crate::service::{
-    header::{Accept, Authorization, ContentType},
-    misc::{create_response, read_payload, DataType, Profession, DEVICE},
+use crate::{
+    service::{
+        header::{Accept, Authorization, ContentType},
+        misc::{create_response, read_payload, DataType, Profession},
+        AsReqErrResult, TypedRequestError, TypedRequestResult,
+    },
     state::State,
-    AsReqErr, AsReqErrResult, TypedRequestError, TypedRequestResult,
 };
-
-use super::Error;
 
 #[derive(Deserialize)]
 pub struct QueryArgs {
@@ -67,103 +59,22 @@ pub async fn close(
         .as_req_err()
         .err_with_type(accept)?;
 
-    let id = id.0;
-    let mut medication_dispense = read_payload::<MedicationDispense>(data_type, payload)
-        .await
-        .err_with_type(accept)?;
-    let mut state = state.lock().await;
-    let task_meta = match state.tasks.get_mut(&id) {
-        Some(task_meta) => task_meta,
-        None => return Err(Error::NotFound(id).as_req_err().with_type(accept)),
-    };
-
-    let task = task_meta.history.get();
-    let prescription_id = task
-        .identifier
-        .prescription_id
-        .as_ref()
-        .ok_or(Error::EPrescriptionMissing)
-        .as_req_err()
-        .err_with_type(accept)?;
-    if &medication_dispense.prescription_id != prescription_id {
-        return Err(Error::EPrescriptionMismatch.as_req_err().with_type(accept));
-    }
-
-    let subject = task
-        .for_
-        .as_ref()
-        .ok_or(Error::SubjectMissing)
-        .as_req_err()
-        .err_with_type(accept)?;
-    if &medication_dispense.subject != subject {
-        return Err(Error::SubjectMismatch.as_req_err().with_type(accept));
-    }
-
+    let id = id.into_inner();
+    let secret = query.into_inner().secret;
     let performer = access_token
         .telematik_id()
         .as_req_err()
         .err_with_type(accept)?;
-    if medication_dispense.performer != performer {
-        return Err(Error::PerformerMismatch.as_req_err().with_type(accept));
-    }
+    let medication_dispense = read_payload::<MedicationDispense>(data_type, payload)
+        .await
+        .err_with_type(accept)?;
+    let agent = (&*access_token).into();
 
-    if task.status != Status::InProgress || task.identifier.secret != query.secret {
-        return Err(Error::Forbidden(id).as_req_err().with_type(accept));
-    }
+    let mut state = state.lock().await;
+    let erx_bundle = state
+        .task_close(id, secret, performer, medication_dispense, agent)
+        .as_req_err()
+        .err_with_type(accept)?;
 
-    let now = Utc::now();
-    let erx_bundle = ErxBundle {
-        id: Id::generate().unwrap(),
-        identifier: prescription_id.clone(),
-        timestamp: Utc::now().into(),
-        entry: ErxEntry {
-            composition: Some(ErxComposition {
-                beneficiary: performer,
-                date: now.clone().into(),
-                author: DEVICE.id.clone().into(),
-                event_start: task_meta
-                    .accept_timestamp
-                    .ok_or(Error::AcceptTimestampMissing)
-                    .as_req_err()
-                    .err_with_type(accept)?
-                    .into(),
-                event_end: now.into(),
-            }),
-            device: Some(DEVICE.clone()),
-        },
-        signature: vec![],
-    };
-
-    medication_dispense.id = Some(Id::generate().unwrap());
-    medication_dispense.supporting_information = Some(format!("/Task/{}", id));
-
-    let task = task_meta.history.get_mut();
-    task.status = Status::Completed;
-    task.output.receipt = Some(erx_bundle.id.clone());
-
-    state.remove_communications(&id);
-
-    match state
-        .medication_dispense
-        .entry(medication_dispense.id.as_ref().unwrap().clone())
-    {
-        Entry::Occupied(_) => {
-            panic!(
-                "Medication dispense with this ID ({}) already exists!",
-                medication_dispense.id.unwrap()
-            );
-        }
-        Entry::Vacant(entry) => {
-            entry.insert(medication_dispense);
-        }
-    };
-
-    let erx_bundle = match state.erx_receipts.entry(erx_bundle.id.clone()) {
-        Entry::Occupied(_) => {
-            panic!("ErxBundle with this ID ({}) already exists!", erx_bundle.id);
-        }
-        Entry::Vacant(entry) => entry.insert(erx_bundle),
-    };
-
-    create_response(&*erx_bundle, accept)
+    create_response(erx_bundle, accept)
 }

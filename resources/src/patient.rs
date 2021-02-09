@@ -17,12 +17,14 @@
 
 use std::convert::TryInto;
 
+use serde::{Deserialize, Serialize};
+
 use super::{
     misc::{Address, Kvnr, Name},
     primitives::{Date, Id},
 };
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Patient {
     pub id: Id,
     pub identifier: Option<Identifier>,
@@ -31,7 +33,7 @@ pub struct Patient {
     pub address: Address,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Identifier {
     GKV {
         value: Kvnr,

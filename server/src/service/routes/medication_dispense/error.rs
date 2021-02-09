@@ -20,9 +20,9 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("Not Found: {0}!")]
+    #[error("Not Found: /MedicationDispense/{0}!")]
     NotFound(Id),
 
-    #[error("Forbidden: {0}!")]
+    #[error("Forbidden: /MedicationDispense/{0}!")]
     Forbidden(Id),
 }

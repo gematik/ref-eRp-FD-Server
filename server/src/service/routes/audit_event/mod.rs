@@ -17,6 +17,7 @@
 
 mod error;
 mod get;
+mod state;
 
 pub use error::Error;
 

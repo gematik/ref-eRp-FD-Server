@@ -22,13 +22,13 @@ use std::time::Instant;
 
 use rand::{thread_rng, Rng};
 use regex::Regex;
-use serde::{de::Error as DeError, Deserialize, Deserializer};
+use serde::{de::Error as DeError, Deserialize, Deserializer, Serialize};
 use uuid::{
     v1::{Context, Timestamp},
     Error, Uuid,
 };
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize)]
 pub struct Id(String);
 
 impl Id {

@@ -21,7 +21,10 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use miscellaneous::jwt::{verify, Error as JwtError};
-use resources::misc::{Kvnr, TelematikId};
+use resources::{
+    audit_event::{Agent, ParticipationRoleType},
+    misc::{Kvnr, ParticipantId, TelematikId},
+};
 
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -148,6 +151,21 @@ impl AccessToken {
         Ok(access_token)
     }
 
+    pub fn id(&self) -> Result<ParticipantId, Error> {
+        match self.profession {
+            Profession::Versicherter => {
+                let kvnr = Kvnr::new(self.id_number.clone()).map_err(|_| Error::NoKvnr)?;
+
+                Ok(ParticipantId::Kvnr(kvnr))
+            }
+            _ => {
+                let telematik_id = TelematikId::new(self.id_number.clone());
+
+                Ok(ParticipantId::TelematikId(telematik_id))
+            }
+        }
+    }
+
     pub fn kvnr(&self) -> Result<Kvnr, Error> {
         match self.profession {
             Profession::Versicherter => {
@@ -175,9 +193,40 @@ impl AccessToken {
         }
     }
 
+    pub fn is_patient(&self) -> bool {
+        self.profession == Profession::Versicherter
+    }
+
     pub fn is_pharmacy(&self) -> bool {
         self.profession == Profession::OeffentlicheApotheke
             || self.profession == Profession::KrankenhausApotheke
+    }
+}
+
+impl Into<Agent> for &AccessToken {
+    fn into(self) -> Agent {
+        let mut name = String::default();
+
+        if let Some(v) = &self.given_name {
+            name = format!("{}{} ", name, v);
+        }
+
+        if let Some(v) = &self.family_name {
+            name = format!("{}{} ", name, v);
+        }
+
+        if let Some(v) = &self.organization_name {
+            name = format!("{}{} ", name, v);
+        }
+
+        name = name.trim_end().to_owned();
+
+        Agent {
+            type_: ParticipationRoleType::HumanUser,
+            who: self.id().ok(),
+            name,
+            requestor: false,
+        }
     }
 }
 

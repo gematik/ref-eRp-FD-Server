@@ -19,9 +19,12 @@ use std::io::Error as IoError;
 
 use log::SetLoggerError;
 use log4rs::config::Errors as Log4RsError;
+use openssl::error::ErrorStack as OpenSslError;
+use serde_json::Error as JsonError;
 use thiserror::Error;
+use vau::Error as VauError;
 
-use crate::{service::Error as ServiceError, tasks::puk_token::Error as PukTokenError};
+use crate::{state::HistoryError, tasks::puk_token::Error as PukTokenError};
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -31,14 +34,23 @@ pub enum Error {
     #[error("IO Error: {0}")]
     IoError(IoError),
 
+    #[error("VAU Error: {0}")]
+    VauError(VauError),
+
+    #[error("Json Error: {0}")]
+    JsonError(JsonError),
+
+    #[error("OpenSSL Error: {0}")]
+    OpenSslError(OpenSslError),
+
     #[error("Unable to set logger: {0}")]
     SetLoggerError(SetLoggerError),
 
     #[error("Unable to setup log4rs: {0}")]
     Log4RsError(Log4RsError),
 
-    #[error("Service Error: {0}")]
-    ServiceError(ServiceError),
+    #[error("History Error: {0}")]
+    HistoryError(HistoryError),
 
     #[error("PUK_TOKEN Error: {0}")]
     PukTokenError(PukTokenError),
@@ -56,6 +68,24 @@ impl From<IoError> for Error {
     }
 }
 
+impl From<VauError> for Error {
+    fn from(v: VauError) -> Self {
+        Self::VauError(v)
+    }
+}
+
+impl From<JsonError> for Error {
+    fn from(v: JsonError) -> Self {
+        Self::JsonError(v)
+    }
+}
+
+impl From<OpenSslError> for Error {
+    fn from(v: OpenSslError) -> Self {
+        Self::OpenSslError(v)
+    }
+}
+
 impl From<SetLoggerError> for Error {
     fn from(v: SetLoggerError) -> Self {
         Self::SetLoggerError(v)
@@ -68,9 +98,9 @@ impl From<Log4RsError> for Error {
     }
 }
 
-impl From<ServiceError> for Error {
-    fn from(v: ServiceError) -> Self {
-        Self::ServiceError(v)
+impl From<HistoryError> for Error {
+    fn from(v: HistoryError) -> Self {
+        Self::HistoryError(v)
     }
 }
 

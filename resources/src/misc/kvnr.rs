@@ -19,7 +19,9 @@ use std::convert::TryFrom;
 use std::fmt::Display;
 use std::ops::Deref;
 
-#[derive(Debug, Clone, PartialEq)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct Kvnr(String);
 
 impl Kvnr {
@@ -30,6 +32,10 @@ impl Kvnr {
         } else {
             Err(format!("Invalid KV-Nr.: {}!", value))
         }
+    }
+
+    pub fn as_string(&self) -> &String {
+        &self.0
     }
 }
 

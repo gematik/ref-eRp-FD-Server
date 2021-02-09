@@ -29,4 +29,5 @@ pub mod error;
 pub mod fhir;
 pub mod logging;
 pub mod service;
+pub mod state;
 pub mod tasks;

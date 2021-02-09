@@ -15,33 +15,21 @@
  *
  */
 
-use std::collections::hash_map::Entry;
-use std::convert::TryInto;
-use std::sync::atomic::{AtomicUsize, Ordering};
-
 use actix_web::{
     http::StatusCode,
     web::{Data, Payload},
     HttpResponse,
 };
-use chrono::Utc;
-use resources::{
-    misc::PrescriptionId,
-    primitives::Id,
-    task::{Extension, Identifier, Status, Task, TaskCreateParameters},
-    types::{FlowType, PerformerType},
-};
+use resources::task::TaskCreateParameters;
 
 use crate::{
     fhir::definitions::TaskContainer,
     service::{
         header::{Accept, Authorization, ContentType},
         misc::{create_response_with, read_payload, DataType, Profession},
-        AsReqErrResult, RequestError, State, TypedRequestError, TypedRequestResult,
+        AsReqErrResult, State, TypedRequestError, TypedRequestResult,
     },
 };
-
-use super::misc::random_id;
 
 pub async fn create(
     state: Data<State>,
@@ -72,50 +60,9 @@ pub async fn create(
     let args = read_payload::<TaskCreateParameters>(data_type, payload)
         .await
         .err_with_type(accept)?;
-    let task = create_task(args.flow_type).err_with_type(accept)?;
-    let id = task.id.clone().unwrap();
 
     let mut state = state.lock().await;
-    let task_meta = match state.tasks.entry(id) {
-        Entry::Occupied(entry) => entry.into_mut(),
-        Entry::Vacant(entry) => entry.insert(task.into()),
-    };
+    let task = state.task_create(args).as_req_err().err_with_type(accept)?;
 
-    let v = task_meta.history.get_current();
-    create_response_with(TaskContainer(v), accept, StatusCode::CREATED, |_| ())
-}
-
-fn create_task(flow_type: FlowType) -> Result<Task, RequestError> {
-    let id = Some(Id::generate().unwrap());
-    let access_code = random_id();
-    let prescription_id = generate_prescription_id(flow_type);
-
-    Ok(Task {
-        id,
-        extension: Extension {
-            accept_date: None,
-            expiry_date: None,
-            flow_type,
-        },
-        identifier: Identifier {
-            access_code: Some(access_code),
-            prescription_id: Some(prescription_id),
-            ..Default::default()
-        },
-        status: Status::Draft,
-        for_: None,
-        authored_on: Some(Utc::now().to_rfc3339().try_into().unwrap()),
-        last_modified: Some(Utc::now().to_rfc3339().try_into().unwrap()),
-        performer_type: vec![PerformerType::PublicPharmacy],
-        input: Default::default(),
-        output: Default::default(),
-    })
-}
-
-fn generate_prescription_id(flow_type: FlowType) -> PrescriptionId {
-    static NEXT_ID: AtomicUsize = AtomicUsize::new(0);
-
-    let number = NEXT_ID.fetch_add(1, Ordering::SeqCst);
-
-    PrescriptionId::new(flow_type, number)
+    create_response_with(TaskContainer(task), accept, StatusCode::CREATED, |_| ())
 }

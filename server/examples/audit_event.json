@@ -1,5 +1,6 @@
 {
     "resourceType":"AuditEvent",
+    "id":"5fe6e06c-8725-46d5-aecd-e65e041ca3af",
     "meta":{
         "profile":[
             "https://gematik.de/fhir/StructureDefinition/erxAuditEvent"

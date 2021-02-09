@@ -26,6 +26,7 @@ mod error;
 mod get;
 mod misc;
 mod reject;
+mod state;
 
 pub use error::Error;
 

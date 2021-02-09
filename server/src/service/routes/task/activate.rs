@@ -15,43 +15,29 @@
  *
  */
 
-use std::collections::hash_map::Entry;
-use std::convert::TryInto;
-
 use actix_web::{
     error::PayloadError,
     web::{Data, Path, Payload},
     HttpResponse,
 };
 use bytes::Bytes;
-use chrono::Duration;
 use futures::{future::ready, stream::once};
-use resources::{
-    primitives::Id,
-    task::{Status, TaskActivateParameters},
-    types::FlowType,
-    KbvBinary, KbvBundle, SignatureType,
-};
+use resources::{primitives::Id, task::TaskActivateParameters, KbvBinary, KbvBundle};
 
 use crate::{
-    fhir::{decode::XmlDecode, definitions::TaskContainer, security::Signed},
+    fhir::{decode::XmlDecode, definitions::TaskContainer},
     service::{
         header::{Accept, Authorization, ContentType, XAccessCode},
-        misc::{create_response, read_payload, Cms, DataType, Profession, SigCert, SigKey},
-        state::State,
-        AsReqErr, AsReqErrResult, TypedRequestError, TypedRequestResult,
+        misc::{create_response, read_payload, Cms, DataType, Profession},
+        AsReqErrResult, TypedRequestError, TypedRequestResult,
     },
+    state::State,
 };
-
-use super::Error;
-use std::ops::Add;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn activate(
     state: Data<State>,
     cms: Data<Cms>,
-    sig_key: Data<SigKey>,
-    sig_cert: Data<SigCert>,
     id: Path<Id>,
     accept: Accept,
     access_token: Authorization,
@@ -78,7 +64,7 @@ pub async fn activate(
         .as_req_err()
         .err_with_type(accept)?;
 
-    let id = id.0;
+    let id = id.into_inner();
     let args = read_payload::<TaskActivateParameters>(data_type, payload)
         .await
         .err_with_type(accept)?;
@@ -92,101 +78,12 @@ pub async fn activate(
         .as_req_err()
         .err_with_type(accept)?;
 
-    let kvnr = match kbv_bundle
-        .entry
-        .patient
-        .as_ref()
-        .and_then(|(_url, patient)| patient.identifier.as_ref())
-        .map(Clone::clone)
-        .map(TryInto::try_into)
-    {
-        Some(Ok(kvnr)) => kvnr,
-        Some(Err(())) => return Err(Error::KvnrInvalid.as_req_err().with_type(accept)),
-        None => return Err(Error::KvnrMissing.as_req_err().with_type(accept)),
-    };
-
-    /* verify the request */
-
+    let agent = (&*access_token).into();
     let mut state = state.lock().await;
+    let task = state
+        .task_activate(id, access_code, signing_time, kbv_binary, kbv_bundle, agent)
+        .as_req_err()
+        .err_with_type(accept)?;
 
-    {
-        let task_meta = match state.tasks.get(&id) {
-            Some(task_meta) => task_meta,
-            None => return Err(Error::NotFound(id).as_req_err().with_type(accept)),
-        };
-
-        let task = task_meta.history.get();
-        if Status::Draft != task.status {
-            return Err(Error::InvalidStatus.as_req_err().with_type(accept));
-        }
-
-        match &task.identifier.access_code {
-            Some(s) if *s == access_code => (),
-            Some(_) | None => return Err(Error::Forbidden(id).as_req_err().with_type(accept)),
-        }
-
-        if state.e_prescriptions.contains_key(&kbv_bundle.id) {
-            return Err(Error::EPrescriptionAlreadyRegistered(kbv_bundle.id.clone())
-                .as_req_err()
-                .with_type(accept));
-        }
-    }
-
-    /* create / update resources */
-
-    let mut patient_receipt = kbv_bundle.clone();
-    patient_receipt.id = Id::generate().unwrap();
-
-    let patient_receipt = match state.patient_receipts.entry(patient_receipt.id.clone()) {
-        Entry::Occupied(_) => {
-            panic!(
-                "Patient receipt with this ID ({}) already exists!",
-                patient_receipt.id
-            );
-        }
-        Entry::Vacant(entry) => {
-            let mut patient_receipt = Signed::new(patient_receipt);
-            patient_receipt
-                .sign_json(
-                    SignatureType::AuthorsSignature,
-                    "Device/software".into(),
-                    &sig_key.0,
-                    &sig_cert.0,
-                )
-                .as_req_err()
-                .err_with_type(accept)?;
-
-            entry.insert(patient_receipt).id.clone()
-        }
-    };
-
-    let e_prescription = match state.e_prescriptions.entry(kbv_bundle.id.clone()) {
-        Entry::Occupied(_) => {
-            panic!(
-                "ePrescription with this ID ({}) does already exist!",
-                kbv_bundle.id
-            );
-        }
-        Entry::Vacant(entry) => entry.insert((kbv_binary, kbv_bundle)).1.id.clone(),
-    };
-
-    let task_meta = match state.tasks.get_mut(&id) {
-        Some(task_meta) => task_meta,
-        None => return Err(Error::NotFound(id).as_req_err().with_type(accept)),
-    };
-
-    let mut task = task_meta.history.get_mut();
-    task.for_ = Some(kvnr);
-    task.status = Status::Ready;
-    task.input.e_prescription = Some(e_prescription);
-    task.input.patient_receipt = Some(patient_receipt);
-
-    let (accept_duration, expiry_duration) = match task.extension.flow_type {
-        FlowType::PharmaceuticalDrugs => (Duration::days(30), Duration::days(92)),
-    };
-    task.extension.accept_date = Some(signing_time.add(accept_duration).into());
-    task.extension.expiry_date = Some(signing_time.add(expiry_duration).into());
-
-    let v = task_meta.history.get_current();
-    create_response(TaskContainer(v), accept)
+    create_response(TaskContainer(task), accept)
 }

@@ -18,12 +18,18 @@
 use std::fmt::Display;
 use std::ops::Deref;
 
-#[derive(Debug, Clone, PartialEq)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct TelematikId(pub String);
 
 impl TelematikId {
     pub fn new<T: Display>(value: T) -> Self {
         Self(value.to_string())
+    }
+
+    pub fn as_string(&self) -> &String {
+        &self.0
     }
 }
 

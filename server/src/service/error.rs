@@ -16,7 +16,6 @@
  */
 
 use std::fmt::{Display, Formatter, Result as FmtResult};
-use std::io::Error as IoError;
 
 use actix_web::{
     dev::HttpResponseBuilder,
@@ -25,15 +24,16 @@ use actix_web::{
     HttpRequest, HttpResponse,
 };
 use openssl::error::ErrorStack as OpenSslError;
-use resources::operation_outcome::{Issue, IssueType, OperationOutcome, Severity};
+use resources::{
+    audit_event::Outcome,
+    operation_outcome::{Issue, IssueType, OperationOutcome, Severity},
+};
 use thiserror::Error;
-use vau::Error as VauError;
 
 use crate::{
     fhir::{
         decode::{DecodeError, JsonError as JsonDecodeError, XmlError as XmlDecodeError},
         encode::{EncodeError, JsonError as JsonEncodeError, XmlError as XmlEncodeError},
-        security::SignedError,
     },
     tasks::tsl::Error as TslError,
 };
@@ -48,38 +48,6 @@ use super::{
         medication_dispense::Error as MedicationDispenseError, task::Error as TaskError,
     },
 };
-
-/* Error */
-
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error("IO Error: {0}")]
-    IoError(IoError),
-
-    #[error("OpenSSL Error: {0}")]
-    OpenSslError(OpenSslError),
-
-    #[error("VAU Error: {0}")]
-    VauError(VauError),
-}
-
-impl From<IoError> for Error {
-    fn from(v: IoError) -> Self {
-        Error::IoError(v)
-    }
-}
-
-impl From<OpenSslError> for Error {
-    fn from(v: OpenSslError) -> Self {
-        Error::OpenSslError(v)
-    }
-}
-
-impl From<VauError> for Error {
-    fn from(v: VauError) -> Self {
-        Error::VauError(v)
-    }
-}
 
 /* TypedRequestError */
 
@@ -102,7 +70,6 @@ impl ResponseError for TypedRequestError {
         let res = ResponseBuilder::new();
         let mut res = match &self.error {
             E::OpenSslError(_) => res.status(StatusCode::BAD_REQUEST),
-            E::SignedError(_) => res.status(StatusCode::INTERNAL_SERVER_ERROR).severity(Severity::Fatal),
             E::AccessTokenError(err) => match err {
                 #[cfg(all(feature = "interface-supplier", not(feature = "interface-patient")))]
                 AccessTokenError::Missing => res
@@ -140,10 +107,12 @@ impl ResponseError for TypedRequestError {
             E::CommunicationError(err) => match err {
                 CommunicationError::ContentSizeExceeded => res.status(StatusCode::BAD_REQUEST).code(IssueType::ProcessingTooLong),
                 CommunicationError::MissingFieldBasedOn => res.status(StatusCode::BAD_REQUEST).code(IssueType::InvalidRequired).expression("/Communication/basedOn".into()),
-                CommunicationError::SenderNotEqualRecipient => res.status(StatusCode::BAD_REQUEST),
+                CommunicationError::SenderEqualRecipient => res.status(StatusCode::BAD_REQUEST),
+                CommunicationError::InvalidSender => res.status(StatusCode::BAD_REQUEST),
                 CommunicationError::UnknownTask(_) => res.status(StatusCode::BAD_REQUEST),
                 CommunicationError::UnauthorizedTaskAccess => res.status(StatusCode::UNAUTHORIZED),
                 CommunicationError::InvalidTaskStatus => res.status(StatusCode::BAD_REQUEST),
+                CommunicationError::InvalidTaskUri(_) => res.status(StatusCode::BAD_REQUEST),
                 CommunicationError::NotFound(_) => res.status(StatusCode::NOT_FOUND).code(IssueType::ProcessingNotFound),
                 CommunicationError::Unauthorized(_) => res.status(StatusCode::UNAUTHORIZED),
             },
@@ -152,6 +121,7 @@ impl ResponseError for TypedRequestError {
                 MedicationDispenseError::Forbidden(_) => res.status(StatusCode::FORBIDDEN).code(IssueType::SecurityForbidden),
             },
             E::TaskError(err) => match err {
+                TaskError::SignedError(_) => res.status(StatusCode::INTERNAL_SERVER_ERROR).severity(Severity::Fatal),
                 TaskError::NotFound(_) => res.status(StatusCode::NOT_FOUND).code(IssueType::ProcessingNotFound),
                 TaskError::Forbidden(_) => res.status(StatusCode::FORBIDDEN).code(IssueType::SecurityForbidden),
                 TaskError::Conflict(_) => res.status(StatusCode::CONFLICT).code(IssueType::ProcessingConflict),
@@ -160,6 +130,8 @@ impl ResponseError for TypedRequestError {
                 TaskError::EPrescriptionMismatch => res.status(StatusCode::BAD_REQUEST),
                 TaskError::EPrescriptionNotFound(_) => res.status(StatusCode::INTERNAL_SERVER_ERROR).severity(Severity::Fatal),
                 TaskError::EPrescriptionAlreadyRegistered(_) => res.status(StatusCode::BAD_REQUEST),
+                TaskError::PatientReceiptNotFound(_) => res.status(StatusCode::INTERNAL_SERVER_ERROR).severity(Severity::Fatal),
+                TaskError::ErxReceiptNotFound(_) => res.status(StatusCode::INTERNAL_SERVER_ERROR).severity(Severity::Fatal),
                 TaskError::KvnrMissing => res.status(StatusCode::BAD_REQUEST).code(IssueType::SecurityUnknown),
                 TaskError::KvnrInvalid => res.status(StatusCode::BAD_REQUEST).code(IssueType::SecurityUnknown),
                 TaskError::SubjectMissing => res.status(StatusCode::BAD_REQUEST),
@@ -168,6 +140,8 @@ impl ResponseError for TypedRequestError {
                 TaskError::AcceptTimestampMissing => res.status(StatusCode::INTERNAL_SERVER_ERROR).severity(Severity::Fatal),
                 TaskError::InvalidStatus => res.status(StatusCode::BAD_REQUEST),
                 TaskError::InvalidUrl(_) => res.status(StatusCode::BAD_REQUEST),
+                TaskError::GeneratePrescriptionId => res.status(StatusCode::SERVICE_UNAVAILABLE).severity(Severity::Error),
+                TaskError::AuditEventAgentInvalid => res.status(StatusCode::BAD_REQUEST),
             },
             E::CmsContainerError(_) => res.status(StatusCode::BAD_REQUEST),
             E::NotFound(_) => res.status(StatusCode::NOT_FOUND).code(IssueType::ProcessingNotFound),
@@ -192,9 +166,6 @@ impl ResponseError for TypedRequestError {
 pub enum RequestError {
     #[error("OpenSSL Error: {0}")]
     OpenSslError(OpenSslError),
-
-    #[error("Signed Error: {0}")]
-    SignedError(SignedError),
 
     #[error("Access Token Error: {0}")]
     AccessTokenError(AccessTokenError),
@@ -395,12 +366,6 @@ impl AsReqErr for OpenSslError {
     }
 }
 
-impl AsReqErr for SignedError {
-    fn as_req_err(self) -> RequestError {
-        RequestError::SignedError(self)
-    }
-}
-
 impl AsReqErr for AccessTokenError {
     fn as_req_err(self) -> RequestError {
         RequestError::AccessTokenError(self)
@@ -460,6 +425,16 @@ impl AsReqErr for TaskError {
         RequestError::TaskError(self)
     }
 }
+
+/* AsAuditEventOutcome */
+
+pub trait AsAuditEventOutcome {
+    fn as_outcome(&self) -> Outcome {
+        Outcome::MinorFailure
+    }
+}
+
+impl AsAuditEventOutcome for TypedRequestError {}
 
 /* ResponseBuilder */
 

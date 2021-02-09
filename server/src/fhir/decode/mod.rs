@@ -122,8 +122,8 @@ pub mod tests {
             extension: Vec::new(),
         });
         assert_some_ok!(Item::Field {
-            name: "valueDateTime".into(),
-            value: "2020-03-02T08:25:05+00:00".into(),
+            name: "valueDate".into(),
+            value: "2020-03-02".into(),
             extension: Vec::new(),
         });
         assert_some_ok!(Item::EndElement);
@@ -136,8 +136,8 @@ pub mod tests {
             extension: Vec::new(),
         });
         assert_some_ok!(Item::Field {
-            name: "valueDateTime".into(),
-            value: "2020-05-02T08:25:05+00:00".into(),
+            name: "valueDate".into(),
+            value: "2020-05-02".into(),
             extension: Vec::new(),
         });
         assert_some_ok!(Item::EndElement);

@@ -15,8 +15,12 @@
  *
  */
 
-use futures::{future::FutureExt, select};
+use std::fs::{read, File};
 use std::path::PathBuf;
+
+use futures::{future::FutureExt, select};
+use log::warn;
+use openssl::{ec::EcKey, pkey::PKey, x509::X509};
 use structopt::StructOpt;
 use tokio::{runtime::Builder, task::LocalSet};
 use url::Url;
@@ -25,6 +29,7 @@ use ref_erx_fd_server::{
     error::Error,
     logging::init_logger,
     service::Service,
+    state::State,
     tasks::{
         tsl::{prepare_no_op, prepare_tsl},
         PukToken, Tsl,
@@ -42,25 +47,40 @@ fn main() -> Result<(), Error> {
 }
 
 async fn run(opts: Options) -> Result<(), Error> {
+    let sig_key = read(&opts.sig_key)?;
+    let sig_key = EcKey::private_key_from_pem(&sig_key).map_err(Error::OpenSslError)?;
+    let sig_key = PKey::from_ec_key(sig_key)?;
+
+    let sig_cert = read(&opts.sig_cert)?;
+    let sig_cert = X509::from_pem(&sig_cert)?;
+
+    let enc_key = read(&opts.enc_key)?;
+    let enc_key = EcKey::private_key_from_pem(&enc_key).map_err(Error::OpenSslError)?;
+
+    let enc_cert = read(&opts.enc_cert)?;
+    let enc_cert = X509::from_pem(&enc_cert)?;
+
     let local = LocalSet::new();
 
     let tsl = Tsl::from_url(opts.tsl, prepare_tsl, true);
     let bnetza = Tsl::from_url(opts.bnetza, prepare_no_op, false);
     let puk_token = PukToken::from_url(tsl.clone(), opts.token)?;
+    let state = State::new(sig_key, sig_cert);
 
-    let handle = Service::new(
-        opts.enc_key,
-        opts.enc_cert,
-        opts.sig_key,
-        opts.sig_cert,
-        puk_token,
-        tsl,
-        bnetza,
-    )
-    .listen(&opts.server_addr)?
-    .run(&local)?;
+    if let Some(path) = &opts.state {
+        if path.is_file() {
+            let file = File::open(path)?;
 
-    local
+            let mut state = state.lock().await;
+            state.load(file)?;
+        }
+    }
+
+    let handle = Service::new(puk_token, tsl, bnetza, state.clone(), enc_key, enc_cert)
+        .listen(&opts.server_addr)?
+        .run(&local)?;
+
+    let ret = local
         .run_until(async move {
             select! {
                 ret = handle.clone().fuse() => ret?,
@@ -73,7 +93,21 @@ async fn run(opts: Options) -> Result<(), Error> {
 
             Ok(())
         })
-        .await
+        .await;
+
+    if let Some(path) = &opts.state {
+        match File::create(path) {
+            Ok(file) => {
+                let state = state.lock().await;
+                if let Err(err) = state.save(file) {
+                    warn!("Unable to write state to file: {}", err);
+                }
+            }
+            Err(err) => warn!("Unable to open state file: {}", err),
+        }
+    }
+
+    ret
 }
 
 #[cfg(not(unix))]
@@ -114,6 +148,10 @@ struct Options {
     /// Certificate (with public key) of the ERX-FD server use for signing.
     #[structopt(verbatim_doc_comment, long = "sig-cert")]
     sig_cert: PathBuf,
+
+    /// File to write the state of the service to.
+    #[structopt(verbatim_doc_comment, long = "state")]
+    state: Option<PathBuf>,
 
     /// URI to get the public key for the access token from.
     /// This parameter accepts normal web URLs and files.
