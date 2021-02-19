@@ -24,7 +24,10 @@ pub use error::Error;
 use std::sync::Arc;
 
 use arc_swap::{ArcSwapOption, Guard};
-use openssl::pkey::{PKey, Public};
+use openssl::{
+    pkey::{PKey, Public},
+    x509::X509,
+};
 use thiserror::Error;
 use url::Url;
 
@@ -37,6 +40,7 @@ use super::Tsl;
 pub struct PukToken(Arc<ArcSwapOption<Inner>>);
 
 pub struct Inner {
+    pub cert: X509,
     pub public_key: PKey<Public>,
 }
 

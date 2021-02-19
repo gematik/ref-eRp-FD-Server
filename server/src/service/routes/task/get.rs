@@ -64,11 +64,13 @@ impl FromQuery for QueryArgs {
     fn parse_key_value_pair(&mut self, key: &str, value: QueryValue) -> Result<(), String> {
         match key {
             "status" => self.status.push(value.ok()?.parse()?),
-            "authoredOn" => self.authored_on.push(value.ok()?.parse()?),
-            "lastModified" => self.last_modified.push(value.ok()?.parse()?),
+            "authoredOn" | "authored-on" => self.authored_on.push(value.ok()?.parse()?),
+            "lastModified" | "last-modified" | "modified" => {
+                self.last_modified.push(value.ok()?.parse()?)
+            }
             "_sort" => self.sort = Some(value.ok()?.parse()?),
             "_count" => self.count = Some(value.ok()?.parse::<usize>().map_err(|e| e.to_string())?),
-            "pageId" => {
+            "pageId" | "page-id" => {
                 self.page_id = Some(value.ok()?.parse::<usize>().map_err(|e| e.to_string())?)
             }
             _ => (),
@@ -88,8 +90,8 @@ impl FromStr for SortArgs {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "authoredOn" => Ok(Self::AuthoredOn),
-            "lastModified" => Ok(Self::LastModified),
+            "authoredOn" | "authored-on" => Ok(Self::AuthoredOn),
+            "lastModified" | "last-modified" | "modified" => Ok(Self::LastModified),
             _ => Err(()),
         }
     }
@@ -178,11 +180,15 @@ async fn get(
         .err_with_type_default()?;
 
     access_token
-        .check_profession(|p| p == Profession::Versicherter)
+        .check_profession(|p| {
+            p == Profession::Versicherter
+                || p == Profession::OeffentlicheApotheke
+                || p == Profession::KrankenhausApotheke
+        })
         .as_req_err()
         .err_with_type(accept)?;
 
-    let kvnr = Some(access_token.kvnr().as_req_err().err_with_type(accept)?);
+    let kvnr = access_token.kvnr().ok();
     let agent = (&*access_token).into();
     let mut state = state.lock().await;
 

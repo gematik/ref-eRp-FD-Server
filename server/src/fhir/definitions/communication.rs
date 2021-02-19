@@ -15,10 +15,12 @@
  *
  */
 
+use std::borrow::Cow;
 use std::iter::once;
 
 use async_trait::async_trait;
 use miscellaneous::str::icase_eq;
+use regex::Regex;
 use resources::{
     communication::{
         Availability, Communication, DispenseReqExtensions, InfoReqExtensions, Inner, Payload,
@@ -39,7 +41,7 @@ use super::{
     meta::Meta,
     primitives::{
         decode_coding, decode_identifier, decode_reference, encode_coding, encode_identifier,
-        encode_reference, CodeEx, CodingEx, Identifier,
+        encode_reference, CodeEx, CodingEx, ContainedReference, Identifier,
     },
 };
 
@@ -129,7 +131,7 @@ where
         let based_on = stream.decode_opt(&mut fields, decode_reference).await?;
         let _status = stream.fixed(&mut fields, "unknown").await?;
         let about_ids = stream
-            .decode_vec::<Vec<Id>, _>(&mut fields, decode_reference)
+            .decode_vec::<Vec<ContainedReference<Id>>, _>(&mut fields, decode_reference)
             .await?;
         let sent = stream.decode_opt(&mut fields, decode_any).await?;
         let received = stream.decode_opt(&mut fields, decode_any).await?;
@@ -140,6 +142,11 @@ where
             .decode_opt(&mut fields, decode_reference_identifier)
             .await?;
         let payload = stream.decode(&mut fields, decode_any).await?;
+
+        let about_ids = about_ids
+            .into_iter()
+            .map(|r| r.0.into_owned())
+            .collect::<Vec<_>>();
 
         about.retain(|r| about_ids.contains(&r.id));
 
@@ -169,6 +176,7 @@ where
 }
 
 #[async_trait(?Send)]
+#[allow(clippy::invalid_regex)]
 impl<Ex> Decode for Payload<Ex>
 where
     Ex: Clone + PartialEq + Decode,
@@ -177,14 +185,28 @@ where
     where
         S: DataStream,
     {
+        lazy_static! {
+            static ref URL_RX: Regex = Regex::new(
+                r##"\b(([\w-]+://?|www[.])[^\s()<>]+(?:\([\w\d]+\)|([^[:punct:]\s]|/)))"##
+            )
+            .unwrap();
+        }
+
         let mut fields = Fields::new(&["extension", "contentString"]);
 
         stream.element().await?;
 
         let extensions = stream.decode_opt(&mut fields, decode_any).await?;
-        let content = stream.decode(&mut fields, decode_any).await?;
+        let content = stream.decode::<String, _>(&mut fields, decode_any).await?;
 
         stream.end().await?;
+
+        if URL_RX.is_match(&content) {
+            return Err(DecodeError::Custom {
+                message: "Communication payload must not contain external URLs".into(),
+                path: stream.path().into(),
+            });
+        }
 
         Ok(Payload {
             extensions,
@@ -433,11 +455,17 @@ where
     where
         S: DataStorage,
     {
+        let about = self
+            .about
+            .iter()
+            .map(|x| ContainedReference(Cow::Borrowed(&x.id)))
+            .collect::<Vec<_>>();
+
         stream
             .resource_vec("contained", &self.about, encode_any)?
             .encode_vec("basedOn", &self.based_on, encode_reference)?
             .encode("status", "unknown", encode_any)?
-            .encode_vec("about", self.about.iter().map(|x| &x.id), encode_reference)?
+            .encode_vec("about", &about, encode_reference)?
             .encode_opt("sent", &self.sent, encode_any)?
             .encode_opt("received", &self.received, encode_any)?
             .encode_vec(

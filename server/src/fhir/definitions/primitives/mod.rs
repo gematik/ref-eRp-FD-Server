@@ -38,4 +38,6 @@ pub use identifier::{
     decode_identifier, decode_identifier_reference, encode_identifier, encode_identifier_reference,
     Identifier, IdentifierEx,
 };
-pub use reference::{decode_reference, encode_reference, Reference, ReferenceEx};
+pub use reference::{
+    decode_reference, encode_reference, ContainedReference, Reference, ReferenceEx,
+};

@@ -565,7 +565,7 @@ pub const OPERATION_ABORT: &str =
     "http://gematik.de/fhir/OperationDefinition/AbortOperationDefinition";
 
 const URL_FLOW_TYPE: &str = "https://gematik.de/fhir/StructureDefinition/PrescriptionType";
-const URL_ACCEPT_DATE: &str = "https://example.org/fhir/StructureDefinition/AcceptDate";
+const URL_ACCEPT_DATE: &str = "https://gematik.de/fhir/StructureDefinition/AcceptDate";
 const URL_EXPIRY_DATE: &str = "https://gematik.de/fhir/StructureDefinition/ExpiryDate";
 
 const SYSTEM_PRESCRIPTION_ID: &str = "https://gematik.de/fhir/NamingSystem/PrescriptionID";

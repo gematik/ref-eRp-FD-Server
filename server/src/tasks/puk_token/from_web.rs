@@ -144,12 +144,13 @@ async fn update_task(tsl: Tsl, url: Url, pub_token: PukToken) {
                 "Unable to verify PUK_TOKEN_KEY: {}"
             );
 
+            let cert = cert_disc;
             let public_key = ok!(
-                cert_disc.public_key(),
+                cert.public_key(),
                 "Unable to extract public key from PUK_TOKEN_KEY: {}"
             );
 
-            break Inner { public_key };
+            break Inner { cert, public_key };
         };
 
         pub_token.0.store(Some(Arc::new(next)));

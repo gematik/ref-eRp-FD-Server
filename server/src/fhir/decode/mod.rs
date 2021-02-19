@@ -118,7 +118,7 @@ pub mod tests {
         });
         assert_some_ok!(Item::Field {
             name: "url".into(),
-            value: "https://example.org/fhir/StructureDefinition/AcceptDate".into(),
+            value: "https://gematik.de/fhir/StructureDefinition/AcceptDate".into(),
             extension: Vec::new(),
         });
         assert_some_ok!(Item::Field {
@@ -237,7 +237,7 @@ pub mod tests {
         });
         assert_some_ok!(Item::Field {
             name: "display".into(),
-            value: "Apotheke".into(),
+            value: "Öffentliche Apotheke".into(),
             extension: Vec::new(),
         });
         assert_some_ok!(Item::EndElement);

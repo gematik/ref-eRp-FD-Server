@@ -15,7 +15,7 @@
             }
         },
         {
-            "url":"https://example.org/fhir/StructureDefinition/AcceptDate",
+            "url":"https://gematik.de/fhir/StructureDefinition/AcceptDate",
             "valueDate":"2020-03-02"
         },
         {
@@ -53,7 +53,7 @@
                 {
                     "system":"urn:ietf:rfc:3986",
                     "code":"urn:oid:1.2.276.0.76.4.54",
-                    "display":"Apotheke"
+                    "display":"\u00D6ffentliche Apotheke"
                 }
             ]
         }

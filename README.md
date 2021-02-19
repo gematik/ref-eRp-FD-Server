@@ -186,6 +186,10 @@ To generate the needed key you can use the following Open SSL commands:
     # Extract public key
     $ openssl pkey -in idp_id -out idp_id.pub -pubout
 
+    # Create X509 certificate
+    $ openssl req -new -key idp_id > cert.csr
+    $ openssl x509 -in cert.csr -out idp_id.cert -req -signkey idp_id -days 1001
+
 ## Run the Service
 
 To run the service use the following command line. The service needs a

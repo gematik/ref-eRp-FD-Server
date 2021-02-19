@@ -52,10 +52,10 @@ impl FromQuery for QueryArgs {
         match key {
             "date" => self.date.push(value.ok()?.parse()?),
             "agent" => self.agent.push(value.ok()?.parse()?),
-            "subType" => self.sub_type.push(value.ok()?.parse()?),
+            "subType" | "subtype" | "sub-type" => self.sub_type.push(value.ok()?.parse()?),
             "_sort" => self.sort = Some(value.ok()?.parse()?),
             "_count" => self.count = Some(value.ok()?.parse::<usize>().map_err(|e| e.to_string())?),
-            "pageId" => {
+            "pageId" | "page-id" => {
                 self.page_id = Some(value.ok()?.parse::<usize>().map_err(|e| e.to_string())?)
             }
             _ => (),
@@ -79,7 +79,7 @@ impl FromStr for SortArgs {
         match s {
             "date" => Ok(Self::Date),
             "agent" => Ok(Self::Agent),
-            "subType" => Ok(Self::SubType),
+            "subType" | "subtype" | "sub-type" => Ok(Self::SubType),
             _ => Err(()),
         }
     }

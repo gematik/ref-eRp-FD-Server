@@ -15,6 +15,9 @@
  *
  */
 
+use std::borrow::Cow;
+use std::ops::Deref;
+
 use async_trait::async_trait;
 
 use crate::fhir::{
@@ -113,5 +116,31 @@ impl<T: ReferenceEx> Reference for T {
             .end()?;
 
         Ok(())
+    }
+}
+
+pub struct ContainedReference<'a, T: Clone>(pub Cow<'a, T>);
+
+impl<T: Clone> Deref for ContainedReference<'_, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T> ReferenceEx for ContainedReference<'_, T>
+where
+    T: Clone + ReferenceEx,
+{
+    fn from_parts(reference: String) -> Result<Self, String> {
+        match reference.strip_prefix("#") {
+            Some(s) => Ok(Self(Cow::Owned(T::from_parts(s.into())?))),
+            None => Err(reference),
+        }
+    }
+
+    fn reference(&self) -> String {
+        format!("#{}", self.0.reference())
     }
 }

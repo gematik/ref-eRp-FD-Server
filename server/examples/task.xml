@@ -9,7 +9,7 @@
             <display value="Muster 16 (Apothekenpflichtige Arzneimittel)"/>
         </valueCoding>
     </extension>
-    <extension url="https://example.org/fhir/StructureDefinition/AcceptDate">
+    <extension url="https://gematik.de/fhir/StructureDefinition/AcceptDate">
         <valueDate value="2020-03-02"/>
     </extension>
     <extension url="https://gematik.de/fhir/StructureDefinition/ExpiryDate">
@@ -41,7 +41,7 @@
         <coding>
             <system value="urn:ietf:rfc:3986"/>
             <code value="urn:oid:1.2.276.0.76.4.54"/>
-            <display value="Apotheke"/>
+            <display value="Öffentliche Apotheke"/>
         </coding>
     </performerType>
     <input>

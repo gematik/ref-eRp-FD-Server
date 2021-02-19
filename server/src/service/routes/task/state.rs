@@ -121,7 +121,7 @@ impl Inner {
             let task = task_meta.history.get();
             event_builder.agent(agent);
             event_builder.action(Action::Create);
-            event_builder.sub_type(SubType::Operation);
+            event_builder.sub_type(SubType::Create);
             event_builder.patient(kvnr.clone());
             event_builder.what(format!("/Task/{}", &id));
             event_builder.description(task.identifier.prescription_id.as_ref().unwrap().clone());
@@ -227,7 +227,7 @@ impl Inner {
             let task = task_meta.history.get();
             event_builder.agent(agent);
             event_builder.action(Action::Update);
-            event_builder.sub_type(SubType::Operation);
+            event_builder.sub_type(SubType::Update);
             event_builder.what(format!("/Task/{}", &id));
             event_builder.patient(task.for_.as_ref().unwrap().clone());
             event_builder.description(task.identifier.prescription_id.as_ref().unwrap().clone());
@@ -274,7 +274,7 @@ impl Inner {
         id: Id,
         secret: Option<String>,
         agent: Agent,
-    ) -> Result<&Version<Task>, Error> {
+    ) -> Result<(), Error> {
         let Self {
             ref mut tasks,
             ref mut audit_events,
@@ -290,7 +290,7 @@ impl Inner {
             let task = task_meta.history.get();
             event_builder.agent(agent);
             event_builder.action(Action::Update);
-            event_builder.sub_type(SubType::Operation);
+            event_builder.sub_type(SubType::Update);
             event_builder.what(format!("/Task/{}", &id));
             event_builder.patient(task.for_.as_ref().unwrap().clone());
             event_builder.description(task.identifier.prescription_id.as_ref().unwrap().clone());
@@ -306,9 +306,7 @@ impl Inner {
 
             task_meta.accept_timestamp = None;
 
-            let task = task_meta.history.get_current();
-
-            Ok(task)
+            Ok(())
         })
     }
 
@@ -338,7 +336,7 @@ impl Inner {
             let task = task_meta.history.get();
             event_builder.agent(agent);
             event_builder.action(Action::Update);
-            event_builder.sub_type(SubType::Operation);
+            event_builder.sub_type(SubType::Update);
             event_builder.what(format!("/Task/{}", &id));
             event_builder.patient(task.for_.as_ref().unwrap().clone());
             event_builder.description(task.identifier.prescription_id.as_ref().unwrap().clone());
@@ -447,13 +445,14 @@ impl Inner {
         is_pharmacy: bool,
         secret: Option<String>,
         agent: Agent,
-    ) -> Result<&Version<Task>, Error> {
+    ) -> Result<(), Error> {
         let Self {
             ref mut tasks,
             ref mut erx_receipts,
             ref mut e_prescriptions,
             ref mut patient_receipts,
             ref mut audit_events,
+            ref mut medication_dispenses,
             ..
         } = self;
 
@@ -465,25 +464,26 @@ impl Inner {
 
             let task = task_meta.history.get_current();
             event_builder.agent(agent);
-            event_builder.action(Action::Update);
-            event_builder.sub_type(SubType::Operation);
+            event_builder.action(Action::Delete);
+            event_builder.sub_type(SubType::Delete);
             event_builder.what(format!("/Task/{}", &id));
             event_builder.patient(task.for_.as_ref().unwrap().clone());
             event_builder.description(task.identifier.prescription_id.as_ref().unwrap().clone());
             event_builder.text("/Task/$abort Operation");
 
-            if !Self::task_matches(&task, &kvnr, &access_code) {
+            let is_secret_ok = secret.is_some() && task.identifier.secret == secret;
+            let is_access_ok = Self::task_matches(&task, &kvnr, &access_code);
+            let is_in_progress = task.status == Status::InProgress;
+
+            if (is_pharmacy && !is_secret_ok) || (!is_pharmacy && !is_access_ok) {
                 return Err(Error::Forbidden(id));
             }
 
-            let is_in_progress = task.status == Status::InProgress;
             if is_pharmacy != is_in_progress {
                 return Err(Error::Forbidden(id));
             }
 
-            if is_pharmacy && (secret.is_none() || task.identifier.secret != secret) {
-                return Err(Error::Forbidden(id));
-            }
+            dbg!(&secret);
 
             let mut task = task_meta.history.get_mut();
             task.for_ = None;
@@ -491,6 +491,14 @@ impl Inner {
             task.identifier.secret = None;
             task.identifier.access_code = None;
             task.last_modified = Some(Utc::now().into());
+
+            let prescription_id = task
+                .identifier
+                .prescription_id
+                .as_ref()
+                .ok_or(Error::EPrescriptionMissing)?;
+
+            medication_dispenses.retain(|_, md| &md.prescription_id != prescription_id);
 
             if let Some(e_prescription) = task.input.e_prescription.take() {
                 e_prescriptions
@@ -512,9 +520,7 @@ impl Inner {
 
             task_meta.history.clear();
 
-            let task = task_meta.history.get_current();
-
-            Ok(task)
+            Ok(())
         })
     }
 

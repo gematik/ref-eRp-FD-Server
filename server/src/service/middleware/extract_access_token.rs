@@ -22,6 +22,7 @@ use actix_web::{
     dev::{Service, ServiceRequest, ServiceResponse, Transform},
     error::Error,
     http::header::HeaderName,
+    web::Data,
     HttpRequest,
 };
 use chrono::Utc;
@@ -100,7 +101,7 @@ pub fn extract_access_token(req: &HttpRequest) -> Result<&str, RequestError> {
 
 fn parse_authorization(req: &HttpRequest) -> Result<(), RequestError> {
     let puk_token = req
-        .app_data::<PukToken>()
+        .app_data::<Data<PukToken>>()
         .expect("Shared data 'PukToken' is missing!");
 
     let pub_key = puk_token

@@ -23,10 +23,9 @@ use resources::primitives::Id;
 use serde::Deserialize;
 
 use crate::{
-    fhir::definitions::TaskContainer,
     service::{
         header::{Accept, Authorization},
-        misc::{create_response, DataType, Profession},
+        misc::{DataType, Profession},
         AsReqErrResult, TypedRequestError, TypedRequestResult,
     },
     state::State,
@@ -60,11 +59,13 @@ pub async fn reject(
     let id = id.into_inner();
     let secret = query.into_inner().secret;
     let agent = (&*access_token).into();
-    let mut state = state.lock().await;
-    let task = state
+
+    state
+        .lock()
+        .await
         .task_reject(id, secret, agent)
         .as_req_err()
         .err_with_type(accept)?;
 
-    create_response(TaskContainer(task), accept)
+    Ok(HttpResponse::NoContent().finish())
 }

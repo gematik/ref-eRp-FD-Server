@@ -93,7 +93,7 @@ pub mod tests {
             Item::Element,
             Item::Attrib { name: "url".into() },
             Item::Value {
-                value: "https://example.org/fhir/StructureDefinition/AcceptDate".into(),
+                value: "https://gematik.de/fhir/StructureDefinition/AcceptDate".into(),
                 extension: vec![],
             },
             Item::Field {
@@ -250,7 +250,7 @@ pub mod tests {
                 name: "display".into(),
             },
             Item::Value {
-                value: "Apotheke".into(),
+                value: "Öffentliche Apotheke".into(),
                 extension: vec![],
             },
             Item::End,

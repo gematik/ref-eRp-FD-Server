@@ -19,7 +19,7 @@ use std::fs::read;
 use std::sync::Arc;
 
 use arc_swap::ArcSwapOption;
-use openssl::pkey::PKey;
+use openssl::x509::X509;
 use url::Url;
 
 use super::{Error, Inner, PukToken};
@@ -30,10 +30,11 @@ pub fn from_file(url: Url) -> Result<PukToken, Error> {
         None => url.path().into(),
     };
 
-    let public_key = read(filepath)?;
-    let public_key = PKey::public_key_from_pem(&public_key)?;
+    let cert = read(filepath)?;
+    let cert = X509::from_pem(&cert)?;
+    let public_key = cert.public_key()?;
 
-    let inner = Inner { public_key };
+    let inner = Inner { cert, public_key };
 
     let puk_token = PukToken(Arc::new(ArcSwapOption::from(Some(Arc::new(inner)))));
 

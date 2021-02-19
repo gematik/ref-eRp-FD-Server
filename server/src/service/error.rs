@@ -110,7 +110,7 @@ impl ResponseError for TypedRequestError {
                 CommunicationError::SenderEqualRecipient => res.status(StatusCode::BAD_REQUEST),
                 CommunicationError::InvalidSender => res.status(StatusCode::BAD_REQUEST),
                 CommunicationError::UnknownTask(_) => res.status(StatusCode::BAD_REQUEST),
-                CommunicationError::UnauthorizedTaskAccess => res.status(StatusCode::UNAUTHORIZED),
+                CommunicationError::UnauthorizedTaskAccess => res.status(StatusCode::BAD_REQUEST),
                 CommunicationError::InvalidTaskStatus => res.status(StatusCode::BAD_REQUEST),
                 CommunicationError::InvalidTaskUri(_) => res.status(StatusCode::BAD_REQUEST),
                 CommunicationError::NotFound(_) => res.status(StatusCode::NOT_FOUND).code(IssueType::ProcessingNotFound),

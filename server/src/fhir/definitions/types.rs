@@ -96,7 +96,7 @@ impl CodingEx for PerformerType {
 
     fn display(&self) -> Option<&'static str> {
         match self {
-            Self::PublicPharmacy => Some("Apotheke"),
+            Self::PublicPharmacy => Some("Öffentliche Apotheke"),
         }
     }
 

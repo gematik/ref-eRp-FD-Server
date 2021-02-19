@@ -1,3 +1,8 @@
+# Release 0.13.0
+Implemented features:
+* FD server endpoint providing certifcate list
+* Different Bug Fixes
+
 # Release 0.12.0
 Implemented features:
 * Implement Task GET for Supplier Interface

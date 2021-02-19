@@ -18,6 +18,7 @@
 use std::ops::Deref;
 
 use actix_web::{dev::Payload, FromRequest, HttpRequest};
+use form_urlencoded::parse;
 use futures::future::{ready, Ready};
 
 use crate::service::{RequestError, TypedRequestError};
@@ -59,15 +60,14 @@ where
         let q = req.query_string();
         let mut ret = T::default();
 
-        let iter = q.split('&');
-        for kvp in iter {
-            let (key, value) = if let Some(p) = kvp.find('=') {
-                (&kvp[..p], Some(&kvp[(p + 1)..]))
+        for (key, value) in parse(q.as_bytes()) {
+            let value = if value.is_empty() {
+                None
             } else {
-                (kvp, None)
+                Some(value.as_ref())
             };
 
-            if let Err(err) = ret.parse_key_value_pair(key, QueryValue(value)) {
+            if let Err(err) = ret.parse_key_value_pair(&key, QueryValue(value)) {
                 let err = format!("Invalid query parameter ({}): {}", key, err);
 
                 return ready(Err(RequestError::QueryInvalid(err).with_type_from(req)));

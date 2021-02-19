@@ -17,6 +17,7 @@
 
 pub mod audit_event;
 pub mod capabilty_statement;
+pub mod cert_list;
 pub mod communication;
 pub mod device;
 pub mod medication_dispense;
@@ -28,6 +29,7 @@ use proc_macros::capability_statement;
 
 use audit_event::AutidEventRoutes;
 use capabilty_statement::{create as capability_statement_create, get as capability_statement_get};
+use cert_list::configure_routes as cert_list_configure_routes;
 use communication::CommunicationRoutes;
 use device::DeviceRoutes;
 use medication_dispense::MedicationDispenseRoutes;
@@ -58,6 +60,7 @@ pub fn configure_routes(cfg: &mut ServiceConfig) {
     ROUTES.configure_routes(cfg);
 
     tsl_configure_routes(cfg);
+    cert_list_configure_routes(cfg);
 }
 
 lazy_static! {

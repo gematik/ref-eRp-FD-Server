@@ -86,7 +86,7 @@ impl Display for FlowType {
 impl Display for PerformerType {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         match self {
-            Self::PublicPharmacy => write!(f, "Apotheke"),
+            Self::PublicPharmacy => write!(f, "Öffentliche Apotheke"),
         }
     }
 }

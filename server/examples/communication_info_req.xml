@@ -48,7 +48,7 @@
     </contained>
     <status value="unknown"/>
     <about>
-        <reference value="5fe6e06c-8725-46d5-aecd-e65e041ca3de"/>
+        <reference value="#5fe6e06c-8725-46d5-aecd-e65e041ca3de"/>
     </about>
     <sent value="2020-03-12T18:01:10+00:00"/>
     <recipient>

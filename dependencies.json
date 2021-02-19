@@ -172,7 +172,7 @@
   },
   {
     "name": "asn1_der",
-    "version": "0.7.2",
+    "version": "0.7.3",
     "authors": "KizzyCode Software Labs./Keziah Biermann <development@kizzycode.de>",
     "repository": "https://github.com/KizzyCode/asn1_der-rust",
     "license": "BSD-2-Clause OR MIT",
@@ -289,7 +289,7 @@
   },
   {
     "name": "bumpalo",
-    "version": "3.6.0",
+    "version": "3.6.1",
     "authors": "Nick Fitzgerald <fitzgen@gmail.com>",
     "repository": "https://github.com/fitzgen/bumpalo",
     "license": "Apache-2.0 OR MIT",
@@ -541,7 +541,7 @@
   },
   {
     "name": "form_urlencoded",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "authors": "The rust-url developers",
     "repository": "https://github.com/servo/rust-url",
     "license": "Apache-2.0 OR MIT",
@@ -811,7 +811,7 @@
   },
   {
     "name": "idna",
-    "version": "0.2.1",
+    "version": "0.2.2",
     "authors": "The rust-url developers",
     "repository": "https://github.com/servo/rust-url/",
     "license": "Apache-2.0 OR MIT",
@@ -1198,7 +1198,7 @@
   },
   {
     "name": "parking_lot_core",
-    "version": "0.8.2",
+    "version": "0.8.3",
     "authors": "Amanieu d'Antras <amanieu@gmail.com>",
     "repository": "https://github.com/Amanieu/parking_lot",
     "license": "Apache-2.0 OR MIT",
@@ -1369,7 +1369,7 @@
   },
   {
     "name": "quote",
-    "version": "1.0.8",
+    "version": "1.0.9",
     "authors": "David Tolnay <dtolnay@gmail.com>",
     "repository": "https://github.com/dtolnay/quote",
     "license": "Apache-2.0 OR MIT",
@@ -1415,6 +1415,15 @@
   {
     "name": "redox_syscall",
     "version": "0.1.57",
+    "authors": "Jeremy Soller <jackpot51@gmail.com>",
+    "repository": "https://gitlab.redox-os.org/redox-os/syscall",
+    "license": "MIT",
+    "license_file": null,
+    "description": "A Rust library to access raw Redox system calls"
+  },
+  {
+    "name": "redox_syscall",
+    "version": "0.2.5",
     "authors": "Jeremy Soller <jackpot51@gmail.com>",
     "repository": "https://gitlab.redox-os.org/redox-os/syscall",
     "license": "MIT",
@@ -1612,7 +1621,7 @@
   },
   {
     "name": "serde_yaml",
-    "version": "0.8.16",
+    "version": "0.8.17",
     "authors": "David Tolnay <dtolnay@gmail.com>",
     "repository": "https://github.com/dtolnay/serde-yaml",
     "license": "Apache-2.0 OR MIT",
@@ -1621,7 +1630,7 @@
   },
   {
     "name": "sha-1",
-    "version": "0.9.3",
+    "version": "0.9.4",
     "authors": "RustCrypto Developers",
     "repository": "https://github.com/RustCrypto/hashes",
     "license": "Apache-2.0 OR MIT",
@@ -1792,7 +1801,7 @@
   },
   {
     "name": "thiserror",
-    "version": "1.0.23",
+    "version": "1.0.24",
     "authors": "David Tolnay <dtolnay@gmail.com>",
     "repository": "https://github.com/dtolnay/thiserror",
     "license": "Apache-2.0 OR MIT",
@@ -1801,7 +1810,7 @@
   },
   {
     "name": "thiserror-impl",
-    "version": "1.0.23",
+    "version": "1.0.24",
     "authors": "David Tolnay <dtolnay@gmail.com>",
     "repository": "https://github.com/dtolnay/thiserror",
     "license": "Apache-2.0 OR MIT",
@@ -1945,7 +1954,7 @@
   },
   {
     "name": "tracing",
-    "version": "0.1.23",
+    "version": "0.1.24",
     "authors": "Eliza Weisman <eliza@buoyant.io>|Tokio Contributors <team@tokio.rs>",
     "repository": "https://github.com/tokio-rs/tracing",
     "license": "MIT",
@@ -1963,7 +1972,7 @@
   },
   {
     "name": "tracing-futures",
-    "version": "0.2.4",
+    "version": "0.2.5",
     "authors": "Eliza Weisman <eliza@buoyant.io>|Tokio Contributors <team@tokio.rs>",
     "repository": "https://github.com/tokio-rs/tracing",
     "license": "MIT",
@@ -2098,7 +2107,7 @@
   },
   {
     "name": "url",
-    "version": "2.2.0",
+    "version": "2.2.1",
     "authors": "The rust-url developers",
     "repository": "https://github.com/servo/rust-url",
     "license": "Apache-2.0 OR MIT",

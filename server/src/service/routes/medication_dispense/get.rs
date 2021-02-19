@@ -51,12 +51,16 @@ pub struct QueryArgs {
 impl FromQuery for QueryArgs {
     fn parse_key_value_pair(&mut self, key: &str, value: QueryValue) -> Result<(), String> {
         match key {
-            "whenHandedOver" => self.when_handed_over.push(value.ok()?.parse()?),
-            "whenPrepared" => self.when_prepared.push(value.ok()?.parse()?),
+            "whenHandedOver" | "whenhandedover" | "when-handed-over" => {
+                self.when_handed_over.push(value.ok()?.parse()?)
+            }
+            "whenPrepared" | "whenprepared" | "when-prepared" => {
+                self.when_prepared.push(value.ok()?.parse()?)
+            }
             "performer" => self.performer.push(value.ok()?.parse()?),
             "_sort" => self.sort = Some(value.ok()?.parse()?),
             "_count" => self.count = Some(value.ok()?.parse::<usize>().map_err(|e| e.to_string())?),
-            "pageId" => {
+            "pageId" | "page-id" => {
                 self.page_id = Some(value.ok()?.parse::<usize>().map_err(|e| e.to_string())?)
             }
             _ => (),
@@ -76,8 +80,8 @@ impl FromStr for SortArgs {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "whenHandedOver" => Ok(Self::WhenHandedOver),
-            "whenPrepared" => Ok(Self::WhenPrepared),
+            "whenHandedOver" | "whenhandedover" | "when-handed-over" => Ok(Self::WhenHandedOver),
+            "whenPrepared" | "whenprepared" | "when-prepared" => Ok(Self::WhenPrepared),
             _ => Err(()),
         }
     }
