@@ -42,7 +42,7 @@ pub use error::{
 };
 use middleware::{ExtractAccessToken, HeaderCheck, Logging, Vau};
 use misc::Cms;
-use routes::configure_routes;
+use routes::{cert_list::CertList, configure_routes};
 
 pub struct EncCert(pub X509);
 
@@ -104,6 +104,7 @@ impl Service {
         } = self;
 
         let cms = Cms::new(bnetza);
+        let cert_list = CertList::default();
         let system = System::run_in_tokio("actix-web", &local);
 
         local.spawn_local(system);
@@ -118,6 +119,7 @@ impl Service {
                 .data(tsl.clone())
                 .data(cms.clone())
                 .data(puk_token.clone())
+                .data(cert_list.clone())
                 .data(EncCert(enc_cert.clone()))
                 .configure(configure_routes)
         });

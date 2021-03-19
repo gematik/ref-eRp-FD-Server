@@ -19,6 +19,7 @@ use std::fs::read;
 use std::sync::Arc;
 
 use arc_swap::ArcSwapOption;
+use chrono::Utc;
 use openssl::x509::X509;
 use url::Url;
 
@@ -33,8 +34,13 @@ pub fn from_file(url: Url) -> Result<PukToken, Error> {
     let cert = read(filepath)?;
     let cert = X509::from_pem(&cert)?;
     let public_key = cert.public_key()?;
+    let timestamp = Utc::now();
 
-    let inner = Inner { cert, public_key };
+    let inner = Inner {
+        cert,
+        public_key,
+        timestamp,
+    };
 
     let puk_token = PukToken(Arc::new(ArcSwapOption::from(Some(Arc::new(inner)))));
 

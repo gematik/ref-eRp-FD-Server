@@ -135,7 +135,7 @@ impl Builder {
             outcome_description,
             agent,
             source: Source {
-                observer: format!("{} {}", &DEVICE.device_name.name, &DEVICE.version),
+                observer: format!("Device/{}", &DEVICE.id),
             },
             entity: Entity {
                 what,
@@ -189,8 +189,24 @@ impl Builder {
         self
     }
 
+    pub fn patient_opt(&mut self, value: Option<Kvnr>) -> &mut Self {
+        if let Some(value) = value {
+            self.patient = Some(value);
+        }
+
+        self
+    }
+
     pub fn description(&mut self, value: PrescriptionId) -> &mut Self {
         self.description = Some(value);
+
+        self
+    }
+
+    pub fn description_opt(&mut self, value: Option<PrescriptionId>) -> &mut Self {
+        if let Some(value) = value {
+            self.description = Some(value);
+        }
 
         self
     }

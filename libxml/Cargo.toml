@@ -1,0 +1,10 @@
+[package]
+name = "libxml"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+foreign-types = "0.5"
+libc = "0.2"
+libxml-sys = "=0.1.0"
+thiserror = "1.0"

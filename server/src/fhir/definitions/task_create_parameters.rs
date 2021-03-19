@@ -134,7 +134,7 @@ pub mod tests {
 
     fn test_task_create_parameters() -> TaskCreateParameters {
         TaskCreateParameters {
-            flow_type: FlowType::PharmaceuticalDrugs,
+            flow_type: FlowType::ApothekenpflichtigeArzneimittel,
         }
     }
 }

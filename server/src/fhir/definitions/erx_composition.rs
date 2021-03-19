@@ -174,7 +174,7 @@ impl Encode for &ErxComposition {
     }
 }
 
-const PROFILE: &str = "https://gematik.de/fhir/StructureDefinition/erxComposition";
+const PROFILE: &str = "https://gematik.de/fhir/StructureDefinition/ErxComposition";
 
 const URL_BENEFICIARY: &str = "https://gematik.de/fhir/StructureDefinition/BeneficiaryExtension";
 
@@ -241,7 +241,7 @@ pub mod tests {
         ErxComposition {
             beneficiary: TelematikId::new("606358757"),
             date: "2020-03-20T07:31:34.328+00:00".try_into().unwrap(),
-            author: "https://prescriptionserver.telematik/Device/eRxService".into(),
+            author: "https://prescriptionserver.telematik/Device/ErxService".into(),
             event_start: "2020-03-20T07:23:34.328+00:00".try_into().unwrap(),
             event_end: "2020-03-20T07:31:34.328+00:00".try_into().unwrap(),
         }

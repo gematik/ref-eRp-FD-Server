@@ -1,3 +1,13 @@
+# Release 0.14.0
+Implemented features:
+- Added crates to handle XAdES
+- Added attachment to Communication.content
+- Fixed profile of AuditEvent
+- Added search parameters to CapabilityStatement
+- Fixed XML encoding
+Developer hints:
+- This version will break the format of the state stored to disc
+
 # Release 0.13.0
 Implemented features:
 * FD server endpoint providing certifcate list

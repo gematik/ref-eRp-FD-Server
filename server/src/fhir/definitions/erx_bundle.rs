@@ -192,7 +192,7 @@ where
     }
 }
 
-const PROFILE: &str = "https://gematik.de/fhir/StructureDefinition/erxReceipt";
+const PROFILE: &str = "https://gematik.de/fhir/StructureDefinition/ErxReceipt";
 
 #[cfg(test)]
 pub mod tests {
@@ -264,7 +264,7 @@ pub mod tests {
     pub fn test_erx_bundle() -> ErxBundle {
         ErxBundle {
             id: "281a985c-f25b-4aae-91a6-41ad744080b0".try_into().unwrap(),
-            identifier: PrescriptionId::new(FlowType::PharmaceuticalDrugs, 123456789123),
+            identifier: PrescriptionId::new(FlowType::ApothekenpflichtigeArzneimittel, 123456789123),
             timestamp: DateTime::parse_from_rfc3339("2020-03-20T07:31:34.328+00:00")
                 .unwrap()
                 .into(),
@@ -276,7 +276,7 @@ pub mod tests {
                 Signature {
                     type_: SignatureType::AuthorsSignature,
                     when: "2020-03-20T07:31:34.328+00:00".try_into().unwrap(),
-                    who: "https://prescriptionserver.telematik/Device/eRxService".into(),
+                    who: "https://prescriptionserver.telematik/Device/ErxService".into(),
                     data: "QXVmZ3J1bmQgZGVyIENvcm9uYS1TaXR1YXRpb24ga29ubnRlIGhpZXIga3VyemZyaXN0aWcga2VpbiBCZWlzcGllbCBpbiBkZXIgTGFib3J1bWdlYnVuZyBkZXIgZ2VtYXRpayBlcnN0ZWxsdCB3ZWRlbi4gRGllc2VzIHdpcmQgbmFjaGdlcmVpY2h0LgoKSW5oYWx0bGljaCB1bmQgc3RydWt0dXJlbGwgaXN0IGRpZSBTZXJ2ZXJzaWduYXR1ciBkZXIgUXVpdHR1bmcgZWluZSBFbnZlbG9waW5nIENBZEVTLVNpZ25hdHVyLCBkaWUgZGVuIHNpZ25pZXJ0ZW4gRGF0ZW5zYXR6IGFuYWxvZyB6dXIgS29ubmVrdG9yLVNpZ25hdHVyIGlubmVyaGFsYiBkZXMgQVNOMS5Db250YWluZXJzIHRyYW5zcG9ydGllcnQu".into(),
                     format: Some(SignatureFormat::Xml),
                 }

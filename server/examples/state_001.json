@@ -422,7 +422,9 @@
                 "recipient":"606358757",
                 "sender":"X234567890",
                 "payload":{
-                    "content":"Bitte schicken Sie einen Boten.",
+                    "content":{
+                        "String":"Bitte schicken Sie einen Boten."
+                    },
                     "extensions":null
                 }
             }

@@ -797,7 +797,7 @@ impl CodeEx for AccidentCause {
     }
 }
 
-const PROFILE: &str = "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Prescription|1.0.0";
+const PROFILE: &str = "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Prescription|1.0.1";
 
 const URL_CO_PAYMENT: &str = "https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_StatusCoPayment";
 const URL_EMERGENCY_SERVICE_FEE: &str =

@@ -33,10 +33,10 @@ use openssl::{
 use tokio::task::spawn;
 use url::Url;
 
+pub use certs::Certs;
 pub use error::Error;
 pub use update::update;
 
-use certs::Certs;
 use extract::TrustServiceStatusList;
 
 #[derive(Clone)]
@@ -46,6 +46,7 @@ pub struct Inner {
     pub xml: String,
     pub sha2: Option<String>,
     pub certs: Certs,
+    pub timestamp: DateTime<Utc>,
 
     store: X509Store,
 }
@@ -129,7 +130,7 @@ impl Tsl {
 }
 
 impl Inner {
-    pub fn verify(&self, cert: &X509Ref) -> Result<(), Error> {
+    pub fn verify<'a>(&'a self, cert: &X509Ref) -> Result<&'a X509Ref, Error> {
         let key = Certs::key(cert.issuer_name())?;
         let ca_certs = self
             .certs
@@ -147,7 +148,7 @@ impl Inner {
 
                 let pub_key = ca_cert.public_key()?;
                 if cert.verify(&pub_key)? {
-                    return Ok(());
+                    return Ok(ca_cert);
                 }
             }
         }
@@ -237,7 +238,9 @@ pub mod tests {
 
     use std::fs::{read, read_to_string};
 
+    use libxml::Doc;
     use openssl::x509::store::X509StoreBuilder;
+    use xmlsec::Node;
 
     use super::extract::extract;
 
@@ -246,7 +249,7 @@ pub mod tests {
         verify_cms(
             "./examples/cms.pem",
             "./examples/kbv_bundle.xml",
-            DateTime::parse_from_rfc3339("2021-01-15T11:24:43Z")
+            DateTime::parse_from_rfc3339("2021-02-17T20:42:48Z")
                 .unwrap()
                 .into(),
         );
@@ -261,6 +264,23 @@ pub mod tests {
                 .unwrap()
                 .into(),
         );
+    }
+
+    #[test]
+    fn test_tsl_verify() {
+        let doc = Doc::from_file("./examples/Pseudo-BNetzA-VL.xml").unwrap();
+        let node_root = doc.root().unwrap();
+        let node_signature = node_root
+            .search(&mut |n| n.name().unwrap() == "Signature")
+            .unwrap();
+        let node_signed_props = node_signature
+            .search(&mut |n| n.name().unwrap() == "SignedProperties")
+            .unwrap();
+        let verified_nodes = node_root.verify().unwrap();
+
+        assert!(verified_nodes.contains(node_root, None));
+        assert!(!verified_nodes.contains(node_signature, None));
+        assert!(verified_nodes.contains(node_signed_props, None));
     }
 
     fn verify_cms(cms: &str, content: &str, signing_time: DateTime<Utc>) {
@@ -280,12 +300,14 @@ pub mod tests {
         let bnetza = read_to_string("./examples/Pseudo-BNetzA-VL-seq24.xml").unwrap();
         let certs = extract(&bnetza, &prepare_no_op).unwrap();
         let store = X509StoreBuilder::new().unwrap().build();
+        let timestamp = Utc::now();
 
         let inner = Inner {
             xml: Default::default(),
             sha2: None,
             certs,
             store,
+            timestamp,
         };
 
         Tsl(Arc::new(ArcSwapOption::from_pointee(inner)))

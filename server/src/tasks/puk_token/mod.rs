@@ -24,6 +24,7 @@ pub use error::Error;
 use std::sync::Arc;
 
 use arc_swap::{ArcSwapOption, Guard};
+use chrono::{DateTime, Utc};
 use openssl::{
     pkey::{PKey, Public},
     x509::X509,
@@ -40,6 +41,7 @@ use super::Tsl;
 pub struct PukToken(Arc<ArcSwapOption<Inner>>);
 
 pub struct Inner {
+    pub timestamp: DateTime<Utc>,
     pub cert: X509,
     pub public_key: PKey<Public>,
 }

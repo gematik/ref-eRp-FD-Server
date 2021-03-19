@@ -25,7 +25,7 @@ use get::{get_all, get_one};
 
 use actix_web::web::{get, resource, ServiceConfig};
 use proc_macros::capability_statement_resource;
-use resources::capability_statement::{Interaction, Type};
+use resources::capability_statement::{Interaction, SearchParamType, Type};
 
 use crate::fhir::definitions::RESOURCE_PROFILE_AUDIT_EVENT;
 
@@ -38,6 +38,9 @@ pub struct AutidEventRoutes;
 )]
 impl AutidEventRoutes {
     #[interaction(Interaction::Read)]
+    #[search_param(name="date", type=SearchParamType::Date)]
+    #[search_param(name="agent", type=SearchParamType::String)]
+    #[search_param(name="sub-type", type=SearchParamType::Token)]
     fn configure_all(&self, cfg: &mut ServiceConfig) {
         cfg.service(resource("/AuditEvent").route(get().to(get_all)));
         cfg.service(resource("/AuditEvent/{id}").route(get().to(get_one)));

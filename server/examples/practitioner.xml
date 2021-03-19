@@ -1,7 +1,7 @@
 <Practitioner xmlns="http://hl7.org/fhir">
     <id value="20597e0e-cb2a-45b3-95f0-dc3dbdb617c3"/>
     <meta>
-        <profile value="https://fhir.kbv.de/StructureDefinition/KBV_PR_FOR_Practitioner|1.0.1"/>
+        <profile value="https://fhir.kbv.de/StructureDefinition/KBV_PR_FOR_Practitioner|1.0.3"/>
     </meta>
     <identifier>
         <type>

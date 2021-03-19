@@ -204,7 +204,7 @@ The following parameters are mandatory.
         --sig-key ./path/to/fd_id_sig \
         --sig-cert ./path/to/fd_id_sig.cert \
         --bnetza file://path/to/bnetzavl.xml \
-        --token file://path/to/idp_id.pub \
+        --token file://path/to/idp_id.cert \
         --tsl https://download.tsl.ti-dienste.de
 
 For testing purposes you can use the TSL that is provided by the specified URL. In the final product you should use your own TSL endpoint!

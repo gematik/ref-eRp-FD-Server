@@ -924,13 +924,13 @@ impl AmountEx for Amount {
 }
 
 const PROFILE_MEDICATION_COMPOUNDING: &str =
-    "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_Compounding|1.0.0";
+    "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_Compounding|1.0.1";
 const PROFILE_MEDICATION_FREE_TEXT: &str =
-    "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_FreeText|1.0.0";
+    "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_FreeText|1.0.1";
 const PROFILE_MEDICATION_INGREDIENT: &str =
-    "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_Ingredient|1.0.0";
+    "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_Ingredient|1.0.1";
 const PROFILE_MEDICATION_PZN: &str =
-    "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_PZN|1.0.0";
+    "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_PZN|1.0.1";
 
 const URL_CATEGORY: &str = "https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Medication_Category";
 const URL_VACCINE: &str = "https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Medication_Vaccine";

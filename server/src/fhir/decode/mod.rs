@@ -81,7 +81,7 @@ pub mod tests {
         });
         assert_some_ok!(Item::Field {
             name: "profile".into(),
-            value: "https://gematik.de/fhir/StructureDefinition/erxTask".into(),
+            value: "https://gematik.de/fhir/StructureDefinition/ErxTask".into(),
             extension: Vec::new(),
         });
         assert_some_ok!(Item::EndElement);
@@ -160,7 +160,7 @@ pub mod tests {
         });
         assert_some_ok!(Item::Field {
             name: "system".into(),
-            value: "https://gematik.de/fhir/Namingsystem/AccessCode".into(),
+            value: "https://gematik.de/fhir/NamingSystem/AccessCode".into(),
             extension: Vec::new(),
         });
         assert_some_ok!(Item::Field {
@@ -174,7 +174,7 @@ pub mod tests {
         });
         assert_some_ok!(Item::Field {
             name: "system".into(),
-            value: "https://gematik.de/fhir/Namingsystem/Secret".into(),
+            value: "https://gematik.de/fhir/NamingSystem/Secret".into(),
             extension: Vec::new(),
         });
         assert_some_ok!(Item::Field {

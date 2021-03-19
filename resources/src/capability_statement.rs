@@ -48,8 +48,15 @@ pub struct Resource {
     pub type_: Type,
     pub profile: String,
     pub supported_profiles: Vec<String>,
+    pub search_param: Vec<SearchParam>,
     pub operation: Vec<Operation>,
     pub interaction: Vec<Interaction>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct SearchParam {
+    pub name: String,
+    pub type_: SearchParamType,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -97,6 +104,20 @@ pub enum Type {
     MedicationDispense,
     AuditEvent,
     Device,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum SearchParamType {
+    Number,
+    Date,
+    String,
+    Token,
+    Reference,
+    Composite,
+    Quantity,
+    Uri,
+    Special,
 }
 
 #[allow(dead_code)]

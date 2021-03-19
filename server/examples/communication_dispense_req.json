@@ -2,7 +2,7 @@
     "resourceType":"Communication",
     "meta":{
         "profile":[
-            "https://gematik.de/fhir/StructureDefinition/erxCommunicationDispReq"
+            "https://gematik.de/fhir/StructureDefinition/ErxCommunicationDispReq"
         ]
     },
     "basedOn":[
@@ -15,7 +15,7 @@
     "recipient":[
         {
             "identifier":{
-                "system":"https://gematik.de/fhir/Namingsystem/TelematikID",
+                "system":"https://gematik.de/fhir/NamingSystem/TelematikID",
                 "value":"606358757"
             }
         }

@@ -3,7 +3,7 @@
     "id":"281a985c-f25b-4aae-91a6-41ad744080b0",
     "meta":{
         "profile":[
-            "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Bundle|1.0.0"
+            "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Bundle|1.0.1"
         ]
     },
     "identifier":{
@@ -20,7 +20,7 @@
                 "id":"ed52c1e3-b700-4497-ae19-b23744e29876",
                 "meta":{
                     "profile":[
-                        "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Composition|1.0.0"
+                        "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Composition|1.0.1"
                     ]
                 },
                 "extension":[
@@ -125,7 +125,7 @@
                 "id":"e930cdee-9eb5-4b44-88b5-2a18b69f3b9a",
                 "meta":{
                     "profile":[
-                        "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Prescription|1.0.0"
+                        "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Prescription|1.0.1"
                     ]
                 },
                 "extension":[
@@ -239,7 +239,7 @@
                 "id":"5fe6e06c-8725-46d5-aecd-e65e041ca3de",
                 "meta":{
                     "profile":[
-                        "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_PZN|1.0.0"
+                        "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_PZN|1.0.1"
                     ]
                 },
                 "extension":[
@@ -300,7 +300,7 @@
                 "id":"9774f67f-a238-4daf-b4e6-679deeef3811",
                 "meta":{
                     "profile":[
-                        "https://fhir.kbv.de/StructureDefinition/KBV_PR_FOR_Patient|1.0.1"
+                        "https://fhir.kbv.de/StructureDefinition/KBV_PR_FOR_Patient|1.0.3"
                     ]
                 },
                 "identifier":[
@@ -368,7 +368,7 @@
                 "id":"20597e0e-cb2a-45b3-95f0-dc3dbdb617c3",
                 "meta":{
                     "profile":[
-                        "https://fhir.kbv.de/StructureDefinition/KBV_PR_FOR_Practitioner|1.0.1"
+                        "https://fhir.kbv.de/StructureDefinition/KBV_PR_FOR_Practitioner|1.0.3"
                     ]
                 },
                 "identifier":[
@@ -441,7 +441,7 @@
                 "id":"cf042e44-086a-4d51-9c77-172f9a972e3b",
                 "meta":{
                     "profile":[
-                        "https://fhir.kbv.de/StructureDefinition/KBV_PR_FOR_Organization|1.0.1"
+                        "https://fhir.kbv.de/StructureDefinition/KBV_PR_FOR_Organization|1.0.3"
                     ]
                 },
                 "identifier":[
@@ -498,7 +498,7 @@
                 "id":"1b1ffb6e-eb05-43d7-87eb-e7818fe9661a",
                 "meta":{
                     "profile":[
-                        "https://fhir.kbv.de/StructureDefinition/KBV_PR_FOR_Coverage|1.0.1"
+                        "https://fhir.kbv.de/StructureDefinition/KBV_PR_FOR_Coverage|1.0.3"
                     ]
                 },
                 "extension":[
@@ -561,7 +561,7 @@
                 "id":"9a4090f8-8c5a-11ea-bc55-0242ac13000",
                 "meta":{
                     "profile":[
-                        "https://fhir.kbv.de/StructureDefinition/KBV_PR_FOR_PractitionerRole|1.0.1"
+                        "https://fhir.kbv.de/StructureDefinition/KBV_PR_FOR_PractitionerRole|1.0.3"
                     ]
                 },
                 "practitioner":{

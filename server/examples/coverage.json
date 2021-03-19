@@ -3,7 +3,7 @@
     "id":"1b1ffb6e-eb05-43d7-87eb-e7818fe9661a",
     "meta":{
         "profile":[
-            "https://fhir.kbv.de/StructureDefinition/KBV_PR_FOR_Coverage|1.0.1"
+            "https://fhir.kbv.de/StructureDefinition/KBV_PR_FOR_Coverage|1.0.3"
         ]
     },
     "extension":[

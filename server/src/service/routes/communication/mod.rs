@@ -30,7 +30,7 @@ use get::{get_all, get_one};
 
 use actix_web::web::{delete, get, post, resource, ServiceConfig};
 use proc_macros::capability_statement_resource;
-use resources::capability_statement::{Interaction, Type};
+use resources::capability_statement::{Interaction, SearchParamType, Type};
 
 use crate::fhir::definitions::{
     RESOURCE_PROFILE_COMMUNICATION, RESOURCE_PROFILE_COMMUNICATION_DISPENSE_REQ,
@@ -54,6 +54,10 @@ impl CommunicationRoutes {
     #[interaction(Interaction::Create)]
     #[interaction(Interaction::Read)]
     #[interaction(Interaction::Delete)]
+    #[search_param(name="sent", type=SearchParamType::Date)]
+    #[search_param(name="received", type=SearchParamType::Date)]
+    #[search_param(name="sender", type=SearchParamType::String)]
+    #[search_param(name="recipient", type=SearchParamType::String)]
     fn configure_all(&self, cfg: &mut ServiceConfig) {
         cfg.service(
             resource("/Communication")

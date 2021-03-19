@@ -35,7 +35,7 @@ use abort::abort;
 use actix_web::web::post;
 use actix_web::web::{get, resource, ServiceConfig};
 use proc_macros::capability_statement_resource;
-use resources::capability_statement::{Interaction, Type};
+use resources::capability_statement::{Interaction, SearchParamType, Type};
 
 use crate::fhir::definitions::{
     OPERATION_TASK_ABORT, OPERATION_TASK_ACCEPT, OPERATION_TASK_ACTIVATE, OPERATION_TASK_CLOSE,
@@ -76,6 +76,10 @@ impl TaskRoutes {
     }
 
     #[interaction(Interaction::Read)]
+    #[interaction(Interaction::Vread)]
+    #[search_param(name="status", type=SearchParamType::Token)]
+    #[search_param(name="authored-on", type=SearchParamType::Date)]
+    #[search_param(name="modified", type=SearchParamType::Date)]
     #[operation(name="abort", definition = OPERATION_TASK_ABORT)]
     fn configure_all(&self, cfg: &mut ServiceConfig) {
         cfg.service(resource("/Task").route(get().to(get_all)));

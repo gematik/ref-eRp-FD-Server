@@ -40,7 +40,7 @@ use super::{AsReqErrResult, RequestError, TypedRequestError, TypedRequestResult}
 
 lazy_static! {
     pub static ref DEVICE: Device = Device {
-        id: "eRxService".try_into().unwrap(),
+        id: "ErxService".try_into().unwrap(),
         status: Status::Active,
         serial_number: None,
         device_name: DeviceName {

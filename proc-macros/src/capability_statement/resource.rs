@@ -20,7 +20,7 @@ use std::mem::take;
 use proc_macro::{token_stream::IntoIter, Delimiter, Group, TokenStream, TokenTree};
 use proc_macro2::TokenStream as TokenStream2;
 
-use super::misc::{parse_key_value_list, Attrib, Interaction, Operation};
+use super::misc::{parse_key_value_list, Attrib, Interaction, Operation, SearchParam};
 
 pub fn resource(attribs: TokenStream, tokens: TokenStream) -> TokenStream {
     let res = ResourceMacro::new(attribs, tokens).and_then(|x| x.execute());
@@ -49,6 +49,7 @@ struct Route {
     cfg: Option<TokenStream2>,
     operations: Vec<Operation>,
     interactions: Vec<Interaction>,
+    search_params: Vec<SearchParam>,
 }
 
 impl ResourceMacro {
@@ -117,6 +118,7 @@ impl ResourceMacro {
         let mut cfg = None;
         let mut operations = Vec::new();
         let mut interactions = Vec::new();
+        let mut search_params = Vec::new();
 
         let mut ret = TokenStream::new();
         let mut it = group.stream().into_iter();
@@ -140,6 +142,7 @@ impl ResourceMacro {
                         }
                         Attrib::Operation(o) => operations.push(o),
                         Attrib::Interaction(i) => interactions.push(i),
+                        Attrib::SearchParam(sp) => search_params.push(sp),
                         Attrib::Unknown => {
                             ret.extend(TokenStream::from(TokenTree::Punct(punct.clone())));
                             ret.extend(TokenStream::from(TokenTree::Group(group)));
@@ -164,6 +167,7 @@ impl ResourceMacro {
                                 method,
                                 operations: take(&mut operations),
                                 interactions: take(&mut interactions),
+                                search_params: take(&mut search_params),
                             });
                         }
                         _ => return Err("Expected method name after 'fn' keyword".into()),
@@ -222,6 +226,15 @@ impl ResourceMacro {
                     update_resource_operation(res, #name, #definition);
                 }
             });
+            let search_params = route.search_params.iter().map(|search_param| {
+                let name = &search_param.name;
+                let type_ = &search_param.type_;
+
+                quote! {
+                    #cfg
+                    update_resource_search_param(res, #name, #type_);
+                }
+            });
             let interactions = route.interactions.iter().map(|interaction| {
                 let name = &interaction.name;
 
@@ -233,6 +246,7 @@ impl ResourceMacro {
 
             quote! {
                 #(#operations)*
+                #(#search_params)*
                 #(#interactions)*
             }
         });
@@ -268,6 +282,7 @@ impl ResourceMacro {
                     type_: #type_.into(),
                     profile: #profile.into(),
                     supported_profiles: #supported_profiles,
+                    search_param: Vec::new(),
                     operation: Vec::new(),
                     interaction: Vec::new(),
                 };
@@ -314,6 +329,18 @@ fn generate_helper() -> TokenStream {
                 definition: definition.into(),
             };
             res.operation.push(op);
+        }
+
+        fn update_resource_search_param(
+            res: &mut resources::capability_statement::Resource,
+            name: &str,
+            type_: resources::capability_statement::SearchParamType,
+        ) {
+            let sp = resources::capability_statement::SearchParam {
+                name: name.into(),
+                type_,
+            };
+            res.search_param.push(sp);
         }
 
         fn update_resource_interaction(

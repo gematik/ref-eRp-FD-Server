@@ -3,17 +3,21 @@
     "id":"5fe6e06c-8725-46d5-aecd-e65e041ca3af",
     "meta":{
         "profile":[
-            "https://gematik.de/fhir/StructureDefinition/erxAuditEvent"
+            "https://gematik.de/fhir/StructureDefinition/ErxAuditEvent"
         ]
+    },
+    "text":{
+        "status":"additional",
+        "div":"Example Text"
     },
     "type":{
         "system":"http://terminology.hl7.org/CodeSystem/audit-event-type",
         "code":"rest"
     },
-    "subType":{
+    "subtype":[{
         "system":"http://hl7.org/fhir/restful-interaction",
         "code":"read"
-    },
+    }],
     "action":"C",
     "recorded":"2020-02-27T08:04:27.434+00:00",
     "outcome":"0",
@@ -24,13 +28,13 @@
                     {
                         "system":"http://terminology.hl7.org/CodeSystem/extra-security-role-type",
                         "code":"humanuser",
-                        "display":"human user"
+                        "display":"Human user"
                     }
                 ]
             },
             "who":{
                 "identifier":{
-                    "system":"https://gematik.de/fhir/Namingsystem/TelematikID",
+                    "system":"https://gematik.de/fhir/NamingSystem/TelematikID",
                     "value":"606358750"
                 }
             },
@@ -39,6 +43,7 @@
         }
     ],
     "source":{
+        "site":"E-Rezept Fachdienst",
         "observer":{
             "reference":"Device/eRx-Fachdienst"
         }

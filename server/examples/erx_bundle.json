@@ -3,7 +3,7 @@
     "id":"281a985c-f25b-4aae-91a6-41ad744080b0",
     "meta":{
         "profile":[
-            "https://gematik.de/fhir/StructureDefinition/erxReceipt"
+            "https://gematik.de/fhir/StructureDefinition/ErxReceipt"
         ]
     },
     "identifier":{
@@ -18,14 +18,14 @@
                 "resourceType":"Composition",
                 "meta":{
                     "profile":[
-                        "https://gematik.de/fhir/StructureDefinition/erxComposition"
+                        "https://gematik.de/fhir/StructureDefinition/ErxComposition"
                     ]
                 },
                 "extension":[
                     {
                         "url":"https://gematik.de/fhir/StructureDefinition/BeneficiaryExtension",
                         "valueIdentifier":{
-                            "system":"https://gematik.de/fhir/Namingsystem/TelematikID",
+                            "system":"https://gematik.de/fhir/NamingSystem/TelematikID",
                             "value":"606358757"
                         }
                     }
@@ -43,7 +43,7 @@
                 "date":"2020-03-20T07:31:34.328+00:00",
                 "author":[
                     {
-                        "reference":"https://prescriptionserver.telematik/Device/eRxService"
+                        "reference":"https://prescriptionserver.telematik/Device/ErxService"
                     }
                 ],
                 "title":"Quittung",
@@ -58,10 +58,10 @@
         {
             "resource":{
                 "resourceType":"Device",
-                "id":"eRxService",
+                "id":"ErxService",
                 "meta":{
                     "profile":[
-                        "https://gematik.de/fhir/StructureDefinition/erxDevice"
+                        "https://gematik.de/fhir/StructureDefinition/ErxDevice"
                     ]
                 },
                 "status":"active",

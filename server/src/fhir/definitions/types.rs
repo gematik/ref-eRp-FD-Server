@@ -22,14 +22,28 @@ use super::primitives::{CodeEx, CodeableConceptEx, CodingEx};
 impl CodeEx for FlowType {
     fn from_parts(value: String) -> Result<Self, String> {
         match value.as_str() {
-            "160" => Ok(Self::PharmaceuticalDrugs),
+            "160" => Ok(Self::ApothekenpflichtigeArzneimittel),
+            "161" => Ok(Self::Sanitaetsbedarf),
+            "162" => Ok(Self::Heilmittel),
+            "163" => Ok(Self::Hilfsmittel),
+            "164" => Ok(Self::Sprechstundenbedarf),
+            "165" => Ok(Self::Betaeubungsmittel),
+            "166" => Ok(Self::TRezepte),
+            "169" => Ok(Self::DirekteZuweisung),
             _ => Err(value),
         }
     }
 
     fn code(&self) -> &'static str {
         match self {
-            Self::PharmaceuticalDrugs => "160",
+            Self::ApothekenpflichtigeArzneimittel => "160",
+            Self::Sanitaetsbedarf => "161",
+            Self::Heilmittel => "162",
+            Self::Hilfsmittel => "163",
+            Self::Sprechstundenbedarf => "164",
+            Self::Betaeubungsmittel => "165",
+            Self::TRezepte => "166",
+            Self::DirekteZuweisung => "169",
         }
     }
 }
@@ -47,7 +61,16 @@ impl CodingEx for FlowType {
 
     fn display(&self) -> Option<&'static str> {
         match self {
-            Self::PharmaceuticalDrugs => Some("Muster 16 (Apothekenpflichtige Arzneimittel)"),
+            Self::ApothekenpflichtigeArzneimittel => {
+                Some("Muster 16 (Apothekenpflichtige Arzneimittel)")
+            }
+            Self::Sanitaetsbedarf => Some("Muster 16 (Sanitätsbedarf)"),
+            Self::Heilmittel => Some("Muster 16 (Heilmittel)"),
+            Self::Hilfsmittel => Some("Muster 16 (Hilfsmittel)"),
+            Self::Sprechstundenbedarf => Some("Muster 16 (Sprechstundenbedarf)"),
+            Self::Betaeubungsmittel => Some("Muster 16 (Betäubungsmittel)"),
+            Self::TRezepte => Some("Muster 16 (T-Rezepte)"),
+            Self::DirekteZuweisung => Some("Muster 16 (Direkte Zuweisung)"),
         }
     }
 

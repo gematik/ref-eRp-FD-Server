@@ -45,7 +45,12 @@ use crate::{
 use super::{misc::Resource, Error};
 
 #[derive(Default)]
-pub struct QueryArgs {
+pub struct GetOneQueryArgs {
+    secret: Option<String>,
+}
+
+#[derive(Default)]
+pub struct GetAllQueryArgs {
     status: Vec<Search<Status>>,
     authored_on: Vec<Search<DateTime<Utc>>>,
     last_modified: Vec<Search<DateTime<Utc>>>,
@@ -60,7 +65,19 @@ pub struct PathArgs {
     version: usize,
 }
 
-impl FromQuery for QueryArgs {
+impl FromQuery for GetOneQueryArgs {
+    #[allow(clippy::single_match)]
+    fn parse_key_value_pair(&mut self, key: &str, value: QueryValue) -> Result<(), String> {
+        match key {
+            "secret" => self.secret = Some(value.ok()?.to_owned()),
+            _ => (),
+        }
+
+        Ok(())
+    }
+}
+
+impl FromQuery for GetAllQueryArgs {
     fn parse_key_value_pair(&mut self, key: &str, value: QueryValue) -> Result<(), String> {
         match key {
             "status" => self.status.push(value.ok()?.parse()?),
@@ -98,9 +115,9 @@ impl FromStr for SortArgs {
 }
 
 enum TaskReference {
-    All,
-    One(Id),
-    Version(Id, usize),
+    All(GetAllQueryArgs),
+    One(Id, GetOneQueryArgs),
+    Version(Id, usize, GetOneQueryArgs),
 }
 
 pub async fn get_all(
@@ -108,16 +125,15 @@ pub async fn get_all(
     accept: Accept,
     id_token: Authorization,
     access_code: Option<XAccessCode>,
-    query: Query<QueryArgs>,
+    query: Query<GetAllQueryArgs>,
     request: HttpRequest,
 ) -> Result<HttpResponse, TypedRequestError> {
     get(
         &state,
-        TaskReference::All,
+        TaskReference::All(query.0),
         accept,
         id_token,
         access_code,
-        query.0,
         request.query_string(),
     )
     .await
@@ -129,14 +145,14 @@ pub async fn get_one(
     accept: Accept,
     id_token: Authorization,
     access_code: Option<XAccessCode>,
+    query: Query<GetOneQueryArgs>,
 ) -> Result<HttpResponse, TypedRequestError> {
     get(
         &state,
-        TaskReference::One(id.into_inner()),
+        TaskReference::One(id.into_inner(), query.0),
         accept,
         id_token,
         access_code,
-        QueryArgs::default(),
         "",
     )
     .await
@@ -148,16 +164,16 @@ pub async fn get_version(
     accept: Accept,
     id_token: Authorization,
     access_code: Option<XAccessCode>,
+    query: Query<GetOneQueryArgs>,
 ) -> Result<HttpResponse, TypedRequestError> {
     let PathArgs { id, version } = args.into_inner();
 
     get(
         &state,
-        TaskReference::Version(id, version),
+        TaskReference::Version(id, version, query.0),
         accept,
         id_token,
         access_code,
-        QueryArgs::default(),
         "",
     )
     .await
@@ -170,7 +186,6 @@ async fn get(
     accept: Accept,
     access_token: Authorization,
     access_code: Option<XAccessCode>,
-    query: QueryArgs,
     query_str: &str,
 ) -> Result<HttpResponse, TypedRequestError> {
     let accept = DataType::from_accept(&accept)
@@ -193,9 +208,9 @@ async fn get(
     let mut state = state.lock().await;
 
     match reference {
-        TaskReference::One(id) => {
+        TaskReference::One(id, query) => {
             let (state, task) = state
-                .task_get(id, None, kvnr, access_code, agent)
+                .task_get(id, None, kvnr, access_code, query.secret, agent)
                 .as_req_err()
                 .err_with_type(accept)?;
 
@@ -206,9 +221,9 @@ async fn get(
 
             create_response(&bundle, accept)
         }
-        TaskReference::Version(id, version_id) => {
+        TaskReference::Version(id, version_id, query) => {
             let (_, task) = state
-                .task_get(id, Some(version_id), kvnr, access_code, agent)
+                .task_get(id, Some(version_id), kvnr, access_code, query.secret, agent)
                 .as_req_err()
                 .err_with_type(accept)?;
 
@@ -219,7 +234,7 @@ async fn get(
 
             create_response(&bundle, accept)
         }
-        TaskReference::All => {
+        TaskReference::All(query) => {
             let mut tasks = state
                 .task_iter(kvnr, access_code, agent, |t| check_query(&query, t))
                 .collect::<Vec<_>>();
@@ -297,7 +312,7 @@ async fn get(
     }
 }
 
-fn check_query(query: &QueryArgs, task: &Task) -> bool {
+fn check_query(query: &GetAllQueryArgs, task: &Task) -> bool {
     for status in &query.status {
         if !status.matches(&task.status) {
             return false;

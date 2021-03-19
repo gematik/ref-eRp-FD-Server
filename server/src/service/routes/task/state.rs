@@ -123,8 +123,8 @@ impl Inner {
             event_builder.action(Action::Create);
             event_builder.sub_type(SubType::Create);
             event_builder.patient(kvnr.clone());
-            event_builder.what(format!("/Task/{}", &id));
-            event_builder.description(task.identifier.prescription_id.as_ref().unwrap().clone());
+            event_builder.what(format!("Task/{}", &id));
+            event_builder.description_opt(task.identifier.prescription_id.clone());
             event_builder.text("/Task/$activate Operation");
 
             /* validate request */
@@ -194,7 +194,10 @@ impl Inner {
             task.input.patient_receipt = Some(patient_receipt);
 
             let (accept_duration, expiry_duration) = match task.extension.flow_type {
-                FlowType::PharmaceuticalDrugs => (Duration::days(30), Duration::days(92)),
+                FlowType::ApothekenpflichtigeArzneimittel => {
+                    (Duration::days(30), Duration::days(92))
+                }
+                _ => unimplemented!(),
             };
             task.extension.accept_date = Some(signing_time.add(accept_duration).date().into());
             task.extension.expiry_date = Some(signing_time.add(expiry_duration).date().into());
@@ -228,9 +231,9 @@ impl Inner {
             event_builder.agent(agent);
             event_builder.action(Action::Update);
             event_builder.sub_type(SubType::Update);
-            event_builder.what(format!("/Task/{}", &id));
-            event_builder.patient(task.for_.as_ref().unwrap().clone());
-            event_builder.description(task.identifier.prescription_id.as_ref().unwrap().clone());
+            event_builder.what(format!("Task/{}", &id));
+            event_builder.patient_opt(task.for_.clone());
+            event_builder.description_opt(task.identifier.prescription_id.clone());
             event_builder.text("/Task/$accept Operation");
 
             match &task.identifier.access_code {
@@ -291,9 +294,9 @@ impl Inner {
             event_builder.agent(agent);
             event_builder.action(Action::Update);
             event_builder.sub_type(SubType::Update);
-            event_builder.what(format!("/Task/{}", &id));
-            event_builder.patient(task.for_.as_ref().unwrap().clone());
-            event_builder.description(task.identifier.prescription_id.as_ref().unwrap().clone());
+            event_builder.what(format!("Task/{}", &id));
+            event_builder.patient_opt(task.for_.clone());
+            event_builder.description_opt(task.identifier.prescription_id.clone());
             event_builder.text("/Task/$reject Operation");
 
             if task.status != Status::InProgress || task.identifier.secret != secret {
@@ -337,9 +340,9 @@ impl Inner {
             event_builder.agent(agent);
             event_builder.action(Action::Update);
             event_builder.sub_type(SubType::Update);
-            event_builder.what(format!("/Task/{}", &id));
-            event_builder.patient(task.for_.as_ref().unwrap().clone());
-            event_builder.description(task.identifier.prescription_id.as_ref().unwrap().clone());
+            event_builder.what(format!("Task/{}", &id));
+            event_builder.patient_opt(task.for_.clone());
+            event_builder.description_opt(task.identifier.prescription_id.clone());
             event_builder.text("/Task/$close Operation");
 
             /* check the preconditions */
@@ -466,13 +469,13 @@ impl Inner {
             event_builder.agent(agent);
             event_builder.action(Action::Delete);
             event_builder.sub_type(SubType::Delete);
-            event_builder.what(format!("/Task/{}", &id));
-            event_builder.patient(task.for_.as_ref().unwrap().clone());
-            event_builder.description(task.identifier.prescription_id.as_ref().unwrap().clone());
+            event_builder.what(format!("Task/{}", &id));
+            event_builder.patient_opt(task.for_.clone());
+            event_builder.description_opt(task.identifier.prescription_id.clone());
             event_builder.text("/Task/$abort Operation");
 
             let is_secret_ok = secret.is_some() && task.identifier.secret == secret;
-            let is_access_ok = Self::task_matches(&task, &kvnr, &access_code);
+            let is_access_ok = Self::task_matches(&task, &kvnr, &access_code, &None);
             let is_in_progress = task.status == Status::InProgress;
 
             if (is_pharmacy && !is_secret_ok) || (!is_pharmacy && !is_access_ok) {
@@ -482,8 +485,6 @@ impl Inner {
             if is_pharmacy != is_in_progress {
                 return Err(Error::Forbidden(id));
             }
-
-            dbg!(&secret);
 
             let mut task = task_meta.history.get_mut();
             task.for_ = None;
@@ -530,6 +531,7 @@ impl Inner {
         version_id: Option<usize>,
         kvnr: Option<Kvnr>,
         access_code: Option<XAccessCode>,
+        secret: Option<String>,
         agent: Agent,
     ) -> Result<(&Self, &Version<Task>), Error> {
         let Self {
@@ -552,11 +554,11 @@ impl Inner {
             } else {
                 SubType::Read
             });
-            event_builder.what(format!("/Task/{}", &id));
-            event_builder.patient(task.for_.as_ref().unwrap().clone());
-            event_builder.description(task.identifier.prescription_id.as_ref().unwrap().clone());
+            event_builder.what(format!("Task/{}", &id));
+            event_builder.patient_opt(task.for_.clone());
+            event_builder.description_opt(task.identifier.prescription_id.clone());
 
-            if !Self::task_matches(&task, &kvnr, &access_code) {
+            if !Self::task_matches(&task, &kvnr, &access_code, &secret) {
                 return Err(Error::Forbidden(id));
             }
 
@@ -594,7 +596,7 @@ impl Inner {
         let iter = tasks.iter().filter_map(move |(_, task_meta)| {
             let task = task_meta.history.get_current();
 
-            if !Self::task_matches(&task, &kvnr, &access_code) {
+            if !Self::task_matches(&task, &kvnr, &access_code, &None) {
                 return None;
             }
 
@@ -615,6 +617,7 @@ impl Inner {
         task: &Task,
         kvnr: &Option<Kvnr>,
         access_code: &Option<XAccessCode>,
+        secret: &Option<String>,
     ) -> bool {
         match (task.for_.as_ref(), kvnr) {
             (Some(task_kvnr), Some(kvnr)) if task_kvnr == kvnr => return true,
@@ -623,6 +626,11 @@ impl Inner {
 
         match (task.identifier.access_code.as_ref(), access_code) {
             (Some(task_ac), Some(ac)) if task_ac == ac => return true,
+            _ => (),
+        }
+
+        match (task.identifier.secret.as_ref(), secret) {
+            (Some(task_secret), Some(secret)) if task_secret == secret => return true,
             _ => (),
         }
 
@@ -690,9 +698,9 @@ impl<'a> Deref for TaskRef<'a> {
         builder.agent(agent);
         builder.action(Action::Read);
         builder.sub_type(SubType::Read);
-        builder.what(format!("/Task/{}", &task.id));
-        builder.patient(task.for_.as_ref().unwrap().clone());
-        builder.description(task.identifier.prescription_id.as_ref().unwrap().clone());
+        builder.what(format!("Task/{}", &task.id));
+        builder.patient_opt(task.for_.clone());
+        builder.description_opt(task.identifier.prescription_id.clone());
         builder.build(&mut audit_events, None);
 
         task

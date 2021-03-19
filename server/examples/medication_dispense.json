@@ -2,7 +2,7 @@
     "resourceType":"MedicationDispense",
     "meta":{
         "profile":[
-            "https://gematik.de/fhir/StructureDefinition/erxMedicationDispense"
+            "https://gematik.de/fhir/StructureDefinition/ErxMedicationDispense"
         ]
     },
     "identifier":[
@@ -25,7 +25,7 @@
         {
             "actor":{
                 "identifier":{
-                    "system":"https://gematik.de/fhir/Namingsystem/TelematikID",
+                    "system":"https://gematik.de/fhir/NamingSystem/TelematikID",
                     "value":"606358757"
                 }
             }

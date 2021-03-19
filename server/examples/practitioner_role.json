@@ -3,7 +3,7 @@
     "id":"9a4090f8-8c5a-11ea-bc55-0242ac13000",
     "meta":{
         "profile":[
-            "https://fhir.kbv.de/StructureDefinition/KBV_PR_FOR_PractitionerRole|1.0.1"
+            "https://fhir.kbv.de/StructureDefinition/KBV_PR_FOR_PractitionerRole|1.0.3"
         ]
     },
     "practitioner":{

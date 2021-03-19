@@ -1,6 +1,6 @@
 <Task xmlns="http://hl7.org/fhir">
     <meta>
-        <profile value="https://gematik.de/fhir/StructureDefinition/erxTask"/>
+        <profile value="https://gematik.de/fhir/StructureDefinition/ErxTask"/>
     </meta>
     <extension url="https://gematik.de/fhir/StructureDefinition/PrescriptionType">
         <valueCoding>
@@ -20,11 +20,11 @@
         <value value="160.123.456.789.123.58"/>
     </identifier>
     <identifier>
-        <system value="https://gematik.de/fhir/Namingsystem/AccessCode"/>
+        <system value="https://gematik.de/fhir/NamingSystem/AccessCode"/>
         <value value="777bea0e13cc9c42ceec14aec3ddee2263325dc2c6c699db115f58fe423607ea"/>
     </identifier>
     <identifier>
-        <system value="https://gematik.de/fhir/Namingsystem/Secret"/>
+        <system value="https://gematik.de/fhir/NamingSystem/Secret"/>
         <value value="c36ca26502892b371d252c99b496e31505ff449aca9bc69e231c58148f6233cf"/>
     </identifier>
     <status value="in-progress"/>

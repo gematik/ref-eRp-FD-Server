@@ -200,7 +200,7 @@ pub mod tests {
 
     #[test]
     fn to_string() {
-        let id = PrescriptionId::new(FlowType::PharmaceuticalDrugs, 123456789123);
+        let id = PrescriptionId::new(FlowType::ApothekenpflichtigeArzneimittel, 123456789123);
 
         let actual = id.to_string();
         let expected = "160.123.456.789.123.58";
@@ -211,7 +211,7 @@ pub mod tests {
     #[test]
     fn from_string() {
         let actual: PrescriptionId = "160.123.456.789.123.58".parse().unwrap();
-        let expected = PrescriptionId::new(FlowType::PharmaceuticalDrugs, 123456789123);
+        let expected = PrescriptionId::new(FlowType::ApothekenpflichtigeArzneimittel, 123456789123);
 
         assert_eq!(actual, expected);
     }

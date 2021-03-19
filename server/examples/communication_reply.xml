@@ -1,6 +1,6 @@
 <Communication xmlns="http://hl7.org/fhir">
     <meta>
-        <profile value="https://gematik.de/fhir/StructureDefinition/erxCommunicationReply"/>
+        <profile value="https://gematik.de/fhir/StructureDefinition/ErxCommunicationReply"/>
     </meta>
     <status value="unknown"/>
     <sent value="2020-03-12T18:01:10+00:00"/>
@@ -12,7 +12,7 @@
     </recipient>
     <sender>
         <identifier>
-            <system value="https://gematik.de/fhir/Namingsystem/TelematikID"/>
+            <system value="https://gematik.de/fhir/NamingSystem/TelematikID"/>
             <value value="606358757"/>
         </identifier>
     </sender>

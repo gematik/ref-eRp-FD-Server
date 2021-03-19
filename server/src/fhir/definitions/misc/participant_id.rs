@@ -89,4 +89,4 @@ impl Identifier for ParticipantId {
 }
 
 const SYSTEM_KVNR: &str = "http://fhir.de/NamingSystem/gkv/kvid-10";
-const SYSTEM_TELEMATIK_ID: &str = "https://gematik.de/fhir/Namingsystem/TelematikID";
+const SYSTEM_TELEMATIK_ID: &str = "https://gematik.de/fhir/NamingSystem/TelematikID";

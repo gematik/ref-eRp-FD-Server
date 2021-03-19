@@ -73,7 +73,12 @@ where
 
         match parse_authorization(&req) {
             Ok(()) => (),
-            Err(err) => return Either::Right(ready(Err(err.with_type_from(&req).into()))),
+            Err(err) => {
+                let uri = req.head().uri.path();
+                if !URI_WHITELIST.contains(&uri) {
+                    return Either::Right(ready(Err(err.with_type_from(&req).into())));
+                }
+            }
         };
 
         let req = ServiceRequest::from_parts(req, payload)
@@ -123,3 +128,5 @@ lazy_static! {
     pub static ref AUTHORIZATION: HeaderName =
         HeaderName::from_lowercase(b"authorization").unwrap();
 }
+
+const URI_WHITELIST: &[&str] = &["/CertList"];

@@ -111,7 +111,7 @@ impl Encode for &PractitionerRole {
     }
 }
 
-const PROFILE: &str = "https://fhir.kbv.de/StructureDefinition/KBV_PR_FOR_PractitionerRole|1.0.1";
+const PROFILE: &str = "https://fhir.kbv.de/StructureDefinition/KBV_PR_FOR_PractitionerRole|1.0.3";
 
 const SYSTEM_ORGANIZATION: &str = "http://fhir.de/NamingSystem/asv/teamnummer";
 

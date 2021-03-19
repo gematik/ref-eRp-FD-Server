@@ -29,6 +29,6 @@ impl IdentifierEx for TelematikId {
     }
 
     fn system() -> Option<&'static str> {
-        Some("https://gematik.de/fhir/Namingsystem/TelematikID")
+        Some("https://gematik.de/fhir/NamingSystem/TelematikID")
     }
 }

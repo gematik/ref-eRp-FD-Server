@@ -1,11 +1,14 @@
 [workspace]
 members = [
+    "libxml",
+    "libxml-sys",
     "miscellaneous",
     "proc-macros",
     "resources",
     "server",
     "tool",
     "vau",
+    "xmlsec",
 ]
 default-members = [
     "server"
@@ -13,8 +16,11 @@ default-members = [
 
 [patch.crates-io]
 actix-web = { git = "https://github.com/Gematik-Entwicklung/actix-web.git", rev = "393813870e0342f9f9fb6818db90c8f8b6767f84" }
+libxml = { path = "./libxml" }
+libxml-sys = { path = "./libxml-sys" }
 miscellaneous = { path = "./miscellaneous" }
 openssl = { git = "https://github.com/Gematik-Entwicklung/rust-openssl.git", rev = "ed92c3818917aec425834742ebb0a96dce268c7b" }
 proc-macros = { path = "./proc-macros" }
 resources = { path = "./resources" }
 vau = { path = "./vau" }
+xmlsec = { path = "./xmlsec" }

@@ -1,0 +1,12 @@
+[package]
+name = "libxml-sys"
+version = "0.1.0"
+edition = "2018"
+links = "xml2"
+build = "build/main.rs"
+
+[dependencies]
+libc = "0.2"
+
+[build-dependencies]
+pkg-config = "0.3"

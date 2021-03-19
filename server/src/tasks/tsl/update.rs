@@ -20,6 +20,7 @@ use std::fs::read_to_string;
 use std::sync::Arc;
 use std::time::Duration;
 
+use chrono::Utc;
 use log::{error, info, warn};
 use openssl::x509::store::X509StoreBuilder;
 use regex::{Regex, RegexBuilder};
@@ -99,12 +100,14 @@ where
                     return;
                 }
             };
+            let timestamp = Utc::now();
 
             break Inner {
                 xml,
                 sha2,
                 certs,
                 store,
+                timestamp,
             };
         };
 
@@ -127,8 +130,9 @@ async fn fetch_data(client: &Client, url: &Url) -> Result<String, Error> {
     } else {
         let res = client.get(url.clone())?.send().await?;
 
-        if res.status() != 200 {
-            return Err(Error::InvalidResponse(url.to_string()));
+        let status = res.status();
+        if status != 200 {
+            return Err(Error::InvalidResponse(status.to_string()));
         }
 
         res.text().await?

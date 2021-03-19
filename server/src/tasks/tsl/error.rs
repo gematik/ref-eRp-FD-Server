@@ -49,7 +49,7 @@ pub enum Error {
     #[error("OpenSSL Error: {0}")]
     OpenSslError(OpenSslError),
 
-    #[error("Invalid Response (url={0})")]
+    #[error("Invalid Response ({0})")]
     InvalidResponse(String),
 
     #[error("Unable to find Issuer Certificate!")]

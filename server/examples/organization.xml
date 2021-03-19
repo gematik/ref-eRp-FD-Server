@@ -1,7 +1,7 @@
 <Organization xmlns="http://hl7.org/fhir">
     <id value="cf042e44-086a-4d51-9c77-172f9a972e3b"/>
     <meta>
-        <profile value="https://fhir.kbv.de/StructureDefinition/KBV_PR_FOR_Organization|1.0.1"/>
+        <profile value="https://fhir.kbv.de/StructureDefinition/KBV_PR_FOR_Organization|1.0.3"/>
     </meta>
     <identifier>
         <type>

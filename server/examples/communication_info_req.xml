@@ -1,12 +1,12 @@
 <Communication xmlns="http://hl7.org/fhir">
     <meta>
-        <profile value="https://gematik.de/fhir/StructureDefinition/erxCommunicationInfoReq"/>
+        <profile value="https://gematik.de/fhir/StructureDefinition/ErxCommunicationInfoReq"/>
     </meta>
     <contained>
         <Medication>
             <id value="5fe6e06c-8725-46d5-aecd-e65e041ca3de"/>
             <meta>
-                <profile value="https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_PZN|1.0.0"/>
+                <profile value="https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_PZN|1.0.1"/>
             </meta>
             <extension url="https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Medication_Category">
                 <valueCoding>
@@ -53,7 +53,7 @@
     <sent value="2020-03-12T18:01:10+00:00"/>
     <recipient>
         <identifier>
-            <system value="https://gematik.de/fhir/Namingsystem/TelematikID"/>
+            <system value="https://gematik.de/fhir/NamingSystem/TelematikID"/>
             <value value="606358757"/>
         </identifier>
     </recipient>

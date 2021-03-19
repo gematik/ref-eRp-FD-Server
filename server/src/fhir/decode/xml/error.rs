@@ -56,6 +56,12 @@ where
 
     #[error("Unexpected Element: {0:?}!")]
     UnexpectedElement(Element),
+
+    #[error("Unclosed Escape Sequence!")]
+    UnclosedEscapeSequence,
+
+    #[error("Unknown Escape Sequence: {0}!")]
+    UnknownEscapeSequence(String),
 }
 
 impl<E> From<StreamError<E>> for Error<E>

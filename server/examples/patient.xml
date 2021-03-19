@@ -1,7 +1,7 @@
 <Patient xmlns="http://hl7.org/fhir">
     <id value="9774f67f-a238-4daf-b4e6-679deeef3811"/>
     <meta>
-        <profile value="https://fhir.kbv.de/StructureDefinition/KBV_PR_FOR_Patient|1.0.1"/>
+        <profile value="https://fhir.kbv.de/StructureDefinition/KBV_PR_FOR_Patient|1.0.3"/>
     </meta>
     <identifier>
         <type>

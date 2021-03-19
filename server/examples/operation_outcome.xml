@@ -6,7 +6,7 @@
         <severity value="error"/>
         <code value="code-invalid"/>
         <details>
-            <text value="The code 'W' is not known and not legal in this context"/>
+            <text value="The code &apos;W&apos; is not known and not legal in this context"/>
         </details>
         <diagnostics value="Acme.Interop.FHIRProcessors.Patient.processGender line 2453"/>
         <expression value="Patient.gender"/>

@@ -19,12 +19,13 @@ use std::borrow::Cow;
 use std::iter::once;
 
 use async_trait::async_trait;
+use base64::{decode as base64_decode, encode as base64_encode};
 use miscellaneous::str::icase_eq;
 use regex::Regex;
 use resources::{
     communication::{
-        Availability, Communication, DispenseReqExtensions, InfoReqExtensions, Inner, Payload,
-        ReplyExtensions, RepresentativeExtensions, SupplyOptions,
+        Attachment, Availability, Communication, Content, DispenseReqExtensions, InfoReqExtensions,
+        Inner, Payload, ReplyExtensions, RepresentativeExtensions, SupplyOptions,
     },
     misc::{Kvnr, TelematikId},
     primitives::Id,
@@ -192,21 +193,50 @@ where
             .unwrap();
         }
 
-        let mut fields = Fields::new(&["extension", "contentString"]);
+        let mut fields = Fields::new(&["extension", "contentString", "contentAttachment"]);
 
         stream.element().await?;
 
         let extensions = stream.decode_opt(&mut fields, decode_any).await?;
-        let content = stream.decode::<String, _>(&mut fields, decode_any).await?;
+        let content_string = stream
+            .decode_opt::<Option<String>, _>(&mut fields, decode_any)
+            .await?;
+        let content_attachment = stream
+            .decode_opt::<Option<Attachment>, _>(&mut fields, decode_any)
+            .await?;
 
         stream.end().await?;
 
-        if URL_RX.is_match(&content) {
-            return Err(DecodeError::Custom {
-                message: "Communication payload must not contain external URLs".into(),
-                path: stream.path().into(),
-            });
-        }
+        let content = match (content_string, content_attachment) {
+            (Some(s), None) => {
+                if URL_RX.is_match(&s) {
+                    return Err(DecodeError::Custom {
+                        message: "Communication 'contentString' must not contain external URLs"
+                            .into(),
+                        path: stream.path().into(),
+                    });
+                }
+
+                Content::String(s)
+            }
+            (None, Some(a)) => {
+                if matches!(&a.content_type, Some(c) if c.starts_with("application/")) {
+                    return Err(DecodeError::Custom {
+                        message: "Communication 'contentAttachment' must not contain 'application/*' content types!".into(),
+                        path: stream.path().into(),
+                    });
+                }
+
+                Content::Attachment(a)
+            }
+            (_, _) => {
+                return Err(DecodeError::Custom {
+                    message: "Either 'contentString' or 'contentAttachment' must be specified!"
+                        .into(),
+                    path: stream.path().into(),
+                })
+            }
+        };
 
         Ok(Payload {
             extensions,
@@ -355,6 +385,71 @@ impl Decode for RepresentativeExtensions {
     }
 }
 
+#[async_trait(?Send)]
+impl Decode for Attachment {
+    async fn decode<S>(stream: &mut DecodeStream<S>) -> Result<Self, DecodeError<S::Error>>
+    where
+        S: DataStream,
+    {
+        let mut fields = Fields::new(&[
+            "contentType",
+            "language",
+            "data",
+            "url",
+            "size",
+            "hash",
+            "title",
+            "creation",
+        ]);
+
+        stream.element().await?;
+
+        let content_type = stream.decode_opt(&mut fields, decode_any).await?;
+        let language = stream.decode_opt(&mut fields, decode_any).await?;
+        let data = stream
+            .decode_opt::<Option<String>, _>(&mut fields, decode_any)
+            .await?;
+        let url = stream.decode_opt(&mut fields, decode_any).await?;
+        let size = stream.decode_opt(&mut fields, decode_any).await?;
+        let hash = stream
+            .decode_opt::<Option<String>, _>(&mut fields, decode_any)
+            .await?;
+        let title = stream.decode_opt(&mut fields, decode_any).await?;
+        let creation = stream.decode_opt(&mut fields, decode_any).await?;
+
+        stream.end().await?;
+
+        let data = if let Some(data) = data {
+            Some(base64_decode(&data).map_err(|_| DecodeError::Custom {
+                message: "Attachment contains invalid 'data'!".into(),
+                path: stream.path().into(),
+            })?)
+        } else {
+            None
+        };
+
+        let hash = if let Some(hash) = hash {
+            Some(base64_decode(&hash).map_err(|_| DecodeError::Custom {
+                message: "Attachment contains invalid 'hash'!".into(),
+                path: stream.path().into(),
+            })?)
+        } else {
+            None
+        };
+
+        Ok(Attachment {
+            content_type,
+            language,
+            data,
+            url,
+            size,
+            hash,
+            title,
+            creation,
+        })
+    }
+}
+
 async fn decode_reference_identifier<T, S>(
     stream: &mut DecodeStream<S>,
 ) -> Result<T, DecodeError<S::Error>>
@@ -491,9 +586,18 @@ where
     {
         stream
             .element()?
-            .encode_opt("extension", &self.extensions, encode_any)?
-            .encode("contentString", &self.content, encode_any)?
-            .end()?;
+            .encode_opt("extension", &self.extensions, encode_any)?;
+
+        match &self.content {
+            Content::String(s) => {
+                stream.encode("contentString", s, encode_any)?;
+            }
+            Content::Attachment(a) => {
+                stream.encode("contentAttachment", a, encode_any)?;
+            }
+        }
+
+        stream.end()?;
 
         Ok(())
     }
@@ -613,6 +717,30 @@ impl Encode for &SupplyOptions {
     }
 }
 
+impl Encode for &Attachment {
+    fn encode<S>(self, stream: &mut EncodeStream<S>) -> Result<(), EncodeError<S::Error>>
+    where
+        S: DataStorage,
+    {
+        let data = self.data.as_ref().map(base64_encode);
+        let hash = self.hash.as_ref().map(base64_encode);
+
+        stream
+            .element()?
+            .encode_opt("contentType", &self.content_type, encode_any)?
+            .encode_opt("language", &self.language, encode_any)?
+            .encode_opt("data", &data, encode_any)?
+            .encode_opt("url", &self.url, encode_any)?
+            .encode_opt("size", &self.size, encode_any)?
+            .encode_opt("hash", &hash, encode_any)?
+            .encode_opt("title", &self.title, encode_any)?
+            .encode_opt("creation", &self.creation, encode_any)?
+            .end()?;
+
+        Ok(())
+    }
+}
+
 fn encode_reference_identifier<T, S>(
     value: &T,
     stream: &mut EncodeStream<S>,
@@ -674,12 +802,12 @@ impl CodeEx for Availability {
 
 pub const PROFILE_BASE: &str = "http://hl7.org/fhir/StructureDefinition/Communication";
 pub const PROFILE_INFO_REQ: &str =
-    "https://gematik.de/fhir/StructureDefinition/erxCommunicationInfoReq";
-pub const PROFILE_REPLY: &str = "https://gematik.de/fhir/StructureDefinition/erxCommunicationReply";
+    "https://gematik.de/fhir/StructureDefinition/ErxCommunicationInfoReq";
+pub const PROFILE_REPLY: &str = "https://gematik.de/fhir/StructureDefinition/ErxCommunicationReply";
 pub const PROFILE_DISPENSE_REQ: &str =
-    "https://gematik.de/fhir/StructureDefinition/erxCommunicationDispReq";
+    "https://gematik.de/fhir/StructureDefinition/ErxCommunicationDispReq";
 pub const PROFILE_REPRESENTATIVE: &str =
-    "https://gematik.de/fhir/StructureDefinition/erxCommunicationRepresentative";
+    "https://gematik.de/fhir/StructureDefinition/ErxCommunicationRepresentative";
 
 const URL_INSURANCE_PROVIDER: &str =
     "https://gematik.de/fhir/StructureDefinition/InsuranceProvider";
@@ -850,13 +978,14 @@ pub mod tests {
             recipient: TelematikId("606358757".into()),
             sender: Some(Kvnr::new("X234567890").unwrap()),
             payload: Payload {
-                content:
+                content: Content::String(
                     "Hallo, ich wollte gern fragen, ob das Medikament bei Ihnen vorraetig ist."
                         .into(),
+                ),
                 extensions: Some(InfoReqExtensions {
                     insurance_provider: InsuranceId::Iknr("104212059".into()),
                     substitution_allowed: true,
-                    prescription_type: FlowType::PharmaceuticalDrugs,
+                    prescription_type: FlowType::ApothekenpflichtigeArzneimittel,
                     preferred_supply_options: Some(SupplyOptions {
                         on_premise: true,
                         delivery: true,
@@ -878,8 +1007,8 @@ pub mod tests {
             sender: Some(TelematikId("606358757".into())),
             payload: Payload {
                 content:
-                    "Hallo, wir haben das Medikament vorraetig. Kommen Sie gern in die Filiale oder wir schicken einen Boten."
-                        .into(),
+                Content::String("Hallo, wir haben das Medikament vorraetig. Kommen Sie gern in die Filiale oder wir schicken einen Boten."
+                        .into()),
                 extensions: Some(ReplyExtensions {
                     availability: Some(Availability::Now),
                     offered_supply_options: Some(SupplyOptions {
@@ -902,7 +1031,7 @@ pub mod tests {
             recipient: TelematikId("606358757".into()),
             sender: Some(Kvnr::new("X234567890").unwrap()),
             payload: Payload {
-                content: "Bitte schicken Sie einen Boten.".into(),
+                content: Content::String("Bitte schicken Sie einen Boten.".into()),
                 extensions: None,
             },
         })

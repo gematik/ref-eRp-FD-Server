@@ -19,7 +19,7 @@
         <mode value="server"/>
         <resource>
             <type value="Task"/>
-            <profile value="https://gematik.de/fhir/StructureDefinition/erxTask"/>
+            <profile value="https://gematik.de/fhir/StructureDefinition/ErxTask"/>
             <interaction>
                 <code value="read"/>
             </interaction>
@@ -39,10 +39,10 @@
         <resource>
             <type value="Communication"/>
             <profile value="http://hl7.org/fhir/StructureDefinition/Communication"/>
-            <supportedProfile value="https://gematik.de/fhir/StructureDefinition/erxCommunicationInfoReq"/>
-            <supportedProfile value="https://gematik.de/fhir/StructureDefinition/erxCommunicationReply"/>
-            <supportedProfile value="https://gematik.de/fhir/StructureDefinition/erxCommunicationDispReq"/>
-            <supportedProfile value="https://gematik.de/fhir/StructureDefinition/erxCommunicationRepresentative"/>
+            <supportedProfile value="https://gematik.de/fhir/StructureDefinition/ErxCommunicationInfoReq"/>
+            <supportedProfile value="https://gematik.de/fhir/StructureDefinition/ErxCommunicationReply"/>
+            <supportedProfile value="https://gematik.de/fhir/StructureDefinition/ErxCommunicationDispReq"/>
+            <supportedProfile value="https://gematik.de/fhir/StructureDefinition/ErxCommunicationRepresentative"/>
             <interaction>
                 <code value="create"/>
             </interaction>
@@ -55,7 +55,7 @@
         </resource>
         <resource>
             <type value="MedicationDispense"/>
-            <profile value="https://gematik.de/fhir/StructureDefinition/erxMedicationDispense"/>
+            <profile value="https://gematik.de/fhir/StructureDefinition/ErxMedicationDispense"/>
             <interaction>
                 <code value="read"/>
             </interaction>

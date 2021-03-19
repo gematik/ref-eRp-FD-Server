@@ -631,7 +631,7 @@ impl CodeEx for SectionItem<'_> {
     }
 }
 
-const PROFILE: &str = "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Composition|1.0.0";
+const PROFILE: &str = "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Composition|1.0.1";
 
 const URL_LEGAL_BASIS: &str = "https://fhir.kbv.de/StructureDefinition/KBV_EX_FOR_Legal_basis";
 const URL_PKV: &str = "https://fhir.kbv.de/StructureDefinition/KBV_EX_FOR_PKV_Tariff";

@@ -22,7 +22,10 @@ use std::str::FromStr;
 
 use chrono::Utc;
 use resources::{
-    communication::Inner as CommunicationInner, misc::ParticipantId, primitives::Id, task::Status,
+    communication::{Attachment, Content, Inner as CommunicationInner},
+    misc::ParticipantId,
+    primitives::{DateTime, Id},
+    task::Status,
     Communication,
 };
 use url::Url;
@@ -62,8 +65,14 @@ impl Inner {
         participant_id: ParticipantId,
         mut communication: Communication,
     ) -> Result<&mut Communication, Error> {
-        if communication.content().as_bytes().len() > MAX_CONTENT_SIZE {
-            return Err(Error::ContentSizeExceeded);
+        match communication.content() {
+            Content::String(s) if s.as_bytes().len() > MAX_CONTENT_SIZE => {
+                return Err(Error::ContentSizeExceeded)
+            }
+            Content::Attachment(Attachment {
+                data: Some(data), ..
+            }) if data.len() > MAX_CONTENT_SIZE => return Err(Error::ContentSizeExceeded),
+            _ => (),
         }
 
         if let Communication::DispenseReq(c) = &communication {
@@ -106,7 +115,7 @@ impl Inner {
             };
 
             let task = task_meta.history.get();
-            if !Self::task_matches(&task, &kvnr, &access_code) {
+            if !Self::task_matches(&task, &kvnr, &access_code, &None) {
                 return Err(Error::UnauthorizedTaskAccess);
             }
 
@@ -167,7 +176,7 @@ impl Inner {
         &mut self,
         id: Id,
         participant_id: &ParticipantId,
-    ) -> Result<(), Error> {
+    ) -> Result<Option<DateTime>, Error> {
         let c = match self.communications.get(&id) {
             Some(c) => c,
             None => return Err(Error::NotFound(id)),
@@ -177,9 +186,18 @@ impl Inner {
             return Err(Error::Unauthorized(id));
         }
 
-        self.communications.remove(&id);
+        let c = self.communications.remove(&id).unwrap();
 
-        Ok(())
+        let received = match c {
+            Communication::DispenseReq(c) => c.received,
+            Communication::InfoReq(c) => c.received,
+            Communication::Reply(c) => c.received,
+            Communication::Representative(c) => c.received,
+        };
+
+        let received = received.map(Into::into);
+
+        Ok(received)
     }
 
     pub fn parse_task_url(uri: &str) -> Result<(Id, Option<XAccessCode>), Error> {

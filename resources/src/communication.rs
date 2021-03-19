@@ -51,8 +51,26 @@ where
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Payload<E: Clone + PartialEq> {
-    pub content: String,
+    pub content: Content,
     pub extensions: Option<E>,
+}
+
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub enum Content {
+    String(String),
+    Attachment(Attachment),
+}
+
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct Attachment {
+    pub content_type: Option<String>,
+    pub language: Option<String>,
+    pub data: Option<Vec<u8>>,
+    pub url: Option<String>,
+    pub size: Option<usize>,
+    pub hash: Option<Vec<u8>>,
+    pub title: Option<String>,
+    pub creation: Option<DateTime>,
 }
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
@@ -155,7 +173,7 @@ impl Communication {
         }
     }
 
-    pub fn content(&self) -> &String {
+    pub fn content(&self) -> &Content {
         match self {
             Communication::InfoReq(inner) => &inner.payload.content,
             Communication::Reply(inner) => &inner.payload.content,

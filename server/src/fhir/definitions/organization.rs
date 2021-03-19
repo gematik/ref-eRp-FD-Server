@@ -314,7 +314,7 @@ impl Coding for Identifier {
     }
 }
 
-const PROFILE: &str = "https://fhir.kbv.de/StructureDefinition/KBV_PR_FOR_Organization|1.0.1";
+const PROFILE: &str = "https://fhir.kbv.de/StructureDefinition/KBV_PR_FOR_Organization|1.0.3";
 
 const SYSTEM_IK: &str = "http://fhir.de/NamingSystem/arge-ik/iknr";
 const SYSTEM_BS: &str = "https://fhir.kbv.de/NamingSystem/KBV_NS_Base_BSNR";

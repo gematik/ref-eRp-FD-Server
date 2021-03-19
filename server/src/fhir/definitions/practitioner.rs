@@ -299,7 +299,7 @@ impl Coding for Identifier {
     }
 }
 
-const PROFILE: &str = "https://fhir.kbv.de/StructureDefinition/KBV_PR_FOR_Practitioner|1.0.1";
+const PROFILE: &str = "https://fhir.kbv.de/StructureDefinition/KBV_PR_FOR_Practitioner|1.0.3";
 
 const SYSTEM_ANR: &str = "https://fhir.kbv.de/NamingSystem/KBV_NS_Base_ANR";
 const SYSTEM_ZANR: &str = "https://fhir.kbv.de/NamingSystem/KBV_NS_Base_BSNR";

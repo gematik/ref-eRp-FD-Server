@@ -3,7 +3,7 @@
     "id":"ed52c1e3-b700-4497-ae19-b23744e29876",
     "meta":{
         "profile":[
-            "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Composition|1.0.0"
+            "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Composition|1.0.1"
         ]
     },
     "extension":[

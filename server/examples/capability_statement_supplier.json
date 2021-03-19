@@ -19,7 +19,7 @@
             "resource":[
                 {
                     "type":"Task",
-                    "profile":"https://gematik.de/fhir/StructureDefinition/erxTask",
+                    "profile":"https://gematik.de/fhir/StructureDefinition/ErxTask",
                     "interaction":[
                         {
                             "code":"read"
@@ -44,10 +44,10 @@
                     "type":"Communication",
                     "profile":"http://hl7.org/fhir/StructureDefinition/Communication",
                     "supportedProfile":[
-                        "https://gematik.de/fhir/StructureDefinition/erxCommunicationInfoReq",
-                        "https://gematik.de/fhir/StructureDefinition/erxCommunicationReply",
-                        "https://gematik.de/fhir/StructureDefinition/erxCommunicationDispReq",
-                        "https://gematik.de/fhir/StructureDefinition/erxCommunicationRepresentative"
+                        "https://gematik.de/fhir/StructureDefinition/ErxCommunicationInfoReq",
+                        "https://gematik.de/fhir/StructureDefinition/ErxCommunicationReply",
+                        "https://gematik.de/fhir/StructureDefinition/ErxCommunicationDispReq",
+                        "https://gematik.de/fhir/StructureDefinition/ErxCommunicationRepresentative"
                     ],
                     "interaction":[
                         {

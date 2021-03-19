@@ -22,12 +22,12 @@ use std::task::{Context, Poll};
 
 use actix_web::{
     dev::{Payload, Service, ServiceRequest, ServiceResponse, Transform},
-    error::{Error as ActixError, PayloadError},
+    error::{Error as ActixError, PayloadError, ResponseError},
     http::{
         header::{ContentType, IntoHeaderValue},
         Method,
     },
-    HttpMessage, HttpResponse,
+    HttpMessage, HttpRequest, HttpResponse,
 };
 use bytes::{Bytes, BytesMut};
 use futures::{
@@ -40,7 +40,7 @@ use vau::{decode, encode, Decrypter, Encrypter, Error as VauError, UserPseudonym
 
 use crate::{
     error::Error,
-    service::{misc::AccessTokenError, RequestError, TypedRequestResult},
+    service::{misc::AccessTokenError, RequestError},
 };
 
 use super::extract_access_token::extract_access_token;
@@ -192,18 +192,22 @@ where
         let (decoded, next, req) = decode(req, &payload)?;
 
         let (next, payload) = next.into_parts();
-        let access_token = extract_access_token(&next).err_with_type_from(&req)?;
-        if access_token != decoded.access_token {
-            return Err(RequestError::AccessTokenError(AccessTokenError::Mismatch)
-                .with_type_from(&req)
-                .into());
-        }
+        let inner_res = match check_access_token(&next, &decoded.access_token) {
+            Ok(()) => {
+                let next = ServiceRequest::from_parts(next, payload)
+                    .map_err(|_| ())
+                    .unwrap();
 
-        let next = ServiceRequest::from_parts(next, payload)
-            .map_err(|_| ())
-            .unwrap();
+                this.service.call(next).await?
+            }
+            Err(err) => {
+                let err = err.with_type_from(&req);
+                let res = err.error_response();
 
-        let inner_res = this.service.call(next).await?;
+                ServiceResponse::new(next, res)
+            }
+        };
+
         let inner_res = encode(decoded.request_id, inner_res).await?;
 
         let body = this.encrypter.encrypt(&decoded.response_key, inner_res)?;
@@ -238,7 +242,13 @@ where
 
     #[cfg(not(feature = "vau-compat"))]
     async fn handle_normal_request(self, req: ServiceRequest) -> Result<S::Response, ActixError> {
-        Ok(not_found(req))
+        let uri = req.head().uri.path();
+
+        if URI_WHITELIST.contains(&uri) {
+            self.0.borrow_mut().service.call(req).await
+        } else {
+            Ok(not_found(req))
+        }
     }
 }
 
@@ -284,6 +294,19 @@ fn method_not_allowed(req: ServiceRequest) -> ServiceResponse {
     ServiceResponse::new(req, res)
 }
 
+fn check_access_token(req: &HttpRequest, expected_access_token: &str) -> Result<(), RequestError> {
+    let access_token = extract_access_token(req)?;
+
+    if access_token != expected_access_token {
+        return Err(RequestError::AccessTokenError(AccessTokenError::Mismatch));
+    }
+
+    Ok(())
+}
+
 lazy_static! {
     static ref USER_PSEUDONYM_GENERATOR: UserPseudonymGenerator = UserPseudonymGenerator::default();
 }
+
+#[cfg(not(feature = "vau-compat"))]
+const URI_WHITELIST: &[&str] = &["/CertList"];

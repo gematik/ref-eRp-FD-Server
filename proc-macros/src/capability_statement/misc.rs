@@ -24,6 +24,7 @@ pub enum Attrib {
     Cfg(TokenStream),
     Operation(Operation),
     Interaction(Interaction),
+    SearchParam(SearchParam),
     Resource(Resource),
     Unknown,
 }
@@ -35,6 +36,11 @@ pub struct Operation {
 
 pub struct Interaction {
     pub name: TokenStream2,
+}
+
+pub struct SearchParam {
+    pub name: TokenStream2,
+    pub type_: TokenStream2,
 }
 
 pub struct Resource;
@@ -63,6 +69,7 @@ impl Attrib {
             "resource" => Attrib::Resource(Resource::new(it.next())?),
             "operation" => Attrib::Operation(Operation::new(it.next())?),
             "interaction" => Attrib::Interaction(Interaction::new(it.next())?),
+            "search_param" => Attrib::SearchParam(SearchParam::new(it.next())?),
             _ => Attrib::Unknown,
         };
 
@@ -110,6 +117,44 @@ impl Interaction {
 
         Ok(Self {
             name: group.stream().into(),
+        })
+    }
+}
+
+impl SearchParam {
+    pub fn new(token: Option<TokenTree>) -> Result<Self, String> {
+        let group = match token {
+            Some(TokenTree::Group(group)) => group,
+            _ => return Err("Expected values for attribute 'search_param'".into()),
+        };
+
+        let mut name = None;
+        let mut type_ = None;
+
+        let it = group.stream().into_iter();
+
+        parse_key_value_list(it, |key, value| {
+            match key {
+                "name" => name = Some(value),
+                "type" => type_ = Some(value),
+                s => {
+                    return Err(format!(
+                        "Attribute 'search_param' has unexpected value: {}",
+                        s
+                    ))
+                }
+            }
+
+            Ok(())
+        })?;
+
+        Ok(Self {
+            name: name
+                .ok_or("Attribute 'search_param' expects value for 'name'!")?
+                .into(),
+            type_: type_
+                .ok_or("Attribute 'search_param' expect value for 'type'")?
+                .into(),
         })
     }
 }

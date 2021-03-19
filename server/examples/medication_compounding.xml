@@ -2,7 +2,7 @@
 <Medication xmlns="http://hl7.org/fhir">
     <id value="cabe8dc4-e1b7-4d2a-bc2d-9443167f88d8"/>
     <meta>
-        <profile value="https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_Compounding|1.0.0"/>
+        <profile value="https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_Compounding|1.0.1"/>
     </meta>
     <extension url="https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Medication_Category">
         <valueCoding>

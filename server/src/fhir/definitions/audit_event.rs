@@ -53,7 +53,7 @@ impl Decode for AuditEvent {
             "meta",
             "text",
             "type",
-            "subType",
+            "subtype",
             "action",
             "recorded",
             "outcome",
@@ -67,7 +67,21 @@ impl Decode for AuditEvent {
 
         let id = stream.decode(&mut fields, decode_any).await?;
         let meta = stream.decode::<Meta, _>(&mut fields, decode_any).await?;
-        let text = stream.decode_opt(&mut fields, decode_any).await?;
+        let text = if stream.begin_substream_opt(&mut fields).await? {
+            let mut fields = Fields::new(&["status", "div"]);
+
+            stream.element().await?;
+
+            let _additional = stream.fixed(&mut fields, "additional").await?;
+            let div = stream.decode(&mut fields, decode_any).await?;
+
+            stream.end().await?;
+            stream.end_substream().await?;
+
+            Some(div)
+        } else {
+            None
+        };
         let _type = {
             stream.begin_substream(&mut fields).await?;
             stream.element().await?;
@@ -146,10 +160,11 @@ impl Decode for Source {
     where
         S: DataStream,
     {
-        let mut fields = Fields::new(&["observer"]);
+        let mut fields = Fields::new(&["site", "observer"]);
 
         stream.element().await?;
 
+        let _site = stream.fixed(&mut fields, SITE).await?;
         let observer = stream.decode(&mut fields, decode_reference).await?;
 
         stream.end().await?;
@@ -199,14 +214,24 @@ impl Encode for &AuditEvent {
         stream
             .root("AuditEvent")?
             .encode("id", &self.id, encode_any)?
-            .encode("meta", meta, encode_any)?
-            .encode_opt("text", &self.text, encode_any)?
+            .encode("meta", meta, encode_any)?;
+
+        if let Some(text) = &self.text {
+            stream
+                .field_name("text")?
+                .element()?
+                .encode("status", "additional", encode_any)?
+                .encode("div", text, encode_any)?
+                .end()?;
+        }
+
+        stream
             .field_name("type")?
             .element()?
             .encode("system", SYSTEM_TYPE, encode_any)?
             .encode("code", "rest", encode_any)?
             .end()?
-            .encode("subType", &self.sub_type, encode_coding)?
+            .encode_vec("subtype", once(&self.sub_type), encode_coding)?
             .encode("action", &self.action, encode_code)?
             .encode("recorded", &self.recorded, encode_any)?
             .encode("outcome", &self.outcome, encode_code)?
@@ -244,6 +269,7 @@ impl Encode for &Source {
     {
         stream
             .element()?
+            .encode("site", SITE, encode_any)?
             .encode("observer", &self.observer, encode_reference)?
             .end()?;
 
@@ -471,7 +497,7 @@ impl CodingEx for ParticipationRoleType {
     }
 
     fn display(&self) -> Option<&'static str> {
-        Some("human user")
+        Some("Human user")
     }
 
     fn system() -> Option<&'static str> {
@@ -494,12 +520,14 @@ impl CodeEx for ParticipationRoleType {
     }
 }
 
-pub const PROFILE: &str = "https://gematik.de/fhir/StructureDefinition/erxAuditEvent";
+pub const PROFILE: &str = "https://gematik.de/fhir/StructureDefinition/ErxAuditEvent";
 
 const SYSTEM_DCM: &str = "http://dicom.nema.org/resources/ontology/DCM";
 const SYSTEM_REST: &str = "http://hl7.org/fhir/restful-interaction";
 const SYSTEM_TYPE: &str = "http://terminology.hl7.org/CodeSystem/audit-event-type";
 const SYSTEM_ROLE_TYPE: &str = "http://terminology.hl7.org/CodeSystem/extra-security-role-type";
+
+const SITE: &str = "E-Rezept Fachdienst";
 
 #[cfg(test)]
 pub mod tests {
@@ -563,7 +591,7 @@ pub mod tests {
     pub fn test_audit_event() -> AuditEvent {
         AuditEvent {
             id: "5fe6e06c-8725-46d5-aecd-e65e041ca3af".try_into().unwrap(),
-            text: None,
+            text: Some("Example Text".into()),
             sub_type: SubType::Read,
             action: Action::Create,
             recorded: "2020-02-27T08:04:27.434+00:00".try_into().unwrap(),

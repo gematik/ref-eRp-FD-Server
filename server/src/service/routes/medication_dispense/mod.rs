@@ -23,7 +23,7 @@ pub use error::Error;
 
 use actix_web::web::{get, resource, ServiceConfig};
 use proc_macros::capability_statement_resource;
-use resources::capability_statement::{Interaction, Type};
+use resources::capability_statement::{Interaction, SearchParamType, Type};
 
 use get::{get_all, get_one};
 
@@ -37,6 +37,9 @@ pub struct MedicationDispenseRoutes;
     profile = RESOURCE_PROFILE_MEDICATION_DISPENSE)]
 impl MedicationDispenseRoutes {
     #[interaction(Interaction::Read)]
+    #[search_param(name="when-handed-over", type=SearchParamType::Date)]
+    #[search_param(name="when-prepared", type=SearchParamType::Date)]
+    #[search_param(name="performer", type=SearchParamType::String)]
     fn configure_all(&self, cfg: &mut ServiceConfig) {
         cfg.service(resource("/MedicationDispense").route(get().to(get_all)));
         cfg.service(resource("/MedicationDispense/{id}").route(get().to(get_one)));

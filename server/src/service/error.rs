@@ -150,6 +150,7 @@ impl ResponseError for TypedRequestError {
             E::QueryInvalid(_) => res.status(StatusCode::BAD_REQUEST),
             E::ContentTypeNotSupported => res.status(StatusCode::BAD_REQUEST),
             E::AcceptUnsupported => res.status(StatusCode::BAD_REQUEST),
+            E::MissingAccessCode => res.status(StatusCode::FORBIDDEN),
         };
 
         if res.details.is_none() {
@@ -217,6 +218,9 @@ pub enum RequestError {
 
     #[error("Accept Value is not Supported!")]
     AcceptUnsupported,
+
+    #[error("Missing Access Code!")]
+    MissingAccessCode,
 }
 
 impl RequestError {

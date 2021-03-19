@@ -56,10 +56,18 @@ pub async fn delete_one(
     let participant_id = access_token.id().as_req_err().err_with_type(accept)?;
 
     let mut state = state.lock().await;
-    state
+    let received = state
         .communication_delete(id, &participant_id)
         .as_req_err()
         .err_with_type(accept)?;
 
-    Ok(HttpResponse::NoContent().finish())
+    let mut res = HttpResponse::NoContent();
+    if let Some(received) = received {
+        res.header(
+            "Warning",
+            format!("Deleted message delivered at {}", &received),
+        );
+    }
+
+    Ok(res.finish())
 }

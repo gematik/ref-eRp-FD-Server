@@ -20,7 +20,7 @@ use openssl::pkey::{PKey, Public};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use miscellaneous::jwt::{verify, Error as JwtError};
+use miscellaneous::jwt::{verify, Error as JwtError, VerifyMode};
 use resources::{
     audit_event::{Agent, ParticipationRoleType},
     misc::{Kvnr, ParticipantId, TelematikId},
@@ -32,7 +32,6 @@ pub struct AccessToken {
     pub iss: String,
     pub sub: String,
     pub aud: String,
-    pub acr: String,
     pub nonce: Option<String>,
 
     #[serde(with = "from_timtstamp")]
@@ -116,9 +115,6 @@ pub enum Error {
     #[error("Not valid yet!")]
     NotValidYet,
 
-    #[error("Invalid authentication level!")]
-    InvalidAcr,
-
     #[error("Access Token does not contain a valid KV-Nr.!")]
     NoKvnr,
 
@@ -135,17 +131,13 @@ impl AccessToken {
         key: PKey<Public>,
         now: DateTime<Utc>,
     ) -> Result<Self, Error> {
-        let access_token = verify::<Self>(access_token, Some(key))?;
+        let access_token = verify::<Self>(access_token, VerifyMode::KeyIn(key))?;
         let nbf = access_token.nbf.unwrap_or(access_token.iat);
 
         if now > access_token.exp {
             return Err(Error::Expired);
         } else if nbf > now {
             return Err(Error::NotValidYet);
-        }
-
-        if access_token.acr != "eidas-loa-high" {
-            return Err(Error::InvalidAcr);
         }
 
         Ok(access_token)

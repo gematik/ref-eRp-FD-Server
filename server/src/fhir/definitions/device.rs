@@ -220,7 +220,7 @@ where
     Ok(())
 }
 
-pub const PROFILE: &str = "https://gematik.de/fhir/StructureDefinition/erxDevice";
+pub const PROFILE: &str = "https://gematik.de/fhir/StructureDefinition/ErxDevice";
 
 #[cfg(test)]
 pub mod tests {
@@ -281,7 +281,7 @@ pub mod tests {
 
     pub fn test_device() -> Device {
         Device {
-            id: "eRxService".try_into().unwrap(),
+            id: "ErxService".try_into().unwrap(),
             status: Status::Active,
             serial_number: Some("R4.0.0.287342834".into()),
             device_name: DeviceName {

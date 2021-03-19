@@ -549,7 +549,7 @@ where
     Ok(())
 }
 
-pub const PROFILE: &str = "https://gematik.de/fhir/StructureDefinition/erxTask";
+pub const PROFILE: &str = "https://gematik.de/fhir/StructureDefinition/ErxTask";
 
 pub const OPERATION_CREATE: &str =
     "http://gematik.de/fhir/OperationDefinition/CreateOperationDefinition";
@@ -569,8 +569,8 @@ const URL_ACCEPT_DATE: &str = "https://gematik.de/fhir/StructureDefinition/Accep
 const URL_EXPIRY_DATE: &str = "https://gematik.de/fhir/StructureDefinition/ExpiryDate";
 
 const SYSTEM_PRESCRIPTION_ID: &str = "https://gematik.de/fhir/NamingSystem/PrescriptionID";
-const SYSTEM_ACCESS_CODE: &str = "https://gematik.de/fhir/Namingsystem/AccessCode";
-const SYSTEM_SECRET: &str = "https://gematik.de/fhir/Namingsystem/Secret";
+const SYSTEM_ACCESS_CODE: &str = "https://gematik.de/fhir/NamingSystem/AccessCode";
+const SYSTEM_SECRET: &str = "https://gematik.de/fhir/NamingSystem/Secret";
 
 #[cfg(test)]
 pub mod tests {
@@ -643,7 +643,7 @@ pub mod tests {
             extension: Extension {
                 accept_date: Some("2020-03-02".try_into().unwrap()),
                 expiry_date: Some("2020-05-02".try_into().unwrap()),
-                flow_type: FlowType::PharmaceuticalDrugs,
+                flow_type: FlowType::ApothekenpflichtigeArzneimittel,
             },
             identifier: Identifier {
                 prescription_id: Some("160.123.456.789.123.58".parse().unwrap()),

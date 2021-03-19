@@ -15,6 +15,8 @@
  *
  */
 
+use std::iter::{empty, once};
+
 use base64::{encode, encode_config, URL_SAFE_NO_PAD};
 use jwt::{FromBase64, PKeyWithDigest, SigningAlgorithm, ToBase64, VerifyingAlgorithm};
 use openssl::{
@@ -69,16 +71,43 @@ pub fn sign(
     Ok(jwt)
 }
 
-pub fn extract<T>(jwt: &str) -> Result<T, Error>
-where
-    T: FromBase64,
-{
-    let (_, claims_str, _) = split(jwt)?;
-
-    T::from_base64(claims_str)
+pub enum VerifyMode<'a> {
+    None,
+    KeyIn(PKey<Public>),
+    CertOut(&'a mut Option<X509>),
 }
 
-pub fn verify<T>(jwt: &str, key: Option<PKey<Public>>) -> Result<T, Error>
+struct VerifyParts<'a> {
+    keys: BoxedKeyIter<'a>,
+    cert_out: Option<&'a mut Option<X509>>,
+    is_verified: bool,
+}
+
+type BoxedKeyIter<'a> = Box<dyn Iterator<Item = Result<(PKey<Public>, Option<X509>), Error>>>;
+
+impl<'a> VerifyMode<'a> {
+    fn into_parts(self, x5c: Vec<String>) -> VerifyParts<'a> {
+        match self {
+            VerifyMode::None => VerifyParts {
+                keys: Box::new(empty()),
+                cert_out: None,
+                is_verified: true,
+            },
+            VerifyMode::KeyIn(key) => VerifyParts {
+                keys: Box::new(once(Ok((key, None)))),
+                cert_out: None,
+                is_verified: false,
+            },
+            VerifyMode::CertOut(cert_out) => VerifyParts {
+                keys: Box::new(x5c.into_iter().map(cert_to_key)),
+                cert_out: Some(cert_out),
+                is_verified: false,
+            },
+        }
+    }
+}
+
+pub fn verify<T>(jwt: &str, mode: VerifyMode) -> Result<T, Error>
 where
     T: FromBase64,
 {
@@ -87,19 +116,27 @@ where
     let header = Header::from_base64(header_str)?;
     let claims = T::from_base64(claims_str);
 
-    let keys = header.x5c.into_iter().map(cert_to_key).chain(key.map(Ok));
+    let VerifyParts {
+        keys,
+        cert_out,
+        mut is_verified,
+    } = mode.into_parts(header.x5c);
 
-    let mut is_verified = false;
-    for key in keys {
+    for key_and_cert in keys {
         match header.alg {
             Algorithm::BP256R1 => {
+                let (key, cert) = key_and_cert?;
                 let key = PKeyWithDigest {
                     digest: MessageDigest::sha256(),
-                    key: key?,
+                    key,
                 };
 
                 if key.verify(header_str, claims_str, signature_str)? {
                     is_verified = true;
+
+                    if let (Some(cert_out), Some(cert)) = (cert_out, cert) {
+                        *cert_out = Some(cert);
+                    }
 
                     break;
                 }
@@ -128,16 +165,15 @@ fn split(jwt: &str) -> Result<(&str, &str, &str), Error> {
     Ok((header_str, claims_str, signature_str))
 }
 
-fn cert_to_key(cert: String) -> Result<PKey<Public>, Error> {
+fn cert_to_key(cert: String) -> Result<(PKey<Public>, Option<X509>), Error> {
     let cert = format!(
         "-----BEGIN CERTIFICATE-----\n{}\n-----END CERTIFICATE-----",
         cert
     );
     let cert = X509::from_pem(cert.as_bytes())?;
+    let key = cert.public_key()?;
 
-    let pub_key = cert.public_key()?;
-
-    Ok(pub_key)
+    Ok((key, Some(cert)))
 }
 
 fn cert_to_str(cert: &X509) -> Result<String, Error> {

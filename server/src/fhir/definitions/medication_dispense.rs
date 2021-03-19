@@ -203,7 +203,7 @@ impl Encode for &DosageInstruction {
     }
 }
 
-pub const PROFILE: &str = "https://gematik.de/fhir/StructureDefinition/erxMedicationDispense";
+pub const PROFILE: &str = "https://gematik.de/fhir/StructureDefinition/ErxMedicationDispense";
 
 #[cfg(test)]
 pub mod tests {

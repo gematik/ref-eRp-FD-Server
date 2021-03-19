@@ -2,7 +2,7 @@
     "resourceType":"Communication",
     "meta":{
         "profile":[
-            "https://gematik.de/fhir/StructureDefinition/erxCommunicationInfoReq"
+            "https://gematik.de/fhir/StructureDefinition/ErxCommunicationInfoReq"
         ]
     },
     "contained":[
@@ -11,7 +11,7 @@
             "id":"5fe6e06c-8725-46d5-aecd-e65e041ca3de",
             "meta":{
                 "profile":[
-                    "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_PZN|1.0.0"
+                    "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_PZN|1.0.1"
                 ]
             },
             "extension":[
@@ -71,7 +71,7 @@
     "recipient":[
         {
             "identifier":{
-                "system":"https://gematik.de/fhir/Namingsystem/TelematikID",
+                "system":"https://gematik.de/fhir/NamingSystem/TelematikID",
                 "value":"606358757"
             }
         }

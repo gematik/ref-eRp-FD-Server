@@ -162,16 +162,19 @@ pub mod tests {
     use super::super::State;
 
     #[tokio::test]
-    pub async fn load_save() {
+    pub async fn load_save_001() {
         let sig_key = PKey::generate_ed448().unwrap();
         let sig_cert = X509::builder().unwrap().build();
 
         let state = State::new(sig_key, sig_cert);
         let mut state = state.lock().await;
 
-        let expected = read_to_string("./examples/state.json").unwrap();
+        let content = read_to_string("./examples/state_001.json").unwrap();
+        let content = trim_json_str(&content);
+        state.load(content.as_bytes()).unwrap();
+
+        let expected = read_to_string("./examples/state_current.json").unwrap();
         let expected = trim_json_str(&expected);
-        state.load(expected.as_bytes()).unwrap();
 
         let mut actual = Vec::new();
         state.save(&mut actual).unwrap();

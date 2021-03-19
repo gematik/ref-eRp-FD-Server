@@ -22,7 +22,15 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum FlowType {
-    PharmaceuticalDrugs,
+    #[serde(alias = "PharmaceuticalDrugs")]
+    ApothekenpflichtigeArzneimittel,
+    Sanitaetsbedarf,
+    Heilmittel,
+    Hilfsmittel,
+    Sprechstundenbedarf,
+    Betaeubungsmittel,
+    TRezepte,
+    DirekteZuweisung,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -40,7 +48,14 @@ pub enum DocumentType {
 impl Into<usize> for FlowType {
     fn into(self) -> usize {
         match self {
-            Self::PharmaceuticalDrugs => 160,
+            Self::ApothekenpflichtigeArzneimittel => 160,
+            Self::Sanitaetsbedarf => 161,
+            Self::Heilmittel => 162,
+            Self::Hilfsmittel => 163,
+            Self::Sprechstundenbedarf => 164,
+            Self::Betaeubungsmittel => 165,
+            Self::TRezepte => 166,
+            Self::DirekteZuweisung => 169,
         }
     }
 }
@@ -48,7 +63,14 @@ impl Into<usize> for FlowType {
 impl Into<u64> for FlowType {
     fn into(self) -> u64 {
         match self {
-            Self::PharmaceuticalDrugs => 160,
+            Self::ApothekenpflichtigeArzneimittel => 160,
+            Self::Sanitaetsbedarf => 161,
+            Self::Heilmittel => 162,
+            Self::Hilfsmittel => 163,
+            Self::Sprechstundenbedarf => 164,
+            Self::Betaeubungsmittel => 165,
+            Self::TRezepte => 166,
+            Self::DirekteZuweisung => 169,
         }
     }
 }
@@ -58,7 +80,14 @@ impl TryFrom<usize> for FlowType {
 
     fn try_from(value: usize) -> Result<Self, Self::Error> {
         match value {
-            160 => Ok(Self::PharmaceuticalDrugs),
+            160 => Ok(Self::ApothekenpflichtigeArzneimittel),
+            161 => Ok(Self::Sanitaetsbedarf),
+            162 => Ok(Self::Heilmittel),
+            163 => Ok(Self::Hilfsmittel),
+            164 => Ok(Self::Sprechstundenbedarf),
+            165 => Ok(Self::Betaeubungsmittel),
+            166 => Ok(Self::TRezepte),
+            169 => Ok(Self::DirekteZuweisung),
             value => Err(value),
         }
     }
@@ -69,7 +98,14 @@ impl TryFrom<u64> for FlowType {
 
     fn try_from(value: u64) -> Result<Self, Self::Error> {
         match value {
-            160 => Ok(Self::PharmaceuticalDrugs),
+            160 => Ok(Self::ApothekenpflichtigeArzneimittel),
+            161 => Ok(Self::Sanitaetsbedarf),
+            162 => Ok(Self::Heilmittel),
+            163 => Ok(Self::Hilfsmittel),
+            164 => Ok(Self::Sprechstundenbedarf),
+            165 => Ok(Self::Betaeubungsmittel),
+            166 => Ok(Self::TRezepte),
+            169 => Ok(Self::DirekteZuweisung),
             value => Err(value),
         }
     }
@@ -78,7 +114,16 @@ impl TryFrom<u64> for FlowType {
 impl Display for FlowType {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         match self {
-            Self::PharmaceuticalDrugs => write!(f, "Muster 16 (Apothekenpflichtige Arzneimittel)"),
+            Self::ApothekenpflichtigeArzneimittel => {
+                write!(f, "Muster 16 (Apothekenpflichtige Arzneimittel)")
+            }
+            Self::Sanitaetsbedarf => write!(f, "Muster 16 (Sanitätsbedarf)"),
+            Self::Heilmittel => write!(f, "Muster 16 (Heilmittel)"),
+            Self::Hilfsmittel => write!(f, "Muster 16 (Hilfsmittel)"),
+            Self::Sprechstundenbedarf => write!(f, "Muster 16 (Sprechstundenbedarf)"),
+            Self::Betaeubungsmittel => write!(f, "Muster 16 (Betäubungsmittel)"),
+            Self::TRezepte => write!(f, "Muster 16 (T-Rezepte)"),
+            Self::DirekteZuweisung => write!(f, "Muster 16 (Direkte Zuweisung)"),
         }
     }
 }

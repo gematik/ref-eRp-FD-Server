@@ -18,7 +18,7 @@
 use async_trait::async_trait;
 use resources::capability_statement::{
     CapabilityStatement, FhirVersion, Format, Interaction, Mode, Operation, Resource, Rest,
-    Software, Status, Type,
+    SearchParam, SearchParamType, Software, Status, Type,
 };
 
 use crate::fhir::{
@@ -26,7 +26,7 @@ use crate::fhir::{
     encode::{encode_any, DataStorage, Encode, EncodeError, EncodeStream},
 };
 
-use super::primitives::{decode_coding, encode_coding, CodeEx, CodingEx};
+use super::primitives::{decode_code, decode_coding, encode_code, encode_coding, CodeEx, CodingEx};
 
 /* Decode */
 
@@ -210,15 +210,17 @@ impl Decode for Resource {
             "profile",
             "supportedProfile",
             "interaction",
+            "searchParam",
             "operation",
         ]);
 
-        stream.root("Rest").await?;
+        stream.root("Resource").await?;
 
         let type_ = stream.decode(&mut fields, decode_any).await?;
         let profile = stream.decode(&mut fields, decode_any).await?;
         let supported_profiles = stream.decode_vec(&mut fields, decode_any).await?;
         let interaction = stream.decode_vec(&mut fields, decode_coding).await?;
+        let search_param = stream.decode_vec(&mut fields, decode_any).await?;
         let operation = stream.decode_vec(&mut fields, decode_any).await?;
 
         stream.end().await?;
@@ -227,6 +229,7 @@ impl Decode for Resource {
             type_,
             profile,
             supported_profiles,
+            search_param,
             interaction,
             operation,
         })
@@ -253,6 +256,25 @@ impl Decode for Type {
                 path: stream.path().into(),
             }),
         }
+    }
+}
+
+#[async_trait(?Send)]
+impl Decode for SearchParam {
+    async fn decode<S>(stream: &mut DecodeStream<S>) -> Result<Self, DecodeError<S::Error>>
+    where
+        S: DataStream,
+    {
+        let mut fields = Fields::new(&["name", "type"]);
+
+        stream.root("SearchParam").await?;
+
+        let name = stream.decode(&mut fields, decode_any).await?;
+        let type_ = stream.decode(&mut fields, decode_code).await?;
+
+        stream.end().await?;
+
+        Ok(SearchParam { name, type_ })
     }
 }
 
@@ -425,7 +447,23 @@ impl Encode for &Resource {
             .encode("profile", &self.profile, encode_any)?
             .encode_vec("supportedProfile", &self.supported_profiles, encode_any)?
             .encode_vec("interaction", &self.interaction, encode_coding)?
+            .encode_vec("searchParam", &self.search_param, encode_any)?
             .encode_vec("operation", &self.operation, encode_any)?
+            .end()?;
+
+        Ok(())
+    }
+}
+
+impl Encode for &SearchParam {
+    fn encode<S>(self, stream: &mut EncodeStream<S>) -> Result<(), EncodeError<S::Error>>
+    where
+        S: DataStorage,
+    {
+        stream
+            .element()?
+            .encode("name", &self.name, encode_any)?
+            .encode("type", &self.type_, encode_code)?
             .end()?;
 
         Ok(())
@@ -484,6 +522,37 @@ where
 }
 
 /* Misc */
+
+impl CodeEx for SearchParamType {
+    fn from_parts(value: String) -> Result<Self, String> {
+        match value.as_str() {
+            "number" => Ok(Self::Number),
+            "date" => Ok(Self::Date),
+            "string" => Ok(Self::String),
+            "token" => Ok(Self::Token),
+            "reference" => Ok(Self::Reference),
+            "composite" => Ok(Self::Composite),
+            "quantity" => Ok(Self::Quantity),
+            "uri" => Ok(Self::Uri),
+            "special" => Ok(Self::Special),
+            _ => Err(value),
+        }
+    }
+
+    fn code(&self) -> &'static str {
+        match self {
+            Self::Number => "number",
+            Self::Date => "date",
+            Self::String => "string",
+            Self::Token => "token",
+            Self::Reference => "reference",
+            Self::Composite => "composite",
+            Self::Quantity => "quantity",
+            Self::Uri => "uri",
+            Self::Special => "special",
+        }
+    }
+}
 
 impl CodeEx for Interaction {
     fn from_parts(value: String) -> Result<Self, String> {
@@ -608,7 +677,7 @@ pub mod tests {
                     resource: vec![
                         Resource {
                             type_: Type::Task,
-                            profile: "https://gematik.de/fhir/StructureDefinition/erxTask".into(),
+                            profile: "https://gematik.de/fhir/StructureDefinition/ErxTask".into(),
                             supported_profiles: vec![],
                             operation: vec![Operation{
                                 name: "create".into(),
@@ -621,25 +690,28 @@ pub mod tests {
                                 definition: "http://gematik.de/fhir/OperationDefinition/AbortOperationDefinition".into(),
                             }],
                             interaction: vec![Interaction::Read],
+                            search_param: vec![],
                         },
                         Resource {
                             type_: Type::Communication,
                             profile: "http://hl7.org/fhir/StructureDefinition/Communication".into(),
                             supported_profiles: vec![
-                                "https://gematik.de/fhir/StructureDefinition/erxCommunicationInfoReq".into(),
-                                "https://gematik.de/fhir/StructureDefinition/erxCommunicationReply".into(),
-                                "https://gematik.de/fhir/StructureDefinition/erxCommunicationDispReq".into(),
-                                "https://gematik.de/fhir/StructureDefinition/erxCommunicationRepresentative".into(),
+                                "https://gematik.de/fhir/StructureDefinition/ErxCommunicationInfoReq".into(),
+                                "https://gematik.de/fhir/StructureDefinition/ErxCommunicationReply".into(),
+                                "https://gematik.de/fhir/StructureDefinition/ErxCommunicationDispReq".into(),
+                                "https://gematik.de/fhir/StructureDefinition/ErxCommunicationRepresentative".into(),
                             ],
                             operation: vec![],
                             interaction: vec![Interaction::Create, Interaction::Read, Interaction::Delete],
+                            search_param: vec![],
                         },
                         Resource {
                             type_: Type::MedicationDispense,
-                            profile: "https://gematik.de/fhir/StructureDefinition/erxMedicationDispense".into(),
+                            profile: "https://gematik.de/fhir/StructureDefinition/ErxMedicationDispense".into(),
                             supported_profiles: vec![],
                             operation: vec![],
                             interaction: vec![Interaction::Read],
+                            search_param: vec![],
                         }
                     ],
                 }

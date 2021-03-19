@@ -40,7 +40,7 @@ function create_task() {
         | grep -Po '"id":\K.*?[^\\]",' \
         | grep -Po '[A-Za-z0-9_-]+')
     local ACCESS_CODE=$(echo "$OUTPUT" \
-        | grep -Po '{"system":"https://gematik.de/fhir/Namingsystem/AccessCode","value":\K"[A-Za-z0-9]+"}' \
+        | grep -Po '{"system":"https://gematik.de/fhir/NamingSystem/AccessCode","value":\K"[A-Za-z0-9]+"}' \
         | grep -Po '[A-Za-z0-9_-]+')
 
     echo "    ID:           $TASK_ID"

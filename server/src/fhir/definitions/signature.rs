@@ -266,7 +266,7 @@ pub mod tests {
         Signature {
             type_: SignatureType::AuthorsSignature,
             when: "2020-03-20T07:31:34.328+00:00".try_into().unwrap(),
-            who: "https://prescriptionserver.telematik/Device/eRxService".into(),
+            who: "https://prescriptionserver.telematik/Device/ErxService".into(),
             data: "MIII FQYJ KoZI hvcN AQcC oIII BjCC CAIC AQEx DzAN Bglg hkgB ZQME AgEF ADAL"
                 .into(),
             format: Some(SignatureFormat::Json),

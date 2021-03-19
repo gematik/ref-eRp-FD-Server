@@ -1,9 +1,9 @@
 {
     "resourceType":"Device",
-    "id":"eRxService",
+    "id":"ErxService",
     "meta":{
         "profile":[
-            "https://gematik.de/fhir/StructureDefinition/erxDevice"
+            "https://gematik.de/fhir/StructureDefinition/ErxDevice"
         ]
     },
     "status":"active",

@@ -332,7 +332,7 @@ where
     Ok(())
 }
 
-const PROFILE: &str = "https://fhir.kbv.de/StructureDefinition/KBV_PR_FOR_Coverage|1.0.1";
+const PROFILE: &str = "https://fhir.kbv.de/StructureDefinition/KBV_PR_FOR_Coverage|1.0.3";
 
 const URL_SPECIAL_GROUP: &str = "http://fhir.de/StructureDefinition/gkv/besondere-personengruppe";
 const URL_DMP_MARK: &str = "http://fhir.de/StructureDefinition/gkv/dmp-kennzeichen";

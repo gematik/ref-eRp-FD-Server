@@ -16,13 +16,16 @@
  */
 
 use std::cmp::min;
+use std::env::var;
 use std::sync::Arc;
 use std::time::Duration;
 
 use arc_swap::ArcSwapOption;
+use chrono::Utc;
 use log::{error, info, warn};
-use miscellaneous::jwt::{extract, verify};
+use miscellaneous::jwt::{verify, VerifyMode};
 use openssl::x509::X509;
+use reqwest::RequestBuilder;
 use serde::Deserialize;
 use tokio::{spawn, time::delay_for};
 use url::Url;
@@ -42,13 +45,28 @@ pub fn from_web(tsl: Tsl, url: Url) -> Result<PukToken, Error> {
 
 #[derive(Deserialize)]
 struct DiscoveryDocument {
-    puk_uri_token: String,
-    puk_uri_disc: String,
+    uri_puk_idp_sig: String,
 }
 
 #[derive(Deserialize)]
 struct Jwks {
     x5c: Vec<String>,
+}
+
+trait RequestBuilderEx {
+    fn add_idp_auth_header(self) -> Self;
+}
+
+impl RequestBuilderEx for RequestBuilder {
+    fn add_idp_auth_header(self) -> Self {
+        if let Ok(api_key) = var("IDP_API_KEY") {
+            self.header("X-Authorization", api_key)
+        } else if let Ok(api_key) = var("idp_api_key") {
+            self.header("X-Authorization", api_key)
+        } else {
+            self
+        }
+    }
 }
 
 async fn update_task(tsl: Tsl, url: Url, pub_token: PukToken) {
@@ -100,57 +118,40 @@ async fn update_task(tsl: Tsl, url: Url, pub_token: PukToken) {
                 }
             };
 
-            let (raw, discovery_document) = ok!(
+            let (dd_cert, discovery_document) = ok!(
                 fetch_discovery_document(&client, url.clone()).await,
                 "Unable to fetch discovery document: {}"
             );
 
-            let uri_disc = ok!(
-                Url::parse(&discovery_document.puk_uri_disc),
-                "Invalid puk_uri_disc ({}): {}",
-                &discovery_document.puk_uri_disc
-            );
-
-            let cert_disc = ok!(
-                fetch_cert(&client, uri_disc).await,
-                "Unable to fetch PUK_DISC_KEY: {}"
-            );
-
-            ok!(tsl.verify(&cert_disc), "Unable to verify PUK_DISC_KEY: {}");
-
-            let key_disc = ok!(
-                cert_disc.public_key(),
-                "Unable to extract public key from PUK_DISC_KEY: {}"
-            );
-
-            let discovery_document = ok!(
-                verify::<DiscoveryDocument>(&raw, Some(key_disc)),
+            ok!(
+                tsl.verify(&dd_cert),
                 "Unable to verify discovery document: {}"
             );
 
             let uri_token = ok!(
-                Url::parse(&discovery_document.puk_uri_token),
-                "Invalid puk_uri_token ({}): {}",
-                &discovery_document.puk_uri_token
+                Url::parse(&discovery_document.uri_puk_idp_sig),
+                "Invalid uri_puk_idp_sig ({}): {}",
+                &discovery_document.uri_puk_idp_sig
             );
 
-            let cert_token = ok!(
+            let cert = ok!(
                 fetch_cert(&client, uri_token).await,
                 "Unable to fetch PUK_TOKEN_KEY: {}"
             );
 
-            ok!(
-                tsl.verify(&cert_token),
-                "Unable to verify PUK_TOKEN_KEY: {}"
-            );
+            ok!(tsl.verify(&cert), "Unable to verify PUK_TOKEN_KEY: {}");
 
-            let cert = cert_disc;
             let public_key = ok!(
                 cert.public_key(),
                 "Unable to extract public key from PUK_TOKEN_KEY: {}"
             );
+            let timestamp = Utc::now();
 
-            break Inner { cert, public_key };
+            break Inner {
+                cert,
+                public_key,
+                timestamp,
+            };
         };
 
         pub_token.0.store(Some(Arc::new(next)));
@@ -164,8 +165,8 @@ async fn update_task(tsl: Tsl, url: Url, pub_token: PukToken) {
 async fn fetch_discovery_document(
     client: &Client,
     url: Url,
-) -> Result<(String, DiscoveryDocument), Error> {
-    let res = client.get(url)?.send().await?;
+) -> Result<(X509, DiscoveryDocument), Error> {
+    let res = client.get(url)?.add_idp_auth_header().send().await?;
 
     if res.status() != 200 {
         let status = res.status();
@@ -174,14 +175,17 @@ async fn fetch_discovery_document(
         return Err(Error::FetchFailed(status, text));
     }
 
+    let mut cert = None;
     let raw = res.text().await?;
-    let parsed = extract(&raw)?;
+    let parsed = verify(&raw, VerifyMode::CertOut(&mut cert))?;
 
-    Ok((raw, parsed))
+    let cert = cert.ok_or(Error::MissingCert)?;
+
+    Ok((cert, parsed))
 }
 
 async fn fetch_cert(client: &Client, url: Url) -> Result<X509, Error> {
-    let res = client.get(url)?.send().await?;
+    let res = client.get(url)?.add_idp_auth_header().send().await?;
     if res.status() != 200 {
         let status = res.status();
         let text = res.text().await.unwrap_or_default();

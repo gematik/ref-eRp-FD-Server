@@ -282,7 +282,26 @@ fn encode_value(value: Value) -> String {
         Value::Signed(v) => v.to_string(),
         Value::Unsigned(v) => v.to_string(),
         Value::Float(v) => v.to_string(),
-        Value::String(v) => v,
+        Value::String(v) => escape_str(&v),
         Value::Str(v) => v.into(),
     }
+}
+
+fn escape_str(s: &str) -> String {
+    let mut ret = String::new();
+
+    for c in s.chars() {
+        match c {
+            '<' => ret += "&lt;",
+            '>' => ret += "&gt;",
+            '"' => ret += "&quot;",
+            '\'' => ret += "&apos;",
+            '&' => ret += "&amp;",
+            '\n' => ret += "&#xA;",
+            '\r' => ret += "&#xD;",
+            c => ret.push(c),
+        }
+    }
+
+    ret
 }

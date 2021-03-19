@@ -224,7 +224,7 @@ impl CodeEx for Identifier {
     }
 }
 
-const PROFILE: &str = "https://fhir.kbv.de/StructureDefinition/KBV_PR_FOR_Patient|1.0.1";
+const PROFILE: &str = "https://fhir.kbv.de/StructureDefinition/KBV_PR_FOR_Patient|1.0.3";
 
 const SYSTEM_IDENTIFIER_TYPE: &str = "http://fhir.de/CodeSystem/identifier-type-de-basis";
 const SYSTEM_KVID: &str = "http://fhir.de/NamingSystem/gkv/kvid-10";

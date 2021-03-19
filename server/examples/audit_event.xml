@@ -1,16 +1,20 @@
 <AuditEvent xmlns="http://hl7.org/fhir">
     <id value="5fe6e06c-8725-46d5-aecd-e65e041ca3af"/>
     <meta>
-        <profile value="https://gematik.de/fhir/StructureDefinition/erxAuditEvent"/>
+        <profile value="https://gematik.de/fhir/StructureDefinition/ErxAuditEvent"/>
     </meta>
+    <text>
+        <status value="additional"/>
+        <div value="Example Text"/>
+    </text>
     <type>
         <system value="http://terminology.hl7.org/CodeSystem/audit-event-type"/>
         <code value="rest"/>
     </type>
-    <subType>
+    <subtype>
         <system value="http://hl7.org/fhir/restful-interaction"/>
         <code value="read"/>
-    </subType>
+    </subtype>
     <action value="C"/>
     <recorded value="2020-02-27T08:04:27.434+00:00"/>
     <outcome value="0"/>
@@ -19,12 +23,12 @@
             <coding>
                 <system value="http://terminology.hl7.org/CodeSystem/extra-security-role-type"/>
                 <code value="humanuser"/>
-                <display value="human user"/>
+                <display value="Human user"/>
             </coding>
         </type>
         <who>
             <identifier>
-                <system value="https://gematik.de/fhir/Namingsystem/TelematikID"/>
+                <system value="https://gematik.de/fhir/NamingSystem/TelematikID"/>
                 <value value="606358750"/>
             </identifier>
         </who>
@@ -32,6 +36,7 @@
         <requestor value="false"/>
     </agent>
     <source>
+        <site value="E-Rezept Fachdienst"/>
         <observer>
             <reference value="Device/eRx-Fachdienst"/>
         </observer>

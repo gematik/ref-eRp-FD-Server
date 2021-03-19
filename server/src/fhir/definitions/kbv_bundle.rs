@@ -283,7 +283,7 @@ impl BinaryEx for KbvBinary {
     }
 }
 
-const PROFILE: &str = "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Bundle|1.0.0";
+const PROFILE: &str = "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Bundle|1.0.1";
 
 #[cfg(test)]
 pub mod tests {
@@ -367,7 +367,10 @@ pub mod tests {
 
         KbvBundle {
             id: "281a985c-f25b-4aae-91a6-41ad744080b0".try_into().unwrap(),
-            identifier: PrescriptionId::new(FlowType::PharmaceuticalDrugs, 123456789123),
+            identifier: PrescriptionId::new(
+                FlowType::ApothekenpflichtigeArzneimittel,
+                123456789123,
+            ),
             timestamp: DateTime::parse_from_rfc3339("2020-06-23T08:30:00Z")
                 .unwrap()
                 .into(),

@@ -88,7 +88,7 @@ impl FromRequest for XAccessCode {
 
         match args.ac {
             Some(ac) => ok(XAccessCode(ac)),
-            None => err(RequestError::HeaderMissing("X-Access-Code".into()).with_type_from(req)),
+            None => err(RequestError::MissingAccessCode.with_type_from(req)),
         }
     }
 }

@@ -84,7 +84,7 @@ where
                 Some(_) => {
                     let value = self.stream.take_while(|_, v| v != b'<').await?.unwrap();
                     let value = from_utf8(&value)?;
-                    let value = value.to_owned();
+                    let value = unescape_str(value)?;
 
                     return Ok(Some(Element::Text { value }));
                 }
@@ -174,10 +174,11 @@ where
                             .await?
                             .ok_or(StreamError::UnexpectedEof)?;
                         let value = from_utf8(&value)?;
+                        let value = unescape_str(value)?;
 
                         self.stream.expect(b"\"").await?;
 
-                        attribs.0.push((attrib.into(), value.into()));
+                        attribs.0.push((attrib.into(), value));
                     }
                     Some(_) => return Err(StreamError::UnexpectedIdent.into()),
                     None => return Err(StreamError::UnexpectedEof.into()),
@@ -216,6 +217,39 @@ fn is_ident(_: usize, v: u8) -> bool {
         || (v >= b'0' && v <= b'9')
         || v == b'-'
         || v == b'_'
+}
+
+fn unescape_str<E>(mut s: &str) -> Result<String, Error<E>>
+where
+    E: Display + Debug,
+{
+    let mut ret = String::new();
+
+    while !s.is_empty() {
+        if let Some(pos_beg) = s.find('&') {
+            ret += &s[..pos_beg];
+            s = &s[(pos_beg + 1)..];
+
+            let pos_end = s.find(';').ok_or(Error::UnclosedEscapeSequence)?;
+            match &s[0..pos_end] {
+                "lt" => ret += "<",
+                "gt" => ret += ">",
+                "quot" => ret += "\"",
+                "apos" => ret += "'",
+                "amp" => ret += "&",
+                "#xA" => ret += "\n",
+                "#xD" => ret += "\r",
+                x => return Err(Error::UnknownEscapeSequence(x.into())),
+            }
+
+            s = &s[(pos_end + 1)..];
+        } else {
+            ret += s;
+            s = &s[s.len()..];
+        }
+    }
+
+    Ok(ret)
 }
 
 #[cfg(test)]

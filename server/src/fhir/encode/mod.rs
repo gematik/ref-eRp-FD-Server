@@ -48,7 +48,7 @@ pub mod tests {
             },
             Item::Array,
             Item::Value {
-                value: "https://gematik.de/fhir/StructureDefinition/erxTask".into(),
+                value: "https://gematik.de/fhir/StructureDefinition/ErxTask".into(),
                 extension: vec![],
             },
             Item::End,
@@ -144,7 +144,7 @@ pub mod tests {
                 name: "system".into(),
             },
             Item::Value {
-                value: "https://gematik.de/fhir/Namingsystem/AccessCode".into(),
+                value: "https://gematik.de/fhir/NamingSystem/AccessCode".into(),
                 extension: vec![],
             },
             Item::Field {
@@ -160,7 +160,7 @@ pub mod tests {
                 name: "system".into(),
             },
             Item::Value {
-                value: "https://gematik.de/fhir/Namingsystem/Secret".into(),
+                value: "https://gematik.de/fhir/NamingSystem/Secret".into(),
                 extension: vec![],
             },
             Item::Field {

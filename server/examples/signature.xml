@@ -2,11 +2,11 @@
     <type>
         <system value="urn:iso-astm:E1762-95:2013"/>
         <code value="1.2.840.10065.1.12.1.1"/>
-        <display value="Author's Signature"/>
+        <display value="Author&apos;s Signature"/>
     </type>
     <when value="2020-03-20T07:31:34.328+00:00"/>
     <who>
-        <reference value="https://prescriptionserver.telematik/Device/eRxService"/>
+        <reference value="https://prescriptionserver.telematik/Device/ErxService"/>
     </who>
     <targetFormat value="application/fhir+json"/>
     <sigFormat value="application/jose"/>
