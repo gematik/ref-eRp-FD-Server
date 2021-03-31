@@ -26,7 +26,7 @@ use crate::{
     service::{
         header::{Accept, Authorization},
         misc::{DataType, Profession},
-        AsReqErrResult, TypedRequestError, TypedRequestResult,
+        IntoReqErrResult, TypedRequestError, TypedRequestResult,
     },
     state::State,
 };
@@ -53,7 +53,7 @@ pub async fn reject(
         .check_profession(|p| {
             p == Profession::OeffentlicheApotheke || p == Profession::KrankenhausApotheke
         })
-        .as_req_err()
+        .into_req_err()
         .err_with_type(accept)?;
 
     let id = id.into_inner();
@@ -64,7 +64,7 @@ pub async fn reject(
         .lock()
         .await
         .task_reject(id, secret, agent)
-        .as_req_err()
+        .into_req_err()
         .err_with_type(accept)?;
 
     Ok(HttpResponse::NoContent().finish())

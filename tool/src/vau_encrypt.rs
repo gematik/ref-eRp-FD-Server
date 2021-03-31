@@ -30,7 +30,7 @@ use openssl::{
     symm::{encrypt_aead, Cipher},
     x509::X509,
 };
-use rand::random;
+use rand::{rngs::OsRng, Rng};
 use structopt::StructOpt;
 
 use super::misc::{read_input, write_output};
@@ -122,7 +122,7 @@ pub fn execute(opts: Opts) {
         .expect("Unable to generate AES key");
 
     /* encrypt plain text */
-    let iv: [u8; 12] = random();
+    let iv: [u8; 12] = OsRng.gen();
     let mut tag = [0; 16];
 
     let cipher = encrypt_aead(

@@ -15,30 +15,26 @@
  *
  */
 
-use chrono::{DateTime, Utc};
+use std::fs::read;
 
-use crate::tasks::Tsl;
+use openssl::x509::X509;
+use url::Url;
 
-use super::super::error::RequestError;
+use super::{super::PkiStore, Error, PukToken};
 
-pub struct Cms {
-    bnetza: Tsl,
-}
+pub fn from_file(store: &PkiStore, url: Url) -> Result<(), Error> {
+    let filepath = match url.host() {
+        Some(host) => format!("{}{}", host, url.path()),
+        None => url.path().into(),
+    };
 
-impl Cms {
-    pub fn new(bnetza: Tsl) -> Self {
-        Self { bnetza }
-    }
+    let cert = read(filepath)?;
+    let cert = X509::from_pem(&cert)?;
+    let public_key = cert.public_key()?;
 
-    pub fn verify(&self, pem: &str) -> Result<(Vec<u8>, DateTime<Utc>), RequestError> {
-        self.bnetza
-            .verify_cms(pem)
-            .map_err(RequestError::CmsContainerError)
-    }
-}
+    let puk_token = PukToken { cert, public_key };
 
-impl Clone for Cms {
-    fn clone(&self) -> Self {
-        Self::new(self.bnetza.clone())
-    }
+    store.store_puk_token(puk_token);
+
+    Ok(())
 }

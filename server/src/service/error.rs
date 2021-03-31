@@ -18,7 +18,7 @@
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
 use actix_web::{
-    dev::HttpResponseBuilder,
+    dev::{HttpResponseBuilder, ServiceRequest},
     error::{PayloadError, ResponseError},
     http::StatusCode,
     HttpRequest, HttpResponse,
@@ -35,7 +35,7 @@ use crate::{
         decode::{DecodeError, JsonError as JsonDecodeError, XmlError as XmlDecodeError},
         encode::{EncodeError, JsonError as JsonEncodeError, XmlError as XmlEncodeError},
     },
-    tasks::tsl::Error as TslError,
+    pki_store::Error as PkiError,
 };
 
 use super::{
@@ -151,6 +151,7 @@ impl ResponseError for TypedRequestError {
             E::ContentTypeNotSupported => res.status(StatusCode::BAD_REQUEST),
             E::AcceptUnsupported => res.status(StatusCode::BAD_REQUEST),
             E::MissingAccessCode => res.status(StatusCode::FORBIDDEN),
+            E::InvalidAccessToken => res.status(StatusCode::FORBIDDEN),
         };
 
         if res.details.is_none() {
@@ -199,7 +200,7 @@ pub enum RequestError {
     TaskError(TaskError),
 
     #[error("Unable to verify CMS container: {0}")]
-    CmsContainerError(TslError),
+    CmsContainerError(PkiError),
 
     #[error("Not Found: {0}!")]
     NotFound(String),
@@ -221,6 +222,9 @@ pub enum RequestError {
 
     #[error("Missing Access Code!")]
     MissingAccessCode,
+
+    #[error("Invalid Access Token!")]
+    InvalidAccessToken,
 }
 
 impl RequestError {
@@ -266,10 +270,10 @@ impl RequestError {
 
 impl<T> From<T> for RequestError
 where
-    T: AsReqErr,
+    T: IntoReqErr,
 {
     fn from(err: T) -> RequestError {
-        err.as_req_err()
+        err.into_req_err()
     }
 }
 
@@ -286,6 +290,15 @@ impl DataTypeFrom for Accept {
 }
 
 impl DataTypeFrom for HttpRequest {
+    fn data_type(&self) -> DataType {
+        match Accept::from_headers(self.headers()) {
+            Ok(accept) => DataType::from_accept(&accept).unwrap_or_default(),
+            Err(_) => DataType::default(),
+        }
+    }
+}
+
+impl DataTypeFrom for ServiceRequest {
     fn data_type(&self) -> DataType {
         match Accept::from_headers(self.headers()) {
             Ok(accept) => DataType::from_accept(&accept).unwrap_or_default(),
@@ -339,93 +352,93 @@ impl<T> TypedRequestResult for Result<T, RequestError> {
     }
 }
 
-/* AsReqErrResult */
+/* IntoReqErrResult */
 
-pub trait AsReqErrResult {
+pub trait IntoReqErrResult {
     type Value;
 
-    fn as_req_err(self) -> Result<Self::Value, RequestError>;
+    fn into_req_err(self) -> Result<Self::Value, RequestError>;
 }
 
-impl<T, E> AsReqErrResult for Result<T, E>
+impl<T, E> IntoReqErrResult for Result<T, E>
 where
-    E: AsReqErr,
+    E: IntoReqErr,
 {
     type Value = T;
 
-    fn as_req_err(self) -> Result<T, RequestError> {
-        self.map_err(AsReqErr::as_req_err)
+    fn into_req_err(self) -> Result<T, RequestError> {
+        self.map_err(IntoReqErr::into_req_err)
     }
 }
 
-/* AsReqErr */
+/* IntoReqErr */
 
-pub trait AsReqErr {
-    fn as_req_err(self) -> RequestError;
+pub trait IntoReqErr {
+    fn into_req_err(self) -> RequestError;
 }
 
-impl AsReqErr for OpenSslError {
-    fn as_req_err(self) -> RequestError {
+impl IntoReqErr for OpenSslError {
+    fn into_req_err(self) -> RequestError {
         RequestError::OpenSslError(self)
     }
 }
 
-impl AsReqErr for AccessTokenError {
-    fn as_req_err(self) -> RequestError {
+impl IntoReqErr for AccessTokenError {
+    fn into_req_err(self) -> RequestError {
         RequestError::AccessTokenError(self)
     }
 }
 
-impl AsReqErr for DecodeError<XmlDecodeError<PayloadError>> {
-    fn as_req_err(self) -> RequestError {
+impl IntoReqErr for DecodeError<XmlDecodeError<PayloadError>> {
+    fn into_req_err(self) -> RequestError {
         RequestError::DecodeXml(self)
     }
 }
 
-impl AsReqErr for DecodeError<JsonDecodeError<PayloadError>> {
-    fn as_req_err(self) -> RequestError {
+impl IntoReqErr for DecodeError<JsonDecodeError<PayloadError>> {
+    fn into_req_err(self) -> RequestError {
         RequestError::DecodeJson(self)
     }
 }
 
-impl AsReqErr for EncodeError<XmlEncodeError> {
-    fn as_req_err(self) -> RequestError {
+impl IntoReqErr for EncodeError<XmlEncodeError> {
+    fn into_req_err(self) -> RequestError {
         RequestError::EncodeXml(self)
     }
 }
 
-impl AsReqErr for EncodeError<JsonEncodeError> {
-    fn as_req_err(self) -> RequestError {
+impl IntoReqErr for EncodeError<JsonEncodeError> {
+    fn into_req_err(self) -> RequestError {
         RequestError::EncodeJson(self)
     }
 }
 
-impl AsReqErr for CapabiltyStatementError {
-    fn as_req_err(self) -> RequestError {
+impl IntoReqErr for CapabiltyStatementError {
+    fn into_req_err(self) -> RequestError {
         RequestError::CapabiltyStatementError(self)
     }
 }
 
-impl AsReqErr for AuditEventError {
-    fn as_req_err(self) -> RequestError {
+impl IntoReqErr for AuditEventError {
+    fn into_req_err(self) -> RequestError {
         RequestError::AuditEventError(self)
     }
 }
 
-impl AsReqErr for CommunicationError {
-    fn as_req_err(self) -> RequestError {
+impl IntoReqErr for CommunicationError {
+    fn into_req_err(self) -> RequestError {
         RequestError::CommunicationError(self)
     }
 }
 
-impl AsReqErr for MedicationDispenseError {
-    fn as_req_err(self) -> RequestError {
+impl IntoReqErr for MedicationDispenseError {
+    fn into_req_err(self) -> RequestError {
         RequestError::MedicationDispenseError(self)
     }
 }
 
-impl AsReqErr for TaskError {
-    fn as_req_err(self) -> RequestError {
+impl IntoReqErr for TaskError {
+    fn into_req_err(self) -> RequestError {
         RequestError::TaskError(self)
     }
 }

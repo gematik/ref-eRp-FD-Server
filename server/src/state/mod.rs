@@ -46,7 +46,7 @@ pub struct Inner {
     pub(super) tasks: HashMap<Id, TaskMeta>,
     pub(super) e_prescriptions: HashMap<Id, KbvBinary>,
     pub(super) patient_receipts: HashMap<Id, Signed<KbvBundle>>,
-    pub(super) erx_receipts: HashMap<Id, ErxBundle>,
+    pub(super) erx_receipts: HashMap<Id, Signed<ErxBundle>>,
     pub(super) communications: HashMap<Id, Communication>,
     pub(super) medication_dispenses: HashMap<Id, MedicationDispense>,
     pub(super) audit_events: HashMap<Kvnr, Vec<AuditEvent>>,

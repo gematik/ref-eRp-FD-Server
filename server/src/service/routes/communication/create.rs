@@ -23,15 +23,17 @@ use actix_web::{
 use resources::Communication;
 
 use crate::service::{
-    header::{Accept, Authorization, ContentType},
+    header::{Accept, Authorization, ContentType, XAccessCode},
     misc::{access_token::Profession, create_response_with, read_payload, DataType},
-    AsReqErrResult, State, TypedRequestError, TypedRequestResult,
+    IntoReqErrResult, State, TypedRequestError, TypedRequestResult,
 };
 
+#[allow(clippy::match_like_matches_macro)]
 pub async fn create(
     state: Data<State>,
     accept: Accept,
     access_token: Authorization,
+    access_code: Option<XAccessCode>,
     content_type: ContentType,
     payload: Payload,
 ) -> Result<HttpResponse, TypedRequestError> {
@@ -49,18 +51,18 @@ pub async fn create(
             Profession::OeffentlicheApotheke => true,
             _ => false,
         })
-        .as_req_err()
+        .into_req_err()
         .err_with_type(accept)?;
 
-    let participant_id = access_token.id().as_req_err().err_with_type(accept)?;
+    let participant_id = access_token.id().into_req_err().err_with_type(accept)?;
     let communication = read_payload::<Communication>(data_type, payload)
         .await
         .err_with_type(accept)?;
 
     let mut state = state.lock().await;
     let communication = state
-        .communication_create(participant_id, communication)
-        .as_req_err()
+        .communication_create(participant_id, access_code, communication)
+        .into_req_err()
         .err_with_type(accept)?;
 
     create_response_with(&*communication, accept, StatusCode::CREATED, |_| ())

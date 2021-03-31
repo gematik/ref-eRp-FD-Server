@@ -1,3 +1,14 @@
+# Release 0.15.0
+Implemented features:
+- Sign Receipt Bundle
+- Added /VAUCertificateOCSPResponse endpoint
+- Added /OCSPList endpoint with list of OCSP respponses
+- Added /Random endpoint
+
+Developer hints:
+- The place of the certificate that is stored in the signature of the receipt bundle may be changed in the future
+
+
 # Release 0.14.0
 Implemented features:
 - Added crates to handle XAdES

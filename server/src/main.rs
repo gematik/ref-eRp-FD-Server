@@ -26,14 +26,7 @@ use tokio::{runtime::Builder, task::LocalSet};
 use url::Url;
 
 use ref_erx_fd_server::{
-    error::Error,
-    logging::init_logger,
-    service::Service,
-    state::State,
-    tasks::{
-        tsl::{prepare_no_op, prepare_tsl},
-        PukToken, Tsl,
-    },
+    error::Error, logging::init_logger, pki_store::PkiStore, service::Service, state::State,
 };
 
 fn main() -> Result<(), Error> {
@@ -62,9 +55,7 @@ async fn run(opts: Options) -> Result<(), Error> {
 
     let local = LocalSet::new();
 
-    let tsl = Tsl::from_url(opts.tsl, prepare_tsl, true);
-    let bnetza = Tsl::from_url(opts.bnetza, prepare_no_op, false);
-    let puk_token = PukToken::from_url(tsl.clone(), opts.token)?;
+    let pki_store = PkiStore::new(enc_key, enc_cert, opts.tsl, opts.bnetza, opts.token)?;
     let state = State::new(sig_key, sig_cert);
 
     if let Some(path) = &opts.state {
@@ -76,7 +67,7 @@ async fn run(opts: Options) -> Result<(), Error> {
         }
     }
 
-    let handle = Service::new(puk_token, tsl, bnetza, state.clone(), enc_key, enc_cert)
+    let handle = Service::new(state.clone(), pki_store)
         .listen(&opts.server_addr)?
         .run(&local)?;
 

@@ -23,8 +23,8 @@ use actix_web::{
 };
 
 use crate::{
+    pki_store::PkiStore,
     service::{header::Accept, RequestError},
-    tasks::Tsl,
 };
 
 pub fn configure_routes(cfg: &mut ServiceConfig) {
@@ -32,8 +32,9 @@ pub fn configure_routes(cfg: &mut ServiceConfig) {
     cfg.service(resource("/TSL.sha2").route(get().to(get_sha2)));
 }
 
-async fn get_xml(tsl: Data<Tsl>, accept: Accept) -> Result<HttpResponse, ActixError> {
-    match &*tsl.load() {
+async fn get_xml(pki_store: Data<PkiStore>, accept: Accept) -> Result<HttpResponse, ActixError> {
+    let tsl = pki_store.tsl();
+    match &*tsl {
         Some(tsl) => Ok(HttpResponse::Ok()
             .content_type(ContentType::xml().try_into()?)
             .body(&tsl.xml)),
@@ -43,8 +44,10 @@ async fn get_xml(tsl: Data<Tsl>, accept: Accept) -> Result<HttpResponse, ActixEr
     }
 }
 
-async fn get_sha2(tsl: Data<Tsl>, accept: Accept) -> Result<HttpResponse, ActixError> {
-    match tsl.load().as_ref().and_then(|tsl| tsl.sha2.as_ref()) {
+async fn get_sha2(pki_store: Data<PkiStore>, accept: Accept) -> Result<HttpResponse, ActixError> {
+    let tsl = pki_store.tsl();
+    let tsl = &*tsl;
+    match tsl.as_ref().and_then(|tsl| tsl.sha2.as_ref()) {
         Some(sha2) => Ok(HttpResponse::Ok()
             .content_type(ContentType::plaintext().try_into()?)
             .body(sha2)),

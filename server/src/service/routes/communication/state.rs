@@ -63,6 +63,7 @@ impl Inner {
     pub fn communication_create(
         &mut self,
         participant_id: ParticipantId,
+        access_code: Option<XAccessCode>,
         mut communication: Communication,
     ) -> Result<&mut Communication, Error> {
         match communication.content() {
@@ -73,12 +74,6 @@ impl Inner {
                 data: Some(data), ..
             }) if data.len() > MAX_CONTENT_SIZE => return Err(Error::ContentSizeExceeded),
             _ => (),
-        }
-
-        if let Communication::DispenseReq(c) = &communication {
-            if c.based_on.is_none() {
-                return Err(Error::MissingFieldBasedOn);
-            }
         }
 
         communication.set_sent(Utc::now().into());
@@ -105,26 +100,32 @@ impl Inner {
             return Err(Error::SenderEqualRecipient);
         }
 
-        if let Some(based_on) = communication.based_on() {
-            let (task_id, access_code) = Self::parse_task_url(&based_on)?;
+        let based_on = communication.based_on();
+        let (task_id, ac) = Self::parse_task_url(&based_on)?;
 
-            let kvnr = participant_id.kvnr().cloned();
-            let task_meta = match self.tasks.get(&task_id) {
-                Some(task_meta) => task_meta,
-                None => return Err(Error::UnknownTask(task_id)),
-            };
+        let access_code = access_code.or(ac);
+        let kvnr = participant_id.kvnr().cloned();
+        let task_meta = match self.tasks.get(&task_id) {
+            Some(task_meta) => task_meta,
+            None => return Err(Error::UnknownTask(task_id)),
+        };
 
-            let task = task_meta.history.get();
+        let task = task_meta.history.get();
+
+        if kvnr.is_some() {
+            // If the KVNR is set we operate as patient.
+            // Hint: this needs to be adapted once the interfaces of
+            // patient and supplier are separated.
             if !Self::task_matches(&task, &kvnr, &access_code, &None) {
                 return Err(Error::UnauthorizedTaskAccess);
             }
+        }
 
-            match (&communication, task.status) {
-                (Communication::Representative(_), Status::Ready) => (),
-                (Communication::Representative(_), Status::InProgress) => (),
-                (Communication::Representative(_), _) => return Err(Error::InvalidTaskStatus),
-                (_, _) => (),
-            }
+        match (&communication, task.status) {
+            (Communication::Representative(_), Status::Ready) => (),
+            (Communication::Representative(_), Status::InProgress) => (),
+            (Communication::Representative(_), _) => return Err(Error::InvalidTaskStatus),
+            (_, _) => (),
         }
 
         let id = Id::generate().unwrap();

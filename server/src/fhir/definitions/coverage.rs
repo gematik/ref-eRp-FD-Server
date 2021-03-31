@@ -169,9 +169,9 @@ impl Decode for Payor {
     }
 }
 
-fn decode_identifier<'a, S>(
-    stream: &'a mut DecodeStream<S>,
-) -> DecodeFuture<'a, (String, Option<String>), S::Error>
+fn decode_identifier<S>(
+    stream: &mut DecodeStream<S>,
+) -> DecodeFuture<(String, Option<String>), S::Error>
 where
     S: DataStream,
 {

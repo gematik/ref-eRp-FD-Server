@@ -25,11 +25,12 @@ use crate::{
     service::{
         header::{Accept, Authorization},
         misc::{DataType, Profession},
-        AsReqErrResult, TypedRequestError, TypedRequestResult,
+        IntoReqErrResult, TypedRequestError, TypedRequestResult,
     },
     state::State,
 };
 
+#[allow(clippy::match_like_matches_macro)]
 pub async fn delete_one(
     state: Data<State>,
     id: Path<Id>,
@@ -49,16 +50,16 @@ pub async fn delete_one(
             Profession::OeffentlicheApotheke => true,
             _ => false,
         })
-        .as_req_err()
+        .into_req_err()
         .err_with_type(accept)?;
 
     let id = id.into_inner();
-    let participant_id = access_token.id().as_req_err().err_with_type(accept)?;
+    let participant_id = access_token.id().into_req_err().err_with_type(accept)?;
 
     let mut state = state.lock().await;
     let received = state
         .communication_delete(id, &participant_id)
-        .as_req_err()
+        .into_req_err()
         .err_with_type(accept)?;
 
     let mut res = HttpResponse::NoContent();

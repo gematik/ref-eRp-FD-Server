@@ -68,7 +68,7 @@ impl Inner {
 
         for erx_receipt in data.erx_receipts {
             self.erx_receipts
-                .insert(erx_receipt.id.clone(), erx_receipt);
+                .insert(erx_receipt.id.clone(), Signed::new(erx_receipt));
         }
 
         for communication in data.communications {
@@ -110,7 +110,12 @@ impl Inner {
                 .map(Deref::deref)
                 .cloned()
                 .collect(),
-            erx_receipts: self.erx_receipts.values().cloned().collect(),
+            erx_receipts: self
+                .erx_receipts
+                .values()
+                .map(Deref::deref)
+                .cloned()
+                .collect(),
             communications: self.communications.values().cloned().collect(),
             medication_dispenses: self.medication_dispenses.values().cloned().collect(),
             audit_events: self.audit_events.values().flatten().cloned().collect(),

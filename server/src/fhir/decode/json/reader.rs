@@ -269,7 +269,7 @@ where
 
                         let n2 = decode_escape_str(&mut chars)?;
 
-                        if n2 < 0xDC00 || n2 > 0xDFFF {
+                        if !(0xDC00..=0xDFFF).contains(&n2) {
                             return Err(Error::InvalidEscape);
                         }
 
@@ -321,7 +321,7 @@ fn is_number(dot: &mut bool, i: usize, v: u8) -> bool {
         return true;
     }
 
-    (v >= b'0' && v <= b'9') || (i == 0 && v == b'-')
+    (b'0'..=b'9').contains(&v) || (i == 0 && v == b'-')
 }
 
 fn is_string(escape: &mut bool, v: u8) -> bool {

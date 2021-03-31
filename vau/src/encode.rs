@@ -20,15 +20,11 @@ use actix_http::{
     h1::{Codec, Message},
     Response,
 };
-use actix_web::{
-    dev::{MessageBody, ServiceResponse},
-    error::Error as ActixError,
-};
+use actix_web::{dev::MessageBody, error::Error as ActixError};
 use bytes::{BufMut, BytesMut};
 use futures::stream::TryStreamExt;
 
-pub async fn encode(request_id: &str, res: ServiceResponse) -> Result<BytesMut, ActixError> {
-    let res: Response = res.into();
+pub async fn encode(request_id: &str, res: Response) -> Result<BytesMut, ActixError> {
     let (head, mut body) = res.into_parts();
 
     let mut codec = Codec::default();

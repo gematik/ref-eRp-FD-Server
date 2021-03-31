@@ -33,7 +33,7 @@ use crate::{
     service::{
         header::{Accept, Authorization},
         misc::{create_response, DataType, FromQuery, Profession, Query, QueryValue, Search, Sort},
-        AsReqErrResult, TypedRequestError, TypedRequestResult,
+        IntoReqErrResult, TypedRequestError, TypedRequestResult,
     },
     state::State,
 };
@@ -102,10 +102,10 @@ pub async fn get_all(
 
     access_token
         .check_profession(|p| p == Profession::Versicherter)
-        .as_req_err()
+        .into_req_err()
         .err_with_type(accept)?;
 
-    let kvnr = access_token.kvnr().as_req_err().err_with_type(accept)?;
+    let kvnr = access_token.kvnr().into_req_err().err_with_type(accept)?;
     let state = state.lock().await;
 
     // Collect results
@@ -197,15 +197,15 @@ pub async fn get_one(
 
     access_token
         .check_profession(|p| p == Profession::Versicherter)
-        .as_req_err()
+        .into_req_err()
         .err_with_type(accept)?;
 
     let id = id.0;
-    let kvnr = access_token.kvnr().as_req_err().err_with_type(accept)?;
+    let kvnr = access_token.kvnr().into_req_err().err_with_type(accept)?;
     let state = state.lock().await;
     let medication_dispense = state
         .medication_dispense_get(id, &kvnr)
-        .as_req_err()
+        .into_req_err()
         .err_with_type(accept)?;
 
     create_response(medication_dispense, accept)

@@ -23,63 +23,31 @@ mod misc;
 mod routes;
 
 use std::net::{SocketAddr, ToSocketAddrs};
-use std::ops::Deref;
 
 use actix_rt::System;
 use actix_web::{dev::Server, App, HttpServer};
-use openssl::{ec::EcKey, pkey::Private, x509::X509};
 use tokio::task::LocalSet;
 
-use crate::{
-    error::Error,
-    state::State,
-    tasks::{PukToken, Tsl},
-};
+use crate::{error::Error, pki_store::PkiStore, state::State};
 
 pub use error::{
-    AsAuditEventOutcome, AsReqErr, AsReqErrResult, RequestError, TypedRequestError,
+    AsAuditEventOutcome, IntoReqErr, IntoReqErrResult, RequestError, TypedRequestError,
     TypedRequestResult,
 };
-use middleware::{ExtractAccessToken, HeaderCheck, Logging, Vau};
-use misc::Cms;
-use routes::{cert_list::CertList, configure_routes};
-
-pub struct EncCert(pub X509);
+use middleware::{HeaderCheck, Logging, Vau};
+use routes::configure_routes;
 
 pub struct Service {
-    puk_token: PukToken,
-    tsl: Tsl,
-    bnetza: Tsl,
     state: State,
-    enc_key: EcKey<Private>,
-    enc_cert: X509,
+    pki_store: PkiStore,
     addresses: Vec<SocketAddr>,
 }
 
-impl Deref for EncCert {
-    type Target = X509;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
 impl Service {
-    pub fn new(
-        puk_token: PukToken,
-        tsl: Tsl,
-        bnetza: Tsl,
-        state: State,
-        enc_key: EcKey<Private>,
-        enc_cert: X509,
-    ) -> Self {
+    pub fn new(state: State, pki_store: PkiStore) -> Self {
         Self {
-            puk_token,
-            tsl,
-            bnetza,
             state,
-            enc_key,
-            enc_cert,
+            pki_store,
             addresses: Vec::new(),
         }
     }
@@ -94,33 +62,22 @@ impl Service {
 
     pub fn run(self, local: &LocalSet) -> Result<Server, Error> {
         let Self {
-            puk_token,
-            tsl,
-            bnetza,
             state,
-            enc_key,
-            enc_cert,
+            pki_store,
             addresses,
         } = self;
 
-        let cms = Cms::new(bnetza);
-        let cert_list = CertList::default();
         let system = System::run_in_tokio("actix-web", &local);
 
         local.spawn_local(system);
 
         let mut server = HttpServer::new(move || {
             App::new()
-                .wrap(ExtractAccessToken)
-                .wrap(Vau::new(enc_key.clone(), enc_cert.clone()).unwrap())
+                .wrap(Vau)
                 .wrap(HeaderCheck)
                 .wrap(Logging)
                 .data(state.clone())
-                .data(tsl.clone())
-                .data(cms.clone())
-                .data(puk_token.clone())
-                .data(cert_list.clone())
-                .data(EncCert(enc_cert.clone()))
+                .data(pki_store.clone())
                 .configure(configure_routes)
         });
 

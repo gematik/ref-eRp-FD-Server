@@ -24,7 +24,7 @@ use serde_json::Error as JsonError;
 use thiserror::Error;
 use vau::Error as VauError;
 
-use crate::{state::HistoryError, tasks::puk_token::Error as PukTokenError};
+use crate::{pki_store::Error as PkiError, state::HistoryError};
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -52,8 +52,8 @@ pub enum Error {
     #[error("History Error: {0}")]
     HistoryError(HistoryError),
 
-    #[error("PUK_TOKEN Error: {0}")]
-    PukTokenError(PukTokenError),
+    #[error("PkiError: {0}")]
+    PkiError(PkiError),
 }
 
 impl From<String> for Error {
@@ -104,8 +104,8 @@ impl From<HistoryError> for Error {
     }
 }
 
-impl From<PukTokenError> for Error {
-    fn from(v: PukTokenError) -> Self {
-        Self::PukTokenError(v)
+impl From<PkiError> for Error {
+    fn from(v: PkiError) -> Self {
+        Self::PkiError(v)
     }
 }

@@ -26,7 +26,7 @@ use crate::{
     service::{
         header::{Accept, Authorization, XAccessCode},
         misc::{DataType, Profession},
-        AsReqErrResult, TypedRequestError, TypedRequestResult,
+        IntoReqErrResult, TypedRequestError, TypedRequestResult,
     },
     state::State,
 };
@@ -62,7 +62,7 @@ pub async fn abort(
                 || p == Profession::OeffentlicheApotheke
                 || p == Profession::KrankenhausApotheke
         })
-        .as_req_err()
+        .into_req_err()
         .err_with_type(accept)?;
 
     let id = id.into_inner();
@@ -75,7 +75,7 @@ pub async fn abort(
         .lock()
         .await
         .task_abort(id, kvnr, access_code, is_pharmacy, secret, agent)
-        .as_req_err()
+        .into_req_err()
         .err_with_type(accept)?;
 
     Ok(HttpResponse::NoContent().finish())

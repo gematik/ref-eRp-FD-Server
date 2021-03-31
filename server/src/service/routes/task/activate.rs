@@ -26,10 +26,11 @@ use resources::{primitives::Id, task::TaskActivateParameters, KbvBinary, KbvBund
 
 use crate::{
     fhir::{decode::XmlDecode, definitions::TaskContainer},
+    pki_store::PkiStore,
     service::{
         header::{Accept, Authorization, ContentType, XAccessCode},
-        misc::{create_response, read_payload, Cms, DataType, Profession},
-        AsReqErrResult, TypedRequestError, TypedRequestResult,
+        misc::{create_response, read_payload, DataType, Profession},
+        IntoReqErrResult, RequestError, TypedRequestError, TypedRequestResult,
     },
     state::State,
 };
@@ -37,7 +38,7 @@ use crate::{
 #[allow(clippy::too_many_arguments)]
 pub async fn activate(
     state: Data<State>,
-    cms: Data<Cms>,
+    pki_store: Data<PkiStore>,
     id: Path<Id>,
     accept: Accept,
     access_token: Authorization,
@@ -61,7 +62,7 @@ pub async fn activate(
                 || p == Profession::PraxisPsychotherapeut
                 || p == Profession::Krankenhaus
         })
-        .as_req_err()
+        .into_req_err()
         .err_with_type(accept)?;
 
     let id = id.into_inner();
@@ -69,20 +70,23 @@ pub async fn activate(
         .await
         .err_with_type(accept)?;
     let kbv_binary = KbvBinary(args.data);
-    let (kbv_bundle, signing_time) = cms.verify(&kbv_binary.0).err_with_type(accept)?;
+    let (kbv_bundle, signing_time) = pki_store
+        .verify_cms(&kbv_binary.0)
+        .map_err(RequestError::CmsContainerError)
+        .err_with_type(accept)?;
     let kbv_bundle = kbv_bundle.into();
     let kbv_bundle = Result::<Bytes, PayloadError>::Ok(kbv_bundle);
     let kbv_bundle: KbvBundle = once(ready(kbv_bundle))
         .xml()
         .await
-        .as_req_err()
+        .into_req_err()
         .err_with_type(accept)?;
 
     let agent = (&*access_token).into();
     let mut state = state.lock().await;
     let task = state
         .task_activate(id, access_code, signing_time, kbv_binary, kbv_bundle, agent)
-        .as_req_err()
+        .into_req_err()
         .err_with_type(accept)?;
 
     create_response(TaskContainer(task), accept)

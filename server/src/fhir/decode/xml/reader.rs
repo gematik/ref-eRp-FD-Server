@@ -212,9 +212,9 @@ impl Attribs {
 }
 
 fn is_ident(_: usize, v: u8) -> bool {
-    (v >= b'a' && v <= b'z')
-        || (v >= b'A' && v <= b'Z')
-        || (v >= b'0' && v <= b'9')
+    (b'a'..=b'z').contains(&v)
+        || (b'A'..=b'Z').contains(&v)
+        || (b'0'..=b'9').contains(&v)
         || v == b'-'
         || v == b'_'
 }

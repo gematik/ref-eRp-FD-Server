@@ -20,7 +20,7 @@ use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::ops::Deref;
 use std::time::Instant;
 
-use rand::{thread_rng, Rng};
+use rand::{rngs::OsRng, Rng};
 use regex::Regex;
 use serde::{de::Error as DeError, Deserialize, Deserializer, Serialize};
 use uuid::{
@@ -32,6 +32,7 @@ use uuid::{
 pub struct Id(String);
 
 impl Id {
+    #[allow(clippy::result_unit_err)]
     pub fn generate() -> Result<Self, ()> {
         let uuid = generate_uuid().map_err(|_| ())?;
         let id = Self(uuid.to_string());
@@ -104,7 +105,7 @@ fn generate_uuid() -> Result<Uuid, Error> {
     lazy_static! {
         static ref CONTEXT: Context = Context::new(42);
         static ref START_TIME: Instant = Instant::now();
-        static ref UNIQUE_ID: [u8; 6] = thread_rng().gen();
+        static ref UNIQUE_ID: [u8; 6] = OsRng.gen();
     }
 
     let context: &Context = &CONTEXT;

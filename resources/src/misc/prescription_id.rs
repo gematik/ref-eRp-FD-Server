@@ -53,6 +53,7 @@ impl PrescriptionId {
         Self { flow_type, number }
     }
 
+    #[allow(clippy::result_unit_err)]
     pub fn generate(flow_type: FlowType) -> Result<Self, ()> {
         const MAX_COUNTER: u64 = 100;
 

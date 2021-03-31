@@ -22,33 +22,31 @@ use std::task::{Context, Poll};
 
 use actix_web::{
     dev::{Payload, Service, ServiceRequest, ServiceResponse, Transform},
-    error::{Error as ActixError, PayloadError, ResponseError},
+    error::{Error as ActixError, PayloadError},
     http::{
-        header::{ContentType, IntoHeaderValue},
+        header::{ContentType, HeaderName, IntoHeaderValue},
         Method,
     },
-    HttpMessage, HttpRequest, HttpResponse,
+    web::Data,
+    HttpMessage, HttpResponse,
 };
 use bytes::{Bytes, BytesMut};
+use chrono::Utc;
 use futures::{
-    future::{err, ok, Future, FutureExt, Ready},
+    future::{ok, Future, FutureExt, Ready},
     stream::{Stream, TryStreamExt},
 };
-use log::error;
-use openssl::{ec::EcKey, pkey::Private, x509::X509};
 use vau::{decode, encode, Decrypter, Encrypter, Error as VauError, UserPseudonymGenerator};
 
 use crate::{
-    error::Error,
-    service::{misc::AccessTokenError, RequestError},
+    pki_store::PkiStore,
+    service::{
+        misc::{AccessToken, AccessTokenError},
+        RequestError, TypedRequestResult,
+    },
 };
 
-use super::extract_access_token::extract_access_token;
-
-pub struct Vau {
-    pkey: EcKey<Private>,
-    cert: Vec<u8>,
-}
+pub struct Vau;
 
 pub struct VauMiddleware<S> {
     handle: Handle<S>,
@@ -58,19 +56,9 @@ struct Handle<S>(Rc<RefCell<Inner<S>>>);
 
 struct Inner<S> {
     service: S,
-    cert: Vec<u8>,
-    decrypter: Decrypter,
+    decrypter: Option<Decrypter>,
     encrypter: Encrypter,
     user_pseudonym_generator: UserPseudonymGenerator,
-}
-
-impl Vau {
-    pub fn new(pkey: EcKey<Private>, cert: X509) -> Result<Self, Error> {
-        Ok(Vau {
-            pkey,
-            cert: cert.to_der()?,
-        })
-    }
 }
 
 impl<S> Transform<S> for Vau
@@ -86,14 +74,9 @@ where
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
-        match Handle::new(service, self.pkey.clone(), self.cert.clone()) {
-            Ok(handle) => ok(VauMiddleware { handle }),
-            Err(e) => {
-                error!("Error creating VAU middleware: {}", e);
+        let handle = Handle::new(service);
 
-                err(())
-            }
-        }
+        ok(VauMiddleware { handle })
     }
 }
 
@@ -121,14 +104,13 @@ where
     S: Service<Request = ServiceRequest, Response = ServiceResponse, Error = ActixError> + 'static,
     S::Future: 'static,
 {
-    fn new(service: S, pkey: EcKey<Private>, cert: Vec<u8>) -> Result<Self, Error> {
-        Ok(Self(Rc::new(RefCell::new(Inner {
+    fn new(service: S) -> Self {
+        Self(Rc::new(RefCell::new(Inner {
             service,
-            cert,
-            decrypter: Decrypter::new(pkey)?,
+            decrypter: None,
             encrypter: Encrypter::default(),
             user_pseudonym_generator: USER_PSEUDONYM_GENERATOR.clone(),
-        }))))
+        })))
     }
 
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), ActixError>> {
@@ -163,52 +145,60 @@ where
 
                 self.handle_vau_cert_request(req).await
             }
+            Some("VAUCertificateOCSPResponse") => {
+                if parts.next().is_some() {
+                    return Ok(not_found(req));
+                }
+
+                self.handle_vau_ocsp_request(req).await
+            }
             _ => self.handle_normal_request(req).await,
         }
     }
 
     async fn handle_vau_request(
         self,
-        req: ServiceRequest,
+        outer_service_req: ServiceRequest,
         np: String,
     ) -> Result<S::Response, ActixError> {
-        if req.head().method != Method::POST {
-            return Ok(method_not_allowed(req));
+        if outer_service_req.head().method != Method::POST {
+            return Ok(method_not_allowed(outer_service_req));
         }
 
-        let (req, payload) = req.into_parts();
-        let content_type = req.content_type();
+        let (outer_http_req, payload) = outer_service_req.into_parts();
+        let content_type = outer_http_req.content_type();
         if content_type != "application/octet-stream" {
             return Err(RequestError::ContentTypeNotSupported
-                .with_type_from(&req)
+                .with_type_from(&outer_http_req)
                 .into());
         }
 
         let mut this = self.0.borrow_mut();
 
-        let payload = into_bytes(payload).await?;
-        let payload = this.decrypter.decrypt(payload)?;
+        if this.decrypter.is_none() {
+            let pki_store = outer_http_req
+                .app_data::<Data<PkiStore>>()
+                .expect("Shared data 'PkiStore' is missing!");
 
-        let (decoded, next, req) = decode(req, &payload)?;
+            this.decrypter = Some(Decrypter::new(pki_store.enc_key().to_owned())?);
+        }
 
-        let (next, payload) = next.into_parts();
-        let inner_res = match check_access_token(&next, &decoded.access_token) {
-            Ok(()) => {
-                let next = ServiceRequest::from_parts(next, payload)
-                    .map_err(|_| ())
-                    .unwrap();
+        let decrypter = this.decrypter.as_mut().unwrap();
+        let outer_payload = into_bytes(payload).await?;
+        let outer_payload = decrypter.decrypt(outer_payload)?;
 
-                this.service.call(next).await?
-            }
-            Err(err) => {
-                let err = err.with_type_from(&req);
-                let res = err.error_response();
+        let (decoded, inner_service_req, outer_http_req) = decode(outer_http_req, &outer_payload)?;
 
-                ServiceResponse::new(next, res)
-            }
+        extract_access_token(&inner_service_req, Some(&decoded.access_token))
+            .map_err(|_| RequestError::InvalidAccessToken)
+            .err_with_type_from(&inner_service_req)?;
+
+        let inner_http_res = match this.service.call(inner_service_req).await {
+            Ok(res) => res.into(),
+            Err(err) => err.as_response_error().error_response(),
         };
 
-        let inner_res = encode(decoded.request_id, inner_res).await?;
+        let inner_res = encode(decoded.request_id, inner_http_res).await?;
 
         let body = this.encrypter.encrypt(&decoded.response_key, inner_res)?;
 
@@ -216,7 +206,7 @@ where
             .content_type(ContentType::octet_stream().try_into()?)
             .header("Userpseudonym", np)
             .body(body);
-        let res = ServiceResponse::new(req, res);
+        let res = ServiceResponse::new(outer_http_req, res);
 
         Ok(res)
     }
@@ -227,9 +217,46 @@ where
         }
 
         let (req, _payload) = req.into_parts();
+        let pki_store = req
+            .app_data::<Data<PkiStore>>()
+            .expect("Shared data 'PkiStore' is missing!");
+        let cert = pki_store
+            .enc_cert()
+            .to_der()
+            .map_err(VauError::OpenSslError)?;
+
         let res = HttpResponse::Ok()
             .content_type(ContentType::octet_stream().try_into()?)
-            .body(self.0.borrow().cert.clone());
+            .body(cert);
+        let res = ServiceResponse::new(req, res);
+
+        Ok(res)
+    }
+
+    async fn handle_vau_ocsp_request(self, req: ServiceRequest) -> Result<S::Response, ActixError> {
+        if req.head().method != Method::GET {
+            return Ok(method_not_allowed(req));
+        }
+
+        let (req, _payload) = req.into_parts();
+        let pki_store = req
+            .app_data::<Data<PkiStore>>()
+            .expect("Shared data 'PkiStore' is missing!");
+
+        let ocsp_vau = pki_store.ocsp_vau();
+        let res = match &*ocsp_vau {
+            Some(ocsp_vau) => {
+                let body = ocsp_vau.to_der().map_err(VauError::OpenSslError)?;
+
+                HttpResponse::Ok()
+                    .content_type(ContentType::octet_stream().try_into()?)
+                    .body(body)
+            }
+            None => HttpResponse::NotFound().finish(),
+        };
+
+        drop(ocsp_vau);
+
         let res = ServiceResponse::new(req, res);
 
         Ok(res)
@@ -237,6 +264,8 @@ where
 
     #[cfg(feature = "vau-compat")]
     async fn handle_normal_request(self, req: ServiceRequest) -> Result<S::Response, ActixError> {
+        extract_access_token(&req, None).err_with_type_from(&req)?;
+
         self.0.borrow_mut().service.call(req).await
     }
 
@@ -294,19 +323,52 @@ fn method_not_allowed(req: ServiceRequest) -> ServiceResponse {
     ServiceResponse::new(req, res)
 }
 
-fn check_access_token(req: &HttpRequest, expected_access_token: &str) -> Result<(), RequestError> {
-    let access_token = extract_access_token(req)?;
+fn extract_access_token(
+    req: &ServiceRequest,
+    expected_access_token: Option<&str>,
+) -> Result<(), RequestError> {
+    let pki_store = req
+        .app_data::<Data<PkiStore>>()
+        .expect("Shared data 'PkiStore' is missing!");
 
-    if access_token != expected_access_token {
-        return Err(RequestError::AccessTokenError(AccessTokenError::Mismatch));
+    let pub_key = pki_store
+        .puk_token()
+        .as_ref()
+        .ok_or(AccessTokenError::NoPukToken)?
+        .public_key
+        .clone();
+
+    let access_token = req
+        .headers()
+        .get(&*AUTHORIZATION_HEADER)
+        .ok_or(AccessTokenError::Missing)?
+        .to_str()
+        .map_err(|_| AccessTokenError::InvalidValue)?;
+
+    if !access_token.starts_with("Bearer ") {
+        return Err(AccessTokenError::InvalidValue.into());
     }
+
+    let access_token = &access_token[7..];
+
+    if let Some(expected_access_token) = expected_access_token {
+        if access_token != expected_access_token {
+            return Err(RequestError::AccessTokenError(AccessTokenError::Mismatch));
+        }
+    }
+
+    let access_token = AccessToken::verify(access_token, pub_key, Utc::now())?;
+
+    req.extensions_mut().insert(Rc::new(access_token));
 
     Ok(())
 }
 
 lazy_static! {
     static ref USER_PSEUDONYM_GENERATOR: UserPseudonymGenerator = UserPseudonymGenerator::default();
+    static ref AUTHORIZATION_HEADER: HeaderName =
+        HeaderName::from_lowercase(b"authorization").unwrap();
 }
 
 #[cfg(not(feature = "vau-compat"))]
-const URI_WHITELIST: &[&str] = &["/CertList"];
+const URI_WHITELIST: &[&str] = &["/CertList", "/OCSPList"];

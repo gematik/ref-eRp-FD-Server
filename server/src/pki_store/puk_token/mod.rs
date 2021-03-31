@@ -15,47 +15,40 @@
  *
  */
 
-mod error;
 mod from_file;
 mod from_web;
 
-pub use error::Error;
-
 use std::sync::Arc;
 
-use arc_swap::{ArcSwapOption, Guard};
-use chrono::{DateTime, Utc};
 use openssl::{
     pkey::{PKey, Public},
     x509::X509,
 };
-use thiserror::Error;
 use url::Url;
+
+use super::{Error, PkiStore};
 
 use from_file::from_file;
 use from_web::from_web;
 
-use super::Tsl;
-
 #[derive(Clone)]
-pub struct PukToken(Arc<ArcSwapOption<Inner>>);
-
-pub struct Inner {
-    pub timestamp: DateTime<Utc>,
+pub struct PukToken {
     pub cert: X509,
     pub public_key: PKey<Public>,
 }
 
-impl PukToken {
-    pub fn from_url(tsl: Tsl, url: Url) -> Result<Self, Error> {
+impl PkiStore {
+    pub(super) fn spawn_puk_token_task(&self, url: Url) -> Result<(), Error> {
         match url.scheme() {
-            "http" | "https" => from_web(tsl, url),
-            "file" => from_file(url),
-            s => Err(Error::UnsupportedScheme(s.into())),
+            "http" | "https" => from_web(self, url),
+            "file" => from_file(self, url),
+            _ => Err(Error::InvalidUrl(url.to_string())),
         }
     }
 
-    pub fn load(&self) -> Guard<'static, Option<Arc<Inner>>> {
-        self.0.load()
+    fn store_puk_token(&self, value: PukToken) {
+        self.0.puk_token.store(Some(Arc::new(value)));
+        self.cert_list().update();
+        self.ocsp_list().update();
     }
 }

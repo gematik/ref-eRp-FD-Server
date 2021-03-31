@@ -17,18 +17,27 @@
 
 use actix_web::{
     error::Error as ActixError,
-    web::{get, resource, Data, ServiceConfig},
+    web::{get, resource, ServiceConfig},
     HttpResponse,
 };
-
-use crate::pki_store::PkiStore;
+use rand::{distributions::Standard, rngs::OsRng, Rng};
 
 pub fn configure_routes(cfg: &mut ServiceConfig) {
-    cfg.service(resource("/CertList").route(get().to(get_cert_list)));
+    cfg.service(resource("/Random").route(get().to(get_random)));
 }
 
-async fn get_cert_list(pki_store: Data<PkiStore>) -> Result<HttpResponse, ActixError> {
-    let cert_list = pki_store.cert_list().data().await;
+async fn get_random() -> Result<HttpResponse, ActixError> {
+    let random = OsRng
+        .sample_iter(&Standard)
+        .take(128)
+        .map(|x: u8| format!("{:02x}", x))
+        .collect::<Vec<_>>()
+        .join("");
+    let random = format!("\"{}\"", random);
 
-    Ok(HttpResponse::Ok().json2(&*cert_list))
+    let res = HttpResponse::Ok()
+        .content_type("application/json")
+        .body(random);
+
+    Ok(res)
 }

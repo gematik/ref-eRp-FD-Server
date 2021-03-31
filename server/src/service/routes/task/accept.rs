@@ -28,7 +28,7 @@ use crate::{
     service::{
         header::{Accept, Authorization, XAccessCode},
         misc::{create_response, DataType, Profession},
-        AsReqErrResult, TypedRequestError, TypedRequestResult,
+        IntoReqErrResult, TypedRequestError, TypedRequestResult,
     },
     state::State,
 };
@@ -52,7 +52,7 @@ pub async fn accept(
         .check_profession(|p| {
             p == Profession::OeffentlicheApotheke || p == Profession::KrankenhausApotheke
         })
-        .as_req_err()
+        .into_req_err()
         .err_with_type(accept)?;
 
     let id = id.into_inner();
@@ -60,7 +60,7 @@ pub async fn accept(
     let mut state = state.lock().await;
     let (task, e_prescription) = state
         .task_accept(id, access_code, agent)
-        .as_req_err()
+        .into_req_err()
         .err_with_type(accept)?;
 
     let mut bundle = Bundle::new(Type::Collection);

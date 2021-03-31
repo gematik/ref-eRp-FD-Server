@@ -37,7 +37,7 @@ use crate::{
             create_response, AccessToken, DataType, FromQuery, Profession, Query, QueryValue,
             Search, Sort,
         },
-        AsReqErrResult, TypedRequestError, TypedRequestResult,
+        IntoReqErrResult, TypedRequestError, TypedRequestResult,
     },
     state::{Inner as StateInner, State, Version},
 };
@@ -179,13 +179,12 @@ pub async fn get_version(
     .await
 }
 
-#[allow(unreachable_code)]
 async fn get(
     state: &State,
     reference: TaskReference,
     accept: Accept,
     access_token: Authorization,
-    access_code: Option<XAccessCode>,
+    mut access_code: Option<XAccessCode>,
     query_str: &str,
 ) -> Result<HttpResponse, TypedRequestError> {
     let accept = DataType::from_accept(&accept)
@@ -200,23 +199,32 @@ async fn get(
                 || p == Profession::OeffentlicheApotheke
                 || p == Profession::KrankenhausApotheke
         })
-        .as_req_err()
+        .into_req_err()
         .err_with_type(accept)?;
 
-    let kvnr = access_token.kvnr().ok();
+    let mut kvnr = access_token.kvnr().ok();
     let agent = (&*access_token).into();
+
+    #[cfg(feature = "interface-supplier")]
+    {
+        if access_token.is_pharmacy() {
+            kvnr = None;
+            access_code = None;
+        }
+    }
+
     let mut state = state.lock().await;
 
     match reference {
         TaskReference::One(id, query) => {
             let (state, task) = state
                 .task_get(id, None, kvnr, access_code, query.secret, agent)
-                .as_req_err()
+                .into_req_err()
                 .err_with_type(accept)?;
 
             let mut bundle = Bundle::new(Type::Searchset);
             add_task_to_bundle(&mut bundle, &task, &access_token, Some(&state))
-                .as_req_err()
+                .into_req_err()
                 .err_with_type(accept)?;
 
             create_response(&bundle, accept)
@@ -224,12 +232,12 @@ async fn get(
         TaskReference::Version(id, version_id, query) => {
             let (_, task) = state
                 .task_get(id, Some(version_id), kvnr, access_code, query.secret, agent)
-                .as_req_err()
+                .into_req_err()
                 .err_with_type(accept)?;
 
             let mut bundle = Bundle::new(Type::Searchset);
             add_task_to_bundle(&mut bundle, &task, &access_token, None)
-                .as_req_err()
+                .into_req_err()
                 .err_with_type(accept)?;
 
             create_response(&bundle, accept)
@@ -277,7 +285,7 @@ async fn get(
             let mut bundle = Bundle::new(Type::Searchset);
             for task in tasks.iter().skip(skip).take(take) {
                 add_task_to_bundle(&mut bundle, &task, &access_token, None)
-                    .as_req_err()
+                    .into_req_err()
                     .err_with_type(accept)?;
             }
 

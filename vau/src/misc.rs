@@ -15,6 +15,7 @@
  *
  */
 
+#[allow(clippy::result_unit_err)]
 pub fn hex_decode(s: &str) -> Result<Vec<u8>, ()> {
     if s.len() % 2 != 0 {
         return Err(());

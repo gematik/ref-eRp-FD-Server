@@ -32,7 +32,7 @@ use crate::{
     service::{
         header::{Accept, Authorization},
         misc::{create_response, DataType, FromQuery, Profession, Query, QueryValue, Search, Sort},
-        AsReqErrResult, TypedRequestError, TypedRequestResult,
+        IntoReqErrResult, TypedRequestError, TypedRequestResult,
     },
     state::State,
 };
@@ -101,10 +101,10 @@ pub async fn get_all(
 
     access_token
         .check_profession(|p| matches!(p, Profession::Versicherter))
-        .as_req_err()
+        .into_req_err()
         .err_with_type(accept)?;
 
-    let kvnr = access_token.kvnr().as_req_err().err_with_type(accept)?;
+    let kvnr = access_token.kvnr().into_req_err().err_with_type(accept)?;
 
     let state = state.lock().await;
     let mut events: Vec<&AuditEvent> = state
@@ -205,16 +205,16 @@ pub async fn get_one(
 
     access_token
         .check_profession(|p| matches!(p, Profession::Versicherter))
-        .as_req_err()
+        .into_req_err()
         .err_with_type(accept)?;
 
     let id = id.into_inner();
-    let kvnr = access_token.kvnr().as_req_err().err_with_type(accept)?;
+    let kvnr = access_token.kvnr().into_req_err().err_with_type(accept)?;
 
     let state = state.lock().await;
     let event = state
         .audit_event_get(id, &kvnr)
-        .as_req_err()
+        .into_req_err()
         .err_with_type(accept)?;
 
     create_response(event, accept)

@@ -19,9 +19,10 @@ use std::io::Error as IoError;
 
 use base64::DecodeError as Base64Error;
 use chrono::ParseError as ChronoError;
-use openssl::error::ErrorStack as OpenSslError;
+use miscellaneous::jwt::Error as JwtError;
+use openssl::{error::ErrorStack as OpenSslError, ocsp::OcspResponseStatus};
 use quick_xml::DeError as XmlError;
-use reqwest::Error as ReqwestError;
+use reqwest::{Error as ReqwestError, StatusCode};
 use thiserror::Error;
 use url::ParseError;
 
@@ -49,8 +50,20 @@ pub enum Error {
     #[error("OpenSSL Error: {0}")]
     OpenSslError(OpenSslError),
 
-    #[error("Invalid Response ({0})")]
-    InvalidResponse(String),
+    #[error("JWT Error: {0}")]
+    JwtError(JwtError),
+
+    #[error("Invalid Response ({0} - {1})")]
+    InvalidResponse(StatusCode, String),
+
+    #[error("Invalid URL: {0}!")]
+    InvalidUrl(String),
+
+    #[error("Invalid OCSP Status: {0:?}!")]
+    InvalidOcspStatus(OcspResponseStatus),
+
+    #[error("Unable to find Signer Certificate!")]
+    UnknownSignerCert,
 
     #[error("Unable to find Issuer Certificate!")]
     UnknownIssuerCert,
@@ -66,6 +79,12 @@ pub enum Error {
 
     #[error("Empty Certificate Key!")]
     EmptyCertKey,
+
+    #[error("Missing or empty service supply points!")]
+    MissingServiceSupplyPoints,
+
+    #[error("Fetching OCSP Response failed!")]
+    FetchingOcspResponseFailed,
 }
 
 impl From<IoError> for Error {
@@ -107,5 +126,11 @@ impl From<Base64Error> for Error {
 impl From<OpenSslError> for Error {
     fn from(err: OpenSslError) -> Self {
         Self::OpenSslError(err)
+    }
+}
+
+impl From<JwtError> for Error {
+    fn from(err: JwtError) -> Self {
+        Self::JwtError(err)
     }
 }

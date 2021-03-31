@@ -26,7 +26,7 @@ use openssl::{
     sign::Signer,
     symm::Cipher,
 };
-use rand::random;
+use rand::{rngs::OsRng, Rng};
 use tokio::sync::Mutex;
 
 use crate::Error;
@@ -44,7 +44,7 @@ struct Inner {
 impl UserPseudonymGenerator {
     pub async fn generate(&self) -> Result<String, Error> {
         let key = self.0.lock().await.key()?;
-        let pnp: [u8; 16] = random();
+        let pnp: [u8; 16] = OsRng.gen();
 
         let mut signer = Signer::new(MessageDigest::sha256(), &key)?;
         signer.update(&pnp)?;
@@ -111,7 +111,7 @@ impl Default for Inner {
 }
 
 fn generate_key() -> Result<(PKey<Private>, Instant), ErrorStack> {
-    let key: [u8; 16] = random();
+    let key: [u8; 16] = OsRng.gen();
 
     let key = PKey::cmac(&KEY_CIPHER, &key)?;
     let timeout = Instant::now() + Duration::from_secs(10 * 24 * 60 * 60);

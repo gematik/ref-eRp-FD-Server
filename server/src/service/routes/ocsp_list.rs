@@ -15,9 +15,20 @@
  *
  */
 
-pub mod misc;
-pub mod puk_token;
-pub mod tsl;
+use actix_web::{
+    error::Error as ActixError,
+    web::{get, resource, Data, ServiceConfig},
+    HttpResponse,
+};
 
-pub use puk_token::PukToken;
-pub use tsl::Tsl;
+use crate::pki_store::PkiStore;
+
+pub fn configure_routes(cfg: &mut ServiceConfig) {
+    cfg.service(resource("/OCSPList").route(get().to(get_ocsp_list)));
+}
+
+async fn get_ocsp_list(pki_store: Data<PkiStore>) -> Result<HttpResponse, ActixError> {
+    let cert_list = pki_store.ocsp_list().data().await;
+
+    Ok(HttpResponse::Ok().json2(&*cert_list))
+}

@@ -129,7 +129,7 @@ where
         let mut about = stream
             .resource_vec::<Vec<Medication>, _>(&mut fields, decode_any)
             .await?;
-        let based_on = stream.decode_opt(&mut fields, decode_reference).await?;
+        let based_on = stream.decode(&mut fields, decode_reference).await?;
         let _status = stream.fixed(&mut fields, "unknown").await?;
         let about_ids = stream
             .decode_vec::<Vec<ContainedReference<Id>>, _>(&mut fields, decode_reference)
@@ -558,7 +558,7 @@ where
 
         stream
             .resource_vec("contained", &self.about, encode_any)?
-            .encode_vec("basedOn", &self.based_on, encode_reference)?
+            .encode_vec("basedOn", once(&self.based_on), encode_reference)?
             .encode("status", "unknown", encode_any)?
             .encode_vec("about", &about, encode_reference)?
             .encode_opt("sent", &self.sent, encode_any)?
@@ -971,7 +971,7 @@ pub mod tests {
     pub fn test_communication_info_req() -> Communication {
         Communication::InfoReq(Inner {
             id: None,
-            based_on: None,
+            based_on: "Task/13814006-1dd2-11b2-802a-eb7de13489ec".into(),
             about: vec![test_medication()],
             sent: Some("2020-03-12T18:01:10+00:00".try_into().unwrap()),
             received: None,
@@ -999,7 +999,7 @@ pub mod tests {
     pub fn test_communication_reply() -> Communication {
         Communication::Reply(Inner {
             id: None,
-            based_on: None,
+            based_on: "Task/13814006-1dd2-11b2-802a-eb7de13489ec".into(),
             about: vec![],
             sent: Some("2020-03-12T18:01:10+00:00".try_into().unwrap()),
             received: None,
@@ -1024,7 +1024,7 @@ pub mod tests {
     pub fn test_communication_dispense_req() -> Communication {
         Communication::DispenseReq(Inner {
             id: None,
-            based_on: Some("Task/4711/$accept?ac=777bea0e13cc9c42ceec14aec3ddee2263325dc2c6c699db115f58fe423607ea".into()),
+            based_on: "Task/13814006-1dd2-11b2-802a-eb7de13489ec/$accept?ac=777bea0e13cc9c42ceec14aec3ddee2263325dc2c6c699db115f58fe423607ea".into(),
             about: vec![],
             sent: Some("2020-03-12T18:01:10+00:00".try_into().unwrap()),
             received: None,

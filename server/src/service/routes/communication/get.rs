@@ -32,7 +32,7 @@ use crate::{
     service::{
         header::{Accept, Authorization},
         misc::{create_response, DataType, FromQuery, Profession, Query, QueryValue, Search, Sort},
-        AsReqErrResult, TypedRequestError, TypedRequestResult,
+        IntoReqErrResult, TypedRequestError, TypedRequestResult,
     },
     state::State,
 };
@@ -85,6 +85,7 @@ impl FromStr for SortArgs {
     }
 }
 
+#[allow(clippy::match_like_matches_macro)]
 pub async fn get_all(
     state: Data<State>,
     accept: Accept,
@@ -104,11 +105,11 @@ pub async fn get_all(
             Profession::OeffentlicheApotheke => true,
             _ => false,
         })
-        .as_req_err()
+        .into_req_err()
         .err_with_type(accept)?;
 
     let query = query.0;
-    let participant_id = access_token.id().as_req_err().err_with_type(accept)?;
+    let participant_id = access_token.id().into_req_err().err_with_type(accept)?;
 
     // Find all communications
     let mut state = state.lock().await;
@@ -171,6 +172,7 @@ pub async fn get_all(
     create_response(&bundle, accept)
 }
 
+#[allow(clippy::match_like_matches_macro)]
 pub async fn get_one(
     state: Data<State>,
     id: Path<Id>,
@@ -190,16 +192,16 @@ pub async fn get_one(
             Profession::OeffentlicheApotheke => true,
             _ => false,
         })
-        .as_req_err()
+        .into_req_err()
         .err_with_type(accept)?;
 
     let id = id.into_inner();
-    let participant_id = access_token.id().as_req_err().err_with_type(accept)?;
+    let participant_id = access_token.id().into_req_err().err_with_type(accept)?;
 
     let mut state = state.lock().await;
     let communication = state
         .communication_get_mut(id, &participant_id)
-        .as_req_err()
+        .into_req_err()
         .err_with_type(accept)?;
 
     let communication = match communication {

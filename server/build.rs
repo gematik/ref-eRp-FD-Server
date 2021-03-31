@@ -23,7 +23,7 @@ use std::str::{from_utf8, Utf8Error};
 use chrono::Utc;
 use thiserror::Error;
 
-fn main() -> Result<(), Error> {
+fn main() {
     let mut git_head = read_to_string("../.git/HEAD").ok();
 
     match Command::new("git").arg("version").status() {
@@ -70,8 +70,6 @@ fn main() -> Result<(), Error> {
     } else {
         println!("cargo:warning=Unable to get version information from git, using reduced version information!");
     }
-
-    Ok(())
 }
 
 fn get_hash() -> Result<String, Error> {

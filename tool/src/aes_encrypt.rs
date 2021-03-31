@@ -19,7 +19,7 @@ use std::path::PathBuf;
 
 use bytes::{BufMut, BytesMut};
 use openssl::symm::{encrypt_aead, Cipher};
-use rand::random;
+use rand::{rngs::OsRng, Rng};
 use structopt::StructOpt;
 use vau::hex_decode;
 
@@ -62,7 +62,7 @@ pub fn execute(opts: Opts) {
     let key = hex_decode(&opts.key).expect("Invalid key");
 
     /* encrypt data */
-    let iv: [u8; 12] = random();
+    let iv: [u8; 12] = OsRng.gen();
     let mut tag = [0; 16];
 
     let cipher = encrypt_aead(

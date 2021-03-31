@@ -17,7 +17,7 @@
 
 use bytes::{BufMut, BytesMut};
 use openssl::symm::{encrypt_aead, Cipher};
-use rand::random;
+use rand::{rngs::OsRng, Rng};
 
 use crate::Error;
 
@@ -26,7 +26,7 @@ pub struct Encrypter;
 
 impl Encrypter {
     pub fn encrypt(&self, key: &[u8], res: BytesMut) -> Result<BytesMut, Error> {
-        let iv: [u8; 12] = random();
+        let iv: [u8; 12] = OsRng.gen();
         let mut tag = [0; 16];
         let cipher = encrypt_aead(Cipher::aes_128_gcm(), key, Some(&iv), &[], &res, &mut tag)?;
 

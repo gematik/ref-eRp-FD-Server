@@ -27,7 +27,7 @@ use crate::{
     service::{
         header::{Accept, Authorization, ContentType},
         misc::{create_response_with, read_payload, DataType, Profession},
-        AsReqErrResult, State, TypedRequestError, TypedRequestResult,
+        IntoReqErrResult, State, TypedRequestError, TypedRequestResult,
     },
 };
 
@@ -54,7 +54,7 @@ pub async fn create(
                 || p == Profession::PraxisPsychotherapeut
                 || p == Profession::Krankenhaus
         })
-        .as_req_err()
+        .into_req_err()
         .err_with_type(accept)?;
 
     let args = read_payload::<TaskCreateParameters>(data_type, payload)
@@ -62,7 +62,10 @@ pub async fn create(
         .err_with_type(accept)?;
 
     let mut state = state.lock().await;
-    let task = state.task_create(args).as_req_err().err_with_type(accept)?;
+    let task = state
+        .task_create(args)
+        .into_req_err()
+        .err_with_type(accept)?;
 
     create_response_with(TaskContainer(task), accept, StatusCode::CREATED, |_| ())
 }

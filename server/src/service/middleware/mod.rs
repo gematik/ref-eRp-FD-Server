@@ -15,12 +15,10 @@
  *
  */
 
-mod extract_access_token;
 mod header_check;
 mod logging;
 mod vau;
 
 pub use self::vau::Vau;
-pub use extract_access_token::ExtractAccessToken;
 pub use header_check::HeaderCheck;
 pub use logging::Logging;

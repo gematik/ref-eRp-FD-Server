@@ -21,6 +21,8 @@ pub mod cert_list;
 pub mod communication;
 pub mod device;
 pub mod medication_dispense;
+pub mod ocsp_list;
+pub mod random;
 pub mod task;
 pub mod tsl;
 
@@ -33,6 +35,8 @@ use cert_list::configure_routes as cert_list_configure_routes;
 use communication::CommunicationRoutes;
 use device::DeviceRoutes;
 use medication_dispense::MedicationDispenseRoutes;
+use ocsp_list::configure_routes as ocsp_list_configure_routes;
+use random::configure_routes as random_configure_routes;
 use task::TaskRoutes;
 use tsl::configure_routes as tsl_configure_routes;
 
@@ -60,7 +64,9 @@ pub fn configure_routes(cfg: &mut ServiceConfig) {
     ROUTES.configure_routes(cfg);
 
     tsl_configure_routes(cfg);
+    random_configure_routes(cfg);
     cert_list_configure_routes(cfg);
+    ocsp_list_configure_routes(cfg);
 }
 
 lazy_static! {

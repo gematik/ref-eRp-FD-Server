@@ -28,6 +28,6 @@ extern crate lazy_static;
 pub mod error;
 pub mod fhir;
 pub mod logging;
+pub mod pki_store;
 pub mod service;
 pub mod state;
-pub mod tasks;

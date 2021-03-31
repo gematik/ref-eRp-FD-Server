@@ -18,9 +18,12 @@
 use std::ops::Deref;
 use std::str::{from_utf8_unchecked, Utf8Error};
 
+use base64::encode;
 use chrono::Utc;
 use miscellaneous::jwt::{sign, Error as JwsError};
 use openssl::{
+    cms::{CMSOptions, CmsContentInfo},
+    error::ErrorStack as OpenSslError,
     pkey::{PKey, Private},
     x509::X509,
 };
@@ -28,7 +31,7 @@ use resources::{Signature, SignatureFormat, SignatureType, WithSignature};
 use serde_json::Error as SerdeJsonError;
 use thiserror::Error;
 
-use crate::fhir::encode::{Encode, EncodeError, JsonEncode, JsonError};
+use crate::fhir::encode::{Encode, EncodeError, JsonEncode, JsonError, XmlEncode, XmlError};
 
 use super::canonize_json;
 
@@ -45,8 +48,14 @@ pub enum Error {
     #[error("JSON Encode Error: {0}")]
     JsonEncodeError(EncodeError<JsonError>),
 
+    #[error("XML Encode Error: {0}")]
+    XmlEncodeError(EncodeError<XmlError>),
+
     #[error("JWS Error: {0}")]
     JwsError(JwsError),
+
+    #[error("OpenSSL Error: {0}")]
+    OpenSslError(OpenSslError),
 }
 
 impl<T> Signed<T> {
@@ -92,6 +101,44 @@ where
 
         Ok(())
     }
+
+    pub fn sign_cades(
+        &'e mut self,
+        type_: SignatureType,
+        who: String,
+        sig_key: &PKey<Private>,
+        sig_cert: &X509,
+    ) -> Result<(), Error> {
+        let data = &self.0 as *const T;
+
+        // Without the unsafe block, data would be borrowed for 'e until the end of the function.
+        // If it's still borrowed, we could not update the signatures. So we use an unsafe block
+        // here to avoid the borrowing. No worries, the code is still safe, because the 'xml'
+        // method returns no references.
+        let xml = unsafe { (&*data).xml()? };
+        let cms = CmsContentInfo::sign(
+            Some(sig_cert),
+            Some(sig_key),
+            None,
+            Some(&xml),
+            CMSOptions::BINARY,
+        )?;
+
+        let data = cms.to_der()?;
+        let data = encode(&data);
+
+        let signatures = self.0.signatures_mut();
+        signatures.retain(|sig| sig.type_ != type_ && sig.format != Some(SignatureFormat::Xml));
+        signatures.push(Signature {
+            type_,
+            who,
+            when: Utc::now().into(),
+            data,
+            format: Some(SignatureFormat::Xml),
+        });
+
+        Ok(())
+    }
 }
 
 impl<T> Deref for Signed<T> {
@@ -120,8 +167,20 @@ impl From<EncodeError<JsonError>> for Error {
     }
 }
 
+impl From<EncodeError<XmlError>> for Error {
+    fn from(err: EncodeError<XmlError>) -> Self {
+        Self::XmlEncodeError(err)
+    }
+}
+
 impl From<JwsError> for Error {
     fn from(err: JwsError) -> Self {
         Self::JwsError(err)
+    }
+}
+
+impl From<OpenSslError> for Error {
+    fn from(err: OpenSslError) -> Self {
+        Self::OpenSslError(err)
     }
 }

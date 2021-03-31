@@ -2,6 +2,9 @@
     <meta>
         <profile value="https://gematik.de/fhir/StructureDefinition/ErxCommunicationReply"/>
     </meta>
+    <basedOn>
+        <reference value="Task/13814006-1dd2-11b2-802a-eb7de13489ec"/>
+    </basedOn>
     <status value="unknown"/>
     <sent value="2020-03-12T18:01:10+00:00"/>
     <recipient>

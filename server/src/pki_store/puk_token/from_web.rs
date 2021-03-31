@@ -17,11 +17,8 @@
 
 use std::cmp::min;
 use std::env::var;
-use std::sync::Arc;
 use std::time::Duration;
 
-use arc_swap::ArcSwapOption;
-use chrono::Utc;
 use log::{error, info, warn};
 use miscellaneous::jwt::{verify, VerifyMode};
 use openssl::x509::X509;
@@ -31,16 +28,14 @@ use tokio::{spawn, time::delay_for};
 use url::Url;
 
 use super::{
-    super::{misc::Client, Tsl},
-    Error, Inner, PukToken,
+    super::{misc::Client, PkiStore},
+    Error, PukToken,
 };
 
-pub fn from_web(tsl: Tsl, url: Url) -> Result<PukToken, Error> {
-    let puk_token = PukToken(Arc::new(ArcSwapOption::from(None)));
+pub fn from_web(store: &PkiStore, url: Url) -> Result<(), Error> {
+    spawn(update_task(store.clone(), url));
 
-    spawn(update_task(tsl, url, puk_token.clone()));
-
-    Ok(puk_token)
+    Ok(())
 }
 
 #[derive(Deserialize)]
@@ -69,7 +64,7 @@ impl RequestBuilderEx for RequestBuilder {
     }
 }
 
-async fn update_task(tsl: Tsl, url: Url, pub_token: PukToken) {
+async fn update_task(store: PkiStore, url: Url) {
     let client = match Client::new() {
         Ok(client) => client,
         Err(err) => {
@@ -105,7 +100,7 @@ async fn update_task(tsl: Tsl, url: Url, pub_token: PukToken) {
         }
 
         let next = loop {
-            let tsl = tsl.load();
+            let tsl = store.tsl();
             let tsl = match &*tsl {
                 Some(tsl) => tsl,
                 None => {
@@ -124,7 +119,7 @@ async fn update_task(tsl: Tsl, url: Url, pub_token: PukToken) {
             );
 
             ok!(
-                tsl.verify(&dd_cert),
+                tsl.verify_cert(&dd_cert, true),
                 "Unable to verify discovery document: {}"
             );
 
@@ -139,22 +134,20 @@ async fn update_task(tsl: Tsl, url: Url, pub_token: PukToken) {
                 "Unable to fetch PUK_TOKEN_KEY: {}"
             );
 
-            ok!(tsl.verify(&cert), "Unable to verify PUK_TOKEN_KEY: {}");
+            ok!(
+                tsl.verify_cert(&cert, true),
+                "Unable to verify PUK_TOKEN_KEY: {}"
+            );
 
             let public_key = ok!(
                 cert.public_key(),
                 "Unable to extract public key from PUK_TOKEN_KEY: {}"
             );
-            let timestamp = Utc::now();
 
-            break Inner {
-                cert,
-                public_key,
-                timestamp,
-            };
+            break PukToken { cert, public_key };
         };
 
-        pub_token.0.store(Some(Arc::new(next)));
+        store.store_puk_token(next);
 
         info!("PUK_TOKEN updated");
 
@@ -172,14 +165,14 @@ async fn fetch_discovery_document(
         let status = res.status();
         let text = res.text().await.unwrap_or_default();
 
-        return Err(Error::FetchFailed(status, text));
+        return Err(Error::InvalidResponse(status, text));
     }
 
     let mut cert = None;
     let raw = res.text().await?;
     let parsed = verify(&raw, VerifyMode::CertOut(&mut cert))?;
 
-    let cert = cert.ok_or(Error::MissingCert)?;
+    let cert = cert.unwrap();
 
     Ok((cert, parsed))
 }
@@ -190,11 +183,11 @@ async fn fetch_cert(client: &Client, url: Url) -> Result<X509, Error> {
         let status = res.status();
         let text = res.text().await.unwrap_or_default();
 
-        return Err(Error::FetchFailed(status, text));
+        return Err(Error::InvalidResponse(status, text));
     }
 
     let jwks = res.json::<Jwks>().await?;
-    let cert = jwks.x5c.first().ok_or(Error::MissingCert)?;
+    let cert = jwks.x5c.first().ok_or(Error::UnknownSignerCert)?;
     let cert = format!(
         "-----BEGIN CERTIFICATE-----\n{}\n-----END CERTIFICATE-----",
         cert

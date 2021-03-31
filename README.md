@@ -119,16 +119,28 @@ The ref-erx-fd-server has dependencies to external libraries listed below.
     send to the service. Please make sure you also have installed the development dependencies
     of OpenSSL. You will need at least openssl v1.1.1.
 
+-   [libxml2](http://www.xmlsoft.org/) - libxml2 is used to parse and verify the XML representation of
+    the TSL and the BNetzA-VL.
+
     -   On linux you can install the depdendencies using the following command
 
-            $ apt-get install libssl1.1 libssl-dev
+            $ apt-get install libssl1.1 libssl-dev libxml2-dev
 
-    -   On windows you can download the OpenSSL binaries from [this website](https://wiki.openssl.org/index.php/Binaries).
-        Additionally you need to specify the following environment variables:
+    -   On windows you can download the OpenSSL binaries from [this website](https://wiki.openssl.org/index.php/Binaries)
+        and the libxml2 binaries from [this website](https://www.zlatkovic.com/projects/libxml/).
 
-            OPENSSL_DIR = <path-to-openssl>
-            OPENSSL_LIB_DIR = <path-to-openssl>/lib
-            OPENSSL_INCLUDE_DIR = <path-to-openssl>/include
+Additionally you need to specify the following environment variables:
+
+    OPENSSL_DIR = <path-to-openssl>
+    OPENSSL_LIB_DIR = <path-to-openssl>/lib
+    OPENSSL_INCLUDE_DIR = <path-to-openssl>/include
+
+    LIBXML_DIR = <path-to-libxml2>
+    LIBXML_LIB_DIR = <path-to-libxml2>/lib
+    LIBXML_INCLUDE_DIR = <path-to-libxml2>/include
+
+Hint: The rust compiler expects a lib-file on windows, therefore you have to rename the libxml2.dll.a
+to libxml2.dll.a.lib!
 
 ## Build the Project
 

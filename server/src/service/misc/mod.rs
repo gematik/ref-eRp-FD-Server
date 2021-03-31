@@ -16,14 +16,12 @@
  */
 
 pub mod access_token;
-pub mod cms;
 pub mod data_type;
 pub mod from_query;
 pub mod search;
 pub mod sort;
 
 pub use access_token::{AccessToken, Error as AccessTokenError, Profession};
-pub use cms::Cms;
 pub use data_type::DataType;
 pub use from_query::{FromQuery, Query, QueryValue};
 pub use search::Search;
@@ -36,7 +34,7 @@ use resources::device::{Device, DeviceName, Status, Type};
 
 use crate::fhir::{decode::Decode, encode::Encode};
 
-use super::{AsReqErrResult, RequestError, TypedRequestError, TypedRequestResult};
+use super::{IntoReqErrResult, RequestError, TypedRequestError, TypedRequestResult};
 
 lazy_static! {
     pub static ref DEVICE: Device = Device {
@@ -137,7 +135,7 @@ where
         DataType::Xml => {
             use crate::fhir::encode::XmlEncode;
 
-            let xml = response.xml().as_req_err().err_with_type(data_type)?;
+            let xml = response.xml().into_req_err().err_with_type(data_type)?;
 
             let mut res = HttpResponseBuilder::new(status);
             res.content_type(DataType::Xml.as_mime().to_string());
@@ -151,7 +149,7 @@ where
         DataType::Json => {
             use crate::fhir::encode::JsonEncode;
 
-            let json = response.json().as_req_err().err_with_type(data_type)?;
+            let json = response.json().into_req_err().err_with_type(data_type)?;
 
             let mut res = HttpResponseBuilder::new(status);
             res.content_type(DataType::Json.as_mime().to_string());

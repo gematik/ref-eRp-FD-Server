@@ -22,7 +22,7 @@ use std::ops::{Add, Deref};
 use std::rc::Rc;
 
 use chrono::{DateTime, Duration, Utc};
-use rand::{distributions::Standard, thread_rng, Rng};
+use rand::{distributions::Standard, rngs::OsRng, Rng};
 use resources::{
     audit_event::{Action, Agent, SubType},
     erx_bundle::{Entry as ErxEntry, ErxBundle},
@@ -322,6 +322,9 @@ impl Inner {
         agent: Agent,
     ) -> Result<&ErxBundle, Error> {
         let Self {
+            ref sig_key,
+            ref sig_cert,
+
             ref mut tasks,
             ref mut erx_receipts,
             ref mut communications,
@@ -410,6 +413,14 @@ impl Inner {
                 }
             };
 
+            let mut erx_bundle = Signed::new(erx_bundle);
+            erx_bundle.sign_cades(
+                SignatureType::AuthorsSignature,
+                "Device/software".into(),
+                &sig_key,
+                &sig_cert,
+            )?;
+
             let erx_bundle = match erx_receipts.entry(erx_bundle.id.clone()) {
                 Entry::Occupied(_) => {
                     panic!("ErxBundle with this ID ({}) already exists!", erx_bundle.id);
@@ -427,16 +438,13 @@ impl Inner {
 
             let task_id = &id;
             communications.retain(|_, c| {
-                if let Some(based_on) = c.based_on() {
-                    let (id, _) = Self::parse_task_url(&based_on).unwrap();
+                let based_on = c.based_on();
+                let (id, _) = Self::parse_task_url(&based_on).unwrap();
 
-                    &id != task_id
-                } else {
-                    true
-                }
+                &id != task_id
             });
 
-            Ok(&*erx_bundle)
+            Ok(&**erx_bundle)
         })
     }
 
@@ -708,7 +716,7 @@ impl<'a> Deref for TaskRef<'a> {
 }
 
 fn random_id() -> String {
-    thread_rng()
+    OsRng
         .sample_iter(&Standard)
         .take(32)
         .map(|x: u8| format!("{:02x}", x))

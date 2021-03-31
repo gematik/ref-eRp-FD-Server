@@ -26,7 +26,7 @@ use crate::{
     service::{
         header::{Accept, Authorization, ContentType},
         misc::{create_response, read_payload, DataType, Profession},
-        AsReqErrResult, TypedRequestError, TypedRequestResult,
+        IntoReqErrResult, TypedRequestError, TypedRequestResult,
     },
     state::State,
 };
@@ -56,14 +56,14 @@ pub async fn close(
         .check_profession(|p| {
             p == Profession::OeffentlicheApotheke || p == Profession::KrankenhausApotheke
         })
-        .as_req_err()
+        .into_req_err()
         .err_with_type(accept)?;
 
     let id = id.into_inner();
     let secret = query.into_inner().secret;
     let performer = access_token
         .telematik_id()
-        .as_req_err()
+        .into_req_err()
         .err_with_type(accept)?;
     let medication_dispense = read_payload::<MedicationDispense>(data_type, payload)
         .await
@@ -73,7 +73,7 @@ pub async fn close(
     let mut state = state.lock().await;
     let erx_bundle = state
         .task_close(id, secret, performer, medication_dispense, agent)
-        .as_req_err()
+        .into_req_err()
         .err_with_type(accept)?;
 
     create_response(erx_bundle, accept)

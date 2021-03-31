@@ -40,7 +40,7 @@ where
     S: Clone + PartialEq,
 {
     pub id: Option<Id>,
-    pub based_on: Option<String>,
+    pub based_on: String,
     pub about: Vec<Medication>,
     pub sent: Option<DateTime>,
     pub received: Option<DateTime>,
@@ -122,7 +122,7 @@ impl Communication {
         }
     }
 
-    pub fn based_on(&self) -> &Option<String> {
+    pub fn based_on(&self) -> &String {
         match self {
             Communication::InfoReq(inner) => &inner.based_on,
             Communication::Reply(inner) => &inner.based_on,

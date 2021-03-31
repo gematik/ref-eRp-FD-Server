@@ -439,14 +439,6 @@ impl Encode for &Identifier {
                 .end()?;
         }
 
-        if let Some(secret) = &self.secret {
-            stream
-                .element()?
-                .encode("system", SYSTEM_SECRET, encode_any)?
-                .encode("value", secret, encode_any)?
-                .end()?;
-        }
-
         stream.end()?;
 
         Ok(())
@@ -621,7 +613,7 @@ pub mod tests {
 
         let actual = TaskContainer(&value).json().unwrap();
         let actual = from_utf8(&actual).unwrap();
-        let expected = read_to_string("./examples/task.json").unwrap();
+        let expected = read_to_string("./examples/task_no_secret.json").unwrap();
 
         assert_eq!(trim_json_str(&actual), trim_json_str(&expected));
     }
@@ -632,7 +624,7 @@ pub mod tests {
 
         let actual = TaskContainer(&value).xml().unwrap();
         let actual = from_utf8(&actual).unwrap();
-        let expected = read_to_string("./examples/task.xml").unwrap();
+        let expected = read_to_string("./examples/task_no_secret.xml").unwrap();
 
         assert_eq!(trim_xml_str(&actual), trim_xml_str(&expected));
     }
