@@ -67,5 +67,10 @@ pub async fn create(
         .into_req_err()
         .err_with_type(accept)?;
 
-    create_response_with(TaskContainer(task), accept, StatusCode::CREATED, |_| ())
+    create_response_with(
+        TaskContainer::for_supplier(task),
+        accept,
+        StatusCode::CREATED,
+        |_| (),
+    )
 }

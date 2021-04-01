@@ -115,6 +115,7 @@ impl ResponseError for TypedRequestError {
                 CommunicationError::InvalidTaskUri(_) => res.status(StatusCode::BAD_REQUEST),
                 CommunicationError::NotFound(_) => res.status(StatusCode::NOT_FOUND).code(IssueType::ProcessingNotFound),
                 CommunicationError::Unauthorized(_) => res.status(StatusCode::UNAUTHORIZED),
+                CommunicationError::CommunicationsExceeded => res.status(StatusCode::TOO_MANY_REQUESTS),
             },
             E::MedicationDispenseError(err) => match err {
                 MedicationDispenseError::NotFound(_) => res.status(StatusCode::NOT_FOUND).code(IssueType::ProcessingNotFound),
@@ -184,13 +185,13 @@ pub enum RequestError {
     #[error("Error while encoding JSON: {0}")]
     EncodeJson(EncodeError<JsonEncodeError>),
 
-    #[error("Capabilty Statement Error {0}")]
+    #[error("Capabilty Statement Error: {0}")]
     CapabiltyStatementError(CapabiltyStatementError),
 
-    #[error("Audit Event Resource Error {0}")]
+    #[error("Audit Event Resource Error: {0}")]
     AuditEventError(AuditEventError),
 
-    #[error("Communication Resource Error {0}")]
+    #[error("Communication Resource Error: {0}")]
     CommunicationError(CommunicationError),
 
     #[error("Medication Dispense Resource Error: {0}")]

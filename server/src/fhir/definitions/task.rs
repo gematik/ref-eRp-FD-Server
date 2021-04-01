@@ -332,7 +332,26 @@ where
 
 /* Encode */
 
-pub struct TaskContainer<'a, T: AsTask>(pub &'a T);
+pub struct TaskContainer<'a, T: AsTask> {
+    pub task: &'a T,
+    pub for_supplier: bool,
+}
+
+impl<'a, T: AsTask> TaskContainer<'a, T> {
+    pub fn for_supplier(task: &'a T) -> Self {
+        Self {
+            task,
+            for_supplier: true,
+        }
+    }
+
+    pub fn for_patient(task: &'a T) -> Self {
+        Self {
+            task,
+            for_supplier: false,
+        }
+    }
+}
 
 pub trait AsTask {
     fn task(&self) -> &Task;
@@ -349,7 +368,7 @@ impl<T: AsTask> Encode for TaskContainer<'_, T> {
     where
         S: DataStorage,
     {
-        let task = self.0;
+        let task = self.task;
         let meta = Meta {
             version_id: task.version_id(),
             last_updated: task.last_updated(),
@@ -357,13 +376,17 @@ impl<T: AsTask> Encode for TaskContainer<'_, T> {
         };
 
         let task = task.task();
+        let identifier = IdentifierContainer {
+            identifier: &task.identifier,
+            for_supplier: self.for_supplier,
+        };
 
         stream
             .root("Task")?
             .encode_opt("id", &task.id, encode_any)?
             .encode("meta", meta, encode_any)?
             .encode("extension", &task.extension, encode_any)?
-            .encode("identifier", &task.identifier, encode_any)?
+            .encode("identifier", identifier, encode_any)?
             .encode("status", &task.status, encode_any)?
             .encode("intent", "order", encode_any)?
             .encode_opt("for", &task.for_, encode_for)?
@@ -416,14 +439,24 @@ impl Encode for &Extension {
     }
 }
 
-impl Encode for &Identifier {
+struct IdentifierContainer<'a> {
+    identifier: &'a Identifier,
+    for_supplier: bool,
+}
+
+impl Encode for IdentifierContainer<'_> {
     fn encode<S>(self, stream: &mut EncodeStream<S>) -> Result<(), EncodeError<S::Error>>
     where
         S: DataStorage,
     {
+        let IdentifierContainer {
+            identifier,
+            for_supplier,
+        } = self;
+
         stream.array()?;
 
-        if let Some(prescription_id) = &self.prescription_id {
+        if let Some(prescription_id) = &identifier.prescription_id {
             stream
                 .element()?
                 .encode("system", SYSTEM_PRESCRIPTION_ID, encode_any)?
@@ -431,12 +464,22 @@ impl Encode for &Identifier {
                 .end()?;
         }
 
-        if let Some(access_code) = &self.access_code {
+        if let Some(access_code) = &identifier.access_code {
             stream
                 .element()?
                 .encode("system", SYSTEM_ACCESS_CODE, encode_any)?
                 .encode("value", access_code, encode_any)?
                 .end()?;
+        }
+
+        if for_supplier {
+            if let Some(secret) = &identifier.secret {
+                stream
+                    .element()?
+                    .encode("system", SYSTEM_SECRET, encode_any)?
+                    .encode("value", secret, encode_any)?
+                    .end()?;
+            }
         }
 
         stream.end()?;
@@ -608,10 +651,10 @@ pub mod tests {
     }
 
     #[tokio::test]
-    async fn test_encode_json() {
+    async fn test_encode_json_patient() {
         let value = test_task();
 
-        let actual = TaskContainer(&value).json().unwrap();
+        let actual = TaskContainer::for_patient(&value).json().unwrap();
         let actual = from_utf8(&actual).unwrap();
         let expected = read_to_string("./examples/task_no_secret.json").unwrap();
 
@@ -619,12 +662,34 @@ pub mod tests {
     }
 
     #[tokio::test]
-    async fn test_encode_xml() {
+    async fn test_encode_json_supplier() {
         let value = test_task();
 
-        let actual = TaskContainer(&value).xml().unwrap();
+        let actual = TaskContainer::for_supplier(&value).json().unwrap();
+        let actual = from_utf8(&actual).unwrap();
+        let expected = read_to_string("./examples/task.json").unwrap();
+
+        assert_eq!(trim_json_str(&actual), trim_json_str(&expected));
+    }
+
+    #[tokio::test]
+    async fn test_encode_xml_patient() {
+        let value = test_task();
+
+        let actual = TaskContainer::for_patient(&value).xml().unwrap();
         let actual = from_utf8(&actual).unwrap();
         let expected = read_to_string("./examples/task_no_secret.xml").unwrap();
+
+        assert_eq!(trim_xml_str(&actual), trim_xml_str(&expected));
+    }
+
+    #[tokio::test]
+    async fn test_encode_xml_supplier() {
+        let value = test_task();
+
+        let actual = TaskContainer::for_supplier(&value).xml().unwrap();
+        let actual = from_utf8(&actual).unwrap();
+        let expected = read_to_string("./examples/task.xml").unwrap();
 
         assert_eq!(trim_xml_str(&actual), trim_xml_str(&expected));
     }

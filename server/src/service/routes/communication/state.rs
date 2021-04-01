@@ -121,11 +121,15 @@ impl Inner {
             }
         }
 
-        match (&communication, task.status) {
-            (Communication::Representative(_), Status::Ready) => (),
-            (Communication::Representative(_), Status::InProgress) => (),
+        let is_representative = match (&communication, task.status) {
+            (Communication::Representative(_), Status::Ready) => true,
+            (Communication::Representative(_), Status::InProgress) => true,
             (Communication::Representative(_), _) => return Err(Error::InvalidTaskStatus),
-            (_, _) => (),
+            (_, _) => false,
+        };
+
+        if is_representative && task_meta.communication_count >= self.max_communications {
+            return Err(Error::CommunicationsExceeded);
         }
 
         let id = Id::generate().unwrap();
@@ -135,6 +139,11 @@ impl Inner {
             Entry::Occupied(e) => panic!("Communication does already exists: {}", e.key()),
             Entry::Vacant(e) => e.insert(communication),
         };
+
+        if is_representative {
+            let task_meta = self.tasks.get_mut(&task_id).unwrap();
+            task_meta.communication_count += 1;
+        }
 
         Ok(communication)
     }

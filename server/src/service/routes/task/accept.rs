@@ -64,7 +64,9 @@ pub async fn accept(
         .err_with_type(accept)?;
 
     let mut bundle = Bundle::new(Type::Collection);
-    bundle.entries.push(Entry::new(Resource::TaskVersion(task)));
+    bundle
+        .entries
+        .push(Entry::new(Resource::TaskForSupplier(task)));
     bundle
         .entries
         .push(Entry::new(Resource::KbvBinary(e_prescription)));

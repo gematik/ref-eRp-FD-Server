@@ -1,3 +1,12 @@
+# Release 0.15.1
+Implemented features:
+- Added counter for Communication resource
+- Added Healthcheck Endpoint
+
+Hotfixes:
+- /Task/$accept is missing Task.secret
+
+
 # Release 0.15.0
 Implemented features:
 - Sign Receipt Bundle

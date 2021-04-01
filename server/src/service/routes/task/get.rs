@@ -363,7 +363,23 @@ fn add_task_to_bundle<'b, 's>(
 where
     's: 'b,
 {
-    bundle.entries.push(Entry::new(Resource::TaskVersion(task)));
+    #[cfg(feature = "interface-supplier")]
+    {
+        if access_token.is_pharmacy() {
+            bundle
+                .entries
+                .push(Entry::new(Resource::TaskForSupplier(task)));
+        }
+    }
+
+    #[cfg(feature = "interface-patient")]
+    {
+        if access_token.is_patient() {
+            bundle
+                .entries
+                .push(Entry::new(Resource::TaskForPatient(task)));
+        }
+    }
 
     let state = match state {
         Some(state) => state,

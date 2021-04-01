@@ -20,6 +20,7 @@ pub mod capabilty_statement;
 pub mod cert_list;
 pub mod communication;
 pub mod device;
+pub mod health;
 pub mod medication_dispense;
 pub mod ocsp_list;
 pub mod random;
@@ -34,6 +35,7 @@ use capabilty_statement::{create as capability_statement_create, get as capabili
 use cert_list::configure_routes as cert_list_configure_routes;
 use communication::CommunicationRoutes;
 use device::DeviceRoutes;
+use health::configure_routes as health_configure_routes;
 use medication_dispense::MedicationDispenseRoutes;
 use ocsp_list::configure_routes as ocsp_list_configure_routes;
 use random::configure_routes as random_configure_routes;
@@ -65,6 +67,7 @@ pub fn configure_routes(cfg: &mut ServiceConfig) {
 
     tsl_configure_routes(cfg);
     random_configure_routes(cfg);
+    health_configure_routes(cfg);
     cert_list_configure_routes(cfg);
     ocsp_list_configure_routes(cfg);
 }

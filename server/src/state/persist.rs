@@ -44,6 +44,7 @@ impl Inner {
                     .into_iter()
                     .collect::<Result<History<_>, _>>()?,
                 accept_timestamp: task.accept_timestamp,
+                communication_count: 0,
             };
             let id = task_meta
                 .history
@@ -171,7 +172,7 @@ pub mod tests {
         let sig_key = PKey::generate_ed448().unwrap();
         let sig_cert = X509::builder().unwrap().build();
 
-        let state = State::new(sig_key, sig_cert);
+        let state = State::new(sig_key, sig_cert, 10);
         let mut state = state.lock().await;
 
         let content = read_to_string("./examples/state_001.json").unwrap();

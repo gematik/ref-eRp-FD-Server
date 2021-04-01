@@ -89,5 +89,5 @@ pub async fn activate(
         .into_req_err()
         .err_with_type(accept)?;
 
-    create_response(TaskContainer(task), accept)
+    create_response(TaskContainer::for_supplier(task), accept)
 }

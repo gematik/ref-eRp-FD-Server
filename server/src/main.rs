@@ -56,7 +56,7 @@ async fn run(opts: Options) -> Result<(), Error> {
     let local = LocalSet::new();
 
     let pki_store = PkiStore::new(enc_key, enc_cert, opts.tsl, opts.bnetza, opts.token)?;
-    let state = State::new(sig_key, sig_cert);
+    let state = State::new(sig_key, sig_cert, opts.max_communications);
 
     if let Some(path) = &opts.state {
         if path.is_file() {
@@ -177,4 +177,13 @@ struct Options {
         default_value = "[::]:3000"
     )]
     server_addr: String,
+
+    /// Max number of communications for each task
+    #[structopt(
+        verbatim_doc_comment,
+        short = "m",
+        long = "max-communications",
+        default_value = "10"
+    )]
+    max_communications: usize,
 }

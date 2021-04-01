@@ -49,4 +49,7 @@ pub enum Error {
 
     #[error("Unauthorized: /Communication/{0}!")]
     Unauthorized(Id),
+
+    #[error("Communications Exceeded!")]
+    CommunicationsExceeded,
 }

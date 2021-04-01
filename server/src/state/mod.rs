@@ -42,6 +42,7 @@ pub struct State(Arc<Mutex<Inner>>);
 pub struct Inner {
     pub(super) sig_key: PKey<Private>,
     pub(super) sig_cert: X509,
+    pub(super) max_communications: usize,
 
     pub(super) tasks: HashMap<Id, TaskMeta>,
     pub(super) e_prescriptions: HashMap<Id, KbvBinary>,
@@ -55,13 +56,15 @@ pub struct Inner {
 pub struct TaskMeta {
     pub history: History<Task>,
     pub accept_timestamp: Option<DateTime<Utc>>,
+    pub communication_count: usize,
 }
 
 impl State {
-    pub fn new(sig_key: PKey<Private>, sig_cert: X509) -> Self {
+    pub fn new(sig_key: PKey<Private>, sig_cert: X509, max_communications: usize) -> Self {
         let inner = Inner {
             sig_key,
             sig_cert,
+            max_communications,
 
             tasks: Default::default(),
             e_prescriptions: Default::default(),
@@ -85,6 +88,7 @@ impl From<Task> for TaskMeta {
         Self {
             history: History::new(task),
             accept_timestamp: None,
+            communication_count: 0,
         }
     }
 }

@@ -32,7 +32,8 @@ use crate::{
 
 #[derive(Clone)]
 pub enum Resource<'a> {
-    TaskVersion(&'a Version<Task>),
+    TaskForSupplier(&'a Version<Task>),
+    TaskForPatient(&'a Version<Task>),
     KbvBinary(&'a KbvBinary),
     KbvBundle(&'a KbvBundle),
     ErxBundle(&'a ErxBundle),
@@ -60,7 +61,8 @@ impl Encode for Resource<'_> {
         S: DataStorage,
     {
         match self {
-            Self::TaskVersion(v) => TaskContainer(v).encode(stream),
+            Self::TaskForSupplier(v) => TaskContainer::for_supplier(v).encode(stream),
+            Self::TaskForPatient(v) => TaskContainer::for_patient(v).encode(stream),
             Self::KbvBinary(v) => v.encode(stream),
             Self::KbvBundle(v) => v.encode(stream),
             Self::ErxBundle(v) => v.encode(stream),
