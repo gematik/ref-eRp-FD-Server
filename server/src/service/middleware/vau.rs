@@ -264,7 +264,16 @@ where
 
     #[cfg(feature = "vau-compat")]
     async fn handle_normal_request(self, req: ServiceRequest) -> Result<S::Response, ActixError> {
-        extract_access_token(&req, None).err_with_type_from(&req)?;
+        match extract_access_token(&req, None) {
+            Ok(()) => (),
+            Err(err) => {
+                let uri = req.head().uri.path();
+
+                if !URI_WHITELIST.contains(&uri) {
+                    return Err(err.with_type_from(&req).into());
+                }
+            }
+        }
 
         self.0.borrow_mut().service.call(req).await
     }
@@ -370,5 +379,4 @@ lazy_static! {
         HeaderName::from_lowercase(b"authorization").unwrap();
 }
 
-#[cfg(not(feature = "vau-compat"))]
-const URI_WHITELIST: &[&str] = &["/CertList", "/OCSPList"];
+const URI_WHITELIST: &[&str] = &["/CertList", "/OCSPList", "/Random"];

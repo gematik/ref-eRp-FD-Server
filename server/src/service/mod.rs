@@ -36,6 +36,12 @@ pub use error::{
 };
 use middleware::{HeaderCheck, Logging, Vau};
 use routes::configure_routes;
+pub use routes::{
+    audit_event::AuditEvents,
+    communication::Communications,
+    medication_dispense::MedicationDispenses,
+    task::{TaskMeta, Tasks},
+};
 
 pub struct Service {
     state: State,

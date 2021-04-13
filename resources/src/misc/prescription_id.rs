@@ -27,7 +27,7 @@ use thiserror::Error;
 
 use super::super::types::FlowType;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct PrescriptionId {
     flow_type: FlowType,
     number: u64,

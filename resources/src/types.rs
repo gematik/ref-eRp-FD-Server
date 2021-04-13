@@ -20,7 +20,7 @@ use std::fmt::{Display, Formatter, Result as FmtResult};
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub enum FlowType {
     #[serde(alias = "PharmaceuticalDrugs")]
     ApothekenpflichtigeArzneimittel,

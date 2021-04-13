@@ -30,16 +30,75 @@ use resources::{
     primitives::Id,
     task::{Extension, Identifier, Status, Task, TaskCreateParameters},
     types::{FlowType, PerformerType},
-    AuditEvent, ErxComposition, KbvBinary, KbvBundle, MedicationDispense, SignatureType,
+    ErxComposition, KbvBinary, KbvBundle, MedicationDispense,
 };
 
 use crate::{
-    fhir::security::Signed,
-    service::{header::XAccessCode, misc::DEVICE},
-    state::{Inner, Version},
+    service::{header::XAccessCode, misc::DEVICE, AuditEvents},
+    state::{History, Inner, Timeouts, Version},
 };
 
 use super::Error;
+
+#[derive(Default)]
+pub struct Tasks {
+    by_id: HashMap<Id, TaskMeta>,
+}
+
+impl Tasks {
+    pub fn insert_task(&mut self, task: Task) {
+        let task_meta = task.into();
+        self.insert_task_meta(task_meta);
+    }
+
+    pub fn insert_task_meta(&mut self, task_meta: TaskMeta) {
+        let id = task_meta
+            .history
+            .get_current()
+            .resource
+            .id
+            .as_ref()
+            .unwrap()
+            .clone();
+
+        match self.by_id.entry(id) {
+            Entry::Occupied(e) => {
+                panic!("Task with this ID ({}) does already exist!", e.key());
+            }
+            Entry::Vacant(entry) => {
+                entry.insert(task_meta);
+            }
+        }
+    }
+
+    pub fn get_by_id(&self, id: &Id) -> Option<&TaskMeta> {
+        self.by_id.get(id)
+    }
+
+    pub fn get_mut_by_id(&mut self, id: &Id) -> Option<&mut TaskMeta> {
+        self.by_id.get_mut(id)
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &TaskMeta> {
+        self.by_id.values()
+    }
+}
+
+pub struct TaskMeta {
+    pub history: History<Task>,
+    pub accept_timestamp: Option<DateTime<Utc>>,
+    pub communication_count: usize,
+}
+
+impl From<Task> for TaskMeta {
+    fn from(task: Task) -> Self {
+        Self {
+            history: History::new(task),
+            accept_timestamp: None,
+            communication_count: 0,
+        }
+    }
+}
 
 impl Inner {
     pub fn task_create(&mut self, args: TaskCreateParameters) -> Result<&Version<Task>, Error> {
@@ -70,7 +129,7 @@ impl Inner {
             output: Default::default(),
         };
 
-        let task_meta = match self.tasks.entry(id) {
+        let task_meta = match self.tasks.by_id.entry(id) {
             Entry::Occupied(e) => panic!("Task does already exists: {}", e.key()),
             Entry::Vacant(e) => e.insert(task.into()),
         };
@@ -90,16 +149,16 @@ impl Inner {
         agent: Agent,
     ) -> Result<&Version<Task>, Error> {
         let Self {
-            ref sig_key,
-            ref sig_cert,
             ref mut tasks,
             ref mut audit_events,
             ref mut e_prescriptions,
             ref mut patient_receipts,
+            ref mut timeouts,
             ..
         } = self;
 
-        Self::logged(audit_events, move |event_builder| {
+        let timeouts = Rc::new(RefCell::new(timeouts));
+        Self::logged(audit_events, timeouts.clone(), move |event_builder| {
             let kvnr: Kvnr = match kbv_bundle
                 .entry
                 .patient
@@ -113,7 +172,7 @@ impl Inner {
                 None => return Err(Error::KvnrMissing),
             };
 
-            let task_meta = match tasks.get_mut(&id) {
+            let task_meta = match tasks.get_mut_by_id(&id) {
                 Some(task_meta) => task_meta,
                 None => return Err(Error::NotFound(id)),
             };
@@ -138,60 +197,25 @@ impl Inner {
                 return Err(Error::InvalidStatus);
             }
 
-            if e_prescriptions.contains_key(&kbv_bundle.id) {
+            if e_prescriptions.contains(&kbv_bundle.id) {
                 return Err(Error::EPrescriptionAlreadyRegistered(kbv_bundle.id));
             }
 
             /* create / update resources */
 
             let mut patient_receipt = kbv_bundle.clone();
-            patient_receipt.id = Id::generate().unwrap();
+            let patient_receipt_id = Id::generate().unwrap();
+            patient_receipt.id = patient_receipt_id.clone();
+            patient_receipts.insert_kbv_bundle(patient_receipt)?;
 
-            let patient_receipt = match patient_receipts.entry(patient_receipt.id.clone()) {
-                Entry::Occupied(_) => {
-                    panic!(
-                        "Patient receipt with this ID ({}) already exists!",
-                        patient_receipt.id
-                    );
-                }
-                Entry::Vacant(entry) => {
-                    let mut patient_receipt = Signed::new(patient_receipt);
-                    patient_receipt.sign_json(
-                        SignatureType::AuthorsSignature,
-                        "Device/software".into(),
-                        &sig_key,
-                        &sig_cert,
-                    )?;
-
-                    entry.insert(patient_receipt).id.clone()
-                }
-            };
-
-            let e_prescription = match e_prescriptions.entry(kbv_bundle.id.clone()) {
-                Entry::Occupied(_) => {
-                    panic!(
-                        "ePrescription with this ID ({}) does already exist!",
-                        kbv_bundle.id
-                    );
-                }
-                Entry::Vacant(entry) => {
-                    let id = entry.key().clone();
-                    entry.insert(kbv_binary);
-
-                    id
-                }
-            };
-
-            let task_meta = match tasks.get_mut(&id) {
-                Some(task_meta) => task_meta,
-                None => return Err(Error::NotFound(id)),
-            };
+            let e_prescription_id = kbv_bundle.id.clone();
+            e_prescriptions.insert(e_prescription_id.clone(), kbv_binary);
 
             let mut task = task_meta.history.get_mut();
             task.for_ = Some(kvnr);
             task.status = Status::Ready;
-            task.input.e_prescription = Some(e_prescription);
-            task.input.patient_receipt = Some(patient_receipt);
+            task.input.e_prescription = Some(e_prescription_id);
+            task.input.patient_receipt = Some(patient_receipt_id);
 
             let (accept_duration, expiry_duration) = match task.extension.flow_type {
                 FlowType::ApothekenpflichtigeArzneimittel => {
@@ -201,6 +225,8 @@ impl Inner {
             };
             task.extension.accept_date = Some(signing_time.add(accept_duration).date().into());
             task.extension.expiry_date = Some(signing_time.add(expiry_duration).date().into());
+
+            timeouts.borrow_mut().insert(&*task);
 
             let task = task_meta.history.get_current();
 
@@ -218,11 +244,13 @@ impl Inner {
             ref mut tasks,
             ref mut audit_events,
             ref mut e_prescriptions,
+            ref mut timeouts,
             ..
         } = self;
 
-        Self::logged(audit_events, move |event_builder| {
-            let mut task_meta = match tasks.get_mut(&id) {
+        let timeouts = Rc::new(RefCell::new(timeouts));
+        Self::logged(audit_events, timeouts.clone(), move |event_builder| {
+            let mut task_meta = match tasks.by_id.get_mut(&id) {
                 Some(task_meta) => task_meta,
                 None => return Err(Error::NotFound(id)),
             };
@@ -263,8 +291,10 @@ impl Inner {
                 .ok_or(Error::EPrescriptionMissing)?
                 .clone();
             let e_prescription = e_prescriptions
-                .get(&e_prescription)
+                .get_by_id(&e_prescription)
                 .ok_or(Error::EPrescriptionNotFound(e_prescription))?;
+
+            timeouts.borrow_mut().insert(&*task);
 
             let task = task_meta.history.get_current();
 
@@ -281,11 +311,13 @@ impl Inner {
         let Self {
             ref mut tasks,
             ref mut audit_events,
+            ref mut timeouts,
             ..
         } = self;
 
-        Self::logged(audit_events, move |event_builder| {
-            let mut task_meta = match tasks.get_mut(&id) {
+        let timeouts = Rc::new(RefCell::new(timeouts));
+        Self::logged(audit_events, timeouts.clone(), move |event_builder| {
+            let mut task_meta = match tasks.by_id.get_mut(&id) {
                 Some(task_meta) => task_meta,
                 None => return Err(Error::NotFound(id)),
             };
@@ -307,6 +339,8 @@ impl Inner {
             task.status = Status::Ready;
             task.identifier.secret = None;
 
+            timeouts.borrow_mut().insert(&*task);
+
             task_meta.accept_timestamp = None;
 
             Ok(())
@@ -322,19 +356,18 @@ impl Inner {
         agent: Agent,
     ) -> Result<&ErxBundle, Error> {
         let Self {
-            ref sig_key,
-            ref sig_cert,
-
             ref mut tasks,
             ref mut erx_receipts,
             ref mut communications,
             ref mut audit_events,
             ref mut medication_dispenses,
+            ref mut timeouts,
             ..
         } = self;
 
-        Self::logged(audit_events, move |event_builder| {
-            let task_meta = match tasks.get_mut(&id) {
+        let timeouts = Rc::new(RefCell::new(timeouts));
+        Self::logged(audit_events, timeouts.clone(), move |event_builder| {
+            let task_meta = match tasks.by_id.get_mut(&id) {
                 Some(task_meta) => task_meta,
                 None => return Err(Error::NotFound(id)),
             };
@@ -400,33 +433,10 @@ impl Inner {
 
             /* add new resources to state */
 
-            let med_dis_id = medication_dispense.id.as_ref().unwrap().clone();
-            match medication_dispenses.entry(med_dis_id) {
-                Entry::Occupied(_) => {
-                    panic!(
-                        "Medication dispense with this ID ({}) already exists!",
-                        medication_dispense.id.unwrap()
-                    );
-                }
-                Entry::Vacant(entry) => {
-                    entry.insert(medication_dispense);
-                }
-            };
+            timeouts.borrow_mut().insert(&medication_dispense);
 
-            let mut erx_bundle = Signed::new(erx_bundle);
-            erx_bundle.sign_cades(
-                SignatureType::AuthorsSignature,
-                "Device/software".into(),
-                &sig_key,
-                &sig_cert,
-            )?;
-
-            let erx_bundle = match erx_receipts.entry(erx_bundle.id.clone()) {
-                Entry::Occupied(_) => {
-                    panic!("ErxBundle with this ID ({}) already exists!", erx_bundle.id);
-                }
-                Entry::Vacant(entry) => entry.insert(erx_bundle),
-            };
+            medication_dispenses.insert(medication_dispense);
+            let erx_bundle = erx_receipts.insert_erx_bundle(erx_bundle)?;
 
             /* update task */
 
@@ -434,15 +444,10 @@ impl Inner {
             task.status = Status::Completed;
             task.output.receipt = Some(erx_bundle.id.clone());
 
+            timeouts.borrow_mut().insert(&*task);
+
             /* remove communications associated to this task */
-
-            let task_id = &id;
-            communications.retain(|_, c| {
-                let based_on = c.based_on();
-                let (id, _) = Self::parse_task_url(&based_on).unwrap();
-
-                &id != task_id
-            });
+            communications.remove_by_task_id(&id);
 
             Ok(&**erx_bundle)
         })
@@ -464,11 +469,13 @@ impl Inner {
             ref mut patient_receipts,
             ref mut audit_events,
             ref mut medication_dispenses,
+            ref mut timeouts,
             ..
         } = self;
 
-        Self::logged(audit_events, move |event_builder| {
-            let task_meta = match tasks.get_mut(&id) {
+        let timeouts = Rc::new(RefCell::new(timeouts));
+        Self::logged(audit_events, timeouts.clone(), move |event_builder| {
+            let task_meta = match tasks.by_id.get_mut(&id) {
                 Some(task_meta) => task_meta,
                 None => return Err(Error::NotFound(id)),
             };
@@ -507,25 +514,21 @@ impl Inner {
                 .as_ref()
                 .ok_or(Error::EPrescriptionMissing)?;
 
-            medication_dispenses.retain(|_, md| &md.prescription_id != prescription_id);
+            medication_dispenses.remove_by_prescription_id(prescription_id);
 
             if let Some(e_prescription) = task.input.e_prescription.take() {
-                e_prescriptions
-                    .remove(&e_prescription)
-                    .expect("ePrescription not found!");
+                e_prescriptions.remove_by_id(&e_prescription);
             }
 
             if let Some(patient_receipt) = task.input.patient_receipt.take() {
-                patient_receipts
-                    .remove(&patient_receipt)
-                    .expect("Patient Receipt not found!");
+                patient_receipts.remove_by_id(&patient_receipt);
             }
 
             if let Some(receipt) = task.output.receipt.take() {
-                erx_receipts
-                    .remove(&receipt)
-                    .expect("ErxReceipt not found!");
+                erx_receipts.remove_by_id(&receipt);
             }
+
+            timeouts.borrow_mut().insert(&*task);
 
             task_meta.history.clear();
 
@@ -544,12 +547,14 @@ impl Inner {
     ) -> Result<(&Self, &Version<Task>), Error> {
         let Self {
             ref tasks,
+            ref mut timeouts,
             ref mut audit_events,
             ..
         } = self;
 
-        let ret = Self::logged(audit_events, move |event_builder| {
-            let task_meta = match tasks.get(&id) {
+        let timeouts = Rc::new(RefCell::new(timeouts));
+        let ret = Self::logged(audit_events, timeouts.clone(), move |event_builder| {
+            let task_meta = match tasks.by_id.get(&id) {
                 Some(task_meta) => task_meta,
                 None => return Err(Error::NotFound(id)),
             };
@@ -597,11 +602,12 @@ impl Inner {
     {
         let Self {
             ref tasks,
+            ref mut timeouts,
             ref mut audit_events,
             ..
         } = self;
 
-        let iter = tasks.iter().filter_map(move |(_, task_meta)| {
+        let iter = tasks.by_id.iter().filter_map(move |(_, task_meta)| {
             let task = task_meta.history.get_current();
 
             if !Self::task_matches(&task, &kvnr, &access_code, &None) {
@@ -617,8 +623,40 @@ impl Inner {
 
         TaskIter {
             iter,
-            audit_events: AuditEventsRef::new(agent, audit_events),
+            audit_events: AuditEventsRef::new(agent, audit_events, timeouts),
         }
+    }
+
+    pub fn task_delete_by_id(&mut self, id: &Id) {
+        let Self {
+            ref mut tasks,
+            ref mut erx_receipts,
+            ref mut e_prescriptions,
+            ref mut patient_receipts,
+            ref mut medication_dispenses,
+            ..
+        } = self;
+
+        let task = tasks.by_id.get(id).unwrap();
+        let task = task.history.get_current();
+
+        if let Some(prescription_id) = &task.identifier.prescription_id {
+            medication_dispenses.remove_by_prescription_id(prescription_id);
+        }
+
+        if let Some(e_prescription) = &task.input.e_prescription {
+            e_prescriptions.remove_by_id(e_prescription);
+        }
+
+        if let Some(patient_receipt) = &task.input.patient_receipt {
+            patient_receipts.remove_by_id(&patient_receipt);
+        }
+
+        if let Some(receipt) = &task.output.receipt {
+            erx_receipts.remove_by_id(&receipt);
+        }
+
+        tasks.by_id.remove(id);
     }
 
     pub fn task_matches(
@@ -649,14 +687,16 @@ impl Inner {
 #[derive(Clone)]
 struct AuditEventsRef<'a> {
     agent: Agent,
-    audit_events: Rc<RefCell<&'a mut HashMap<Kvnr, Vec<AuditEvent>>>>,
+    inner: Rc<RefCell<&'a mut AuditEvents>>,
+    timeouts: Rc<RefCell<&'a mut Timeouts>>,
 }
 
 impl<'a> AuditEventsRef<'a> {
-    fn new(agent: Agent, audit_events: &'a mut HashMap<Kvnr, Vec<AuditEvent>>) -> Self {
+    fn new(agent: Agent, audit_events: &'a mut AuditEvents, timeouts: &'a mut Timeouts) -> Self {
         Self {
             agent,
-            audit_events: Rc::new(RefCell::new(audit_events)),
+            inner: Rc::new(RefCell::new(audit_events)),
+            timeouts: Rc::new(RefCell::new(timeouts)),
         }
     }
 }
@@ -700,7 +740,8 @@ impl<'a> Deref for TaskRef<'a> {
         let task = self.task;
 
         let agent = self.audit_events.agent.clone();
-        let mut audit_events = self.audit_events.audit_events.borrow_mut();
+        let mut audit_events = self.audit_events.inner.borrow_mut();
+        let mut timeouts = self.audit_events.timeouts.borrow_mut();
 
         let mut builder = Inner::audit_event_builder();
         builder.agent(agent);
@@ -709,7 +750,7 @@ impl<'a> Deref for TaskRef<'a> {
         builder.what(format!("Task/{}", &task.id));
         builder.patient_opt(task.for_.clone());
         builder.description_opt(task.identifier.prescription_id.clone());
-        builder.build(&mut audit_events, None);
+        builder.build(&mut audit_events, &mut timeouts, None);
 
         task
     }

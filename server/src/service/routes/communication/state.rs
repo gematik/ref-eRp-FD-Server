@@ -15,7 +15,7 @@
  *
  */
 
-use std::collections::hash_map::Entry;
+use std::collections::hash_map::{Entry, HashMap};
 use std::convert::TryInto;
 use std::ops::{Deref, DerefMut};
 use std::str::FromStr;
@@ -33,6 +33,43 @@ use url::Url;
 use crate::{service::header::XAccessCode, state::Inner};
 
 use super::Error;
+
+#[derive(Default)]
+pub struct Communications {
+    by_id: HashMap<Id, Communication>,
+}
+
+impl Communications {
+    pub fn insert(&mut self, communication: Communication) {
+        let id = communication.id().as_ref().unwrap().clone();
+
+        match self.by_id.entry(id.clone()) {
+            Entry::Occupied(_) => {
+                panic!("Communication with this ID ({}) already exists!", id);
+            }
+            Entry::Vacant(entry) => {
+                entry.insert(communication);
+            }
+        }
+    }
+
+    pub fn get_by_id(&self, id: &Id) -> Option<&Communication> {
+        self.by_id.get(id)
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &Communication> {
+        self.by_id.values()
+    }
+
+    pub fn remove_by_task_id(&mut self, id: &Id) {
+        self.by_id.retain(|_, c| {
+            let based_on = c.based_on();
+            let (based_on, _) = Inner::parse_task_url(&based_on).unwrap();
+
+            id != &based_on
+        });
+    }
+}
 
 pub enum CommunicationRefMut<'a> {
     Sender(&'a mut Communication),
@@ -66,6 +103,11 @@ impl Inner {
         access_code: Option<XAccessCode>,
         mut communication: Communication,
     ) -> Result<&mut Communication, Error> {
+        let Self {
+            ref mut communications,
+            ..
+        } = self;
+
         match communication.content() {
             Content::String(s) if s.as_bytes().len() > MAX_CONTENT_SIZE => {
                 return Err(Error::ContentSizeExceeded)
@@ -105,7 +147,7 @@ impl Inner {
 
         let access_code = access_code.or(ac);
         let kvnr = participant_id.kvnr().cloned();
-        let task_meta = match self.tasks.get(&task_id) {
+        let task_meta = match self.tasks.get_by_id(&task_id) {
             Some(task_meta) => task_meta,
             None => return Err(Error::UnknownTask(task_id)),
         };
@@ -135,13 +177,13 @@ impl Inner {
         let id = Id::generate().unwrap();
         communication.set_id(Some(id.clone()));
 
-        let communication = match self.communications.entry(id) {
+        let communication = match communications.by_id.entry(id) {
             Entry::Occupied(e) => panic!("Communication does already exists: {}", e.key()),
             Entry::Vacant(e) => e.insert(communication),
         };
 
         if is_representative {
-            let task_meta = self.tasks.get_mut(&task_id).unwrap();
+            let task_meta = self.tasks.get_mut_by_id(&task_id).unwrap();
             task_meta.communication_count += 1;
         }
 
@@ -153,7 +195,7 @@ impl Inner {
         id: Id,
         participant_id: &ParticipantId,
     ) -> Result<CommunicationRefMut<'_>, Error> {
-        let c = match self.communications.get_mut(&id) {
+        let c = match self.communications.by_id.get_mut(&id) {
             Some(c) => c,
             None => return Err(Error::NotFound(id)),
         };
@@ -173,13 +215,16 @@ impl Inner {
     where
         F: FnMut(&Communication) -> bool,
     {
-        self.communications.iter_mut().filter_map(move |(_, c)| {
-            match communication_matches(c, &participant_id) {
-                Match::Sender if f(c) => Some(CommunicationRefMut::Sender(c)),
-                Match::Recipient if f(c) => Some(CommunicationRefMut::Recipient(c)),
-                _ => None,
-            }
-        })
+        self.communications
+            .by_id
+            .iter_mut()
+            .filter_map(
+                move |(_, c)| match communication_matches(c, &participant_id) {
+                    Match::Sender if f(c) => Some(CommunicationRefMut::Sender(c)),
+                    Match::Recipient if f(c) => Some(CommunicationRefMut::Recipient(c)),
+                    _ => None,
+                },
+            )
     }
 
     pub fn communication_delete(
@@ -187,16 +232,16 @@ impl Inner {
         id: Id,
         participant_id: &ParticipantId,
     ) -> Result<Option<DateTime>, Error> {
-        let c = match self.communications.get(&id) {
+        let c = match self.communications.by_id.get(&id) {
             Some(c) => c,
             None => return Err(Error::NotFound(id)),
         };
 
-        if communication_matches(c, participant_id) == Match::Unauthorized {
+        if communication_matches(c, participant_id) != Match::Sender {
             return Err(Error::Unauthorized(id));
         }
 
-        let c = self.communications.remove(&id).unwrap();
+        let c = self.communications.by_id.remove(&id).unwrap();
 
         let received = match c {
             Communication::DispenseReq(c) => c.received,
@@ -210,7 +255,16 @@ impl Inner {
         Ok(received)
     }
 
-    pub fn parse_task_url(uri: &str) -> Result<(Id, Option<XAccessCode>), Error> {
+    pub fn communication_delete_by_id(&mut self, id: &Id) {
+        let Self {
+            ref mut communications,
+            ..
+        } = self;
+
+        communications.by_id.remove(id);
+    }
+
+    fn parse_task_url(uri: &str) -> Result<(Id, Option<XAccessCode>), Error> {
         let url = format!("http://localhost/{}", uri);
         let url = Url::from_str(&url).map_err(|_| Error::InvalidTaskUri(uri.into()))?;
 

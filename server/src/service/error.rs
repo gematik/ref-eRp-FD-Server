@@ -103,6 +103,7 @@ impl ResponseError for TypedRequestError {
             },
             E::AuditEventError(err) => match err {
                 AuditEventError::NotFound(_) => res.status(StatusCode::NOT_FOUND).code(IssueType::ProcessingNotFound),
+                AuditEventError::Forbidden(_) => res.status(StatusCode::FORBIDDEN).code(IssueType::SecurityForbidden),
             },
             E::CommunicationError(err) => match err {
                 CommunicationError::ContentSizeExceeded => res.status(StatusCode::BAD_REQUEST).code(IssueType::ProcessingTooLong),

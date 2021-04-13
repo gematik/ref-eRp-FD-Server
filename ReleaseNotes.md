@@ -1,3 +1,14 @@
+# Release 0.16.0
+Implemented features:
+- Auto-Delete timed out Resources
+
+Bugfixes / Improvements:
+- Communiation Delete should be restricted to "sender"
+- Medication as contained Resource in MedicationDispense
+- Limit Text Size of XML / JSON parser to 1MB
+- Missing User-Agent Header should return 403
+
+
 # Release 0.15.1
 Implemented features:
 - Added counter for Communication resource

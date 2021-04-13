@@ -15,8 +15,10 @@
  *
  */
 
-use std::collections::HashMap;
+use std::cell::RefCell;
+use std::collections::{hash_map::Entry, HashMap, HashSet};
 use std::fmt::Display;
+use std::rc::Rc;
 
 use chrono::Utc;
 use resources::{
@@ -25,21 +27,55 @@ use resources::{
     primitives::Id,
 };
 
-use crate::{service::misc::DEVICE, state::Inner};
+use crate::{
+    service::misc::DEVICE,
+    state::{Inner, Timeouts},
+};
 
 use super::Error;
 
+#[derive(Default)]
+pub struct AuditEvents {
+    by_id: HashMap<Id, AuditEvent>,
+    by_kvnr: HashMap<Kvnr, HashSet<Id>>,
+}
+
+impl AuditEvents {
+    pub fn insert(&mut self, audit_event: AuditEvent) {
+        let id = audit_event.id.clone();
+        let kvnr = audit_event.entity.name.clone();
+
+        match self.by_id.entry(id.clone()) {
+            Entry::Occupied(_) => {
+                panic!("Audit event with this ID ({}) already exists!", id);
+            }
+            Entry::Vacant(entry) => {
+                entry.insert(audit_event);
+            }
+        }
+
+        self.by_kvnr.entry(kvnr).or_default().insert(id);
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &AuditEvent> {
+        self.by_id.values()
+    }
+
+    pub fn get_by_id(&self, id: &Id) -> Option<&AuditEvent> {
+        self.by_id.get(id)
+    }
+}
+
 impl Inner {
     pub fn audit_event_get(&self, id: Id, kvnr: &Kvnr) -> Result<&AuditEvent, Error> {
-        let events = match self.audit_events.get(&kvnr) {
+        let event = match self.audit_events.by_id.get(&id) {
             Some(events) => events,
             None => return Err(Error::NotFound(id)),
         };
 
-        let event = match events.iter().find(|av| av.id == id) {
-            Some(event) => event,
-            None => return Err(Error::NotFound(id)),
-        };
+        if &event.entity.name != kvnr {
+            return Err(Error::Forbidden(id));
+        }
 
         Ok(event)
     }
@@ -48,17 +84,50 @@ impl Inner {
     where
         F: FnMut(&AuditEvent) -> bool,
     {
-        static EMPTY: Vec<AuditEvent> = Vec::new();
+        let Self {
+            ref audit_events, ..
+        } = self;
 
-        let events = match self.audit_events.get(&kvnr) {
+        lazy_static! {
+            static ref EMPTY: HashSet<Id> = HashSet::new();
+        }
+
+        let events = match audit_events.by_kvnr.get(&kvnr) {
             Some(events) => events,
             None => &EMPTY,
         };
 
-        events.iter().filter(move |v| f(v))
+        events.iter().filter_map(move |id| {
+            let v = audit_events.by_id.get(&id).unwrap();
+            if f(v) {
+                Some(v)
+            } else {
+                None
+            }
+        })
     }
 
-    pub fn logged<F, T, E>(audit_events: &mut HashMap<Kvnr, Vec<AuditEvent>>, f: F) -> Result<T, E>
+    pub fn audit_event_delete_by_id(&mut self, id: &Id) {
+        let Self {
+            ref mut audit_events,
+            ..
+        } = self;
+
+        let audit_event = audit_events.by_id.get(id).unwrap();
+        let kvnr = &audit_event.entity.name;
+
+        if let Some(ids) = audit_events.by_kvnr.get_mut(&kvnr) {
+            ids.remove(id);
+        }
+
+        audit_events.by_id.remove(id);
+    }
+
+    pub fn logged<F, T, E>(
+        audit_events: &mut AuditEvents,
+        timeouts: Rc<RefCell<&mut Timeouts>>,
+        f: F,
+    ) -> Result<T, E>
     where
         F: FnOnce(&mut Builder) -> Result<T, E>,
         E: Display,
@@ -68,7 +137,8 @@ impl Inner {
 
         let err = ret.as_ref().err().map(|err| format!("{}", err));
 
-        builder.build(audit_events, err);
+        let mut timeouts = timeouts.borrow_mut();
+        builder.build(audit_events, &mut timeouts, err);
 
         ret
     }
@@ -106,7 +176,8 @@ impl Builder {
 
     pub fn build(
         self,
-        audit_events: &mut HashMap<Kvnr, Vec<AuditEvent>>,
+        audit_events: &mut AuditEvents,
+        timeouts: &mut Timeouts,
         error: Option<String>,
     ) -> Option<()> {
         let sub_type = self.sub_type?;
@@ -144,8 +215,15 @@ impl Builder {
             },
         };
 
-        let events = audit_events.entry(patient).or_default();
-        events.push(event);
+        timeouts.insert(&event);
+
+        let id = event.id.clone();
+        audit_events
+            .by_kvnr
+            .entry(patient)
+            .or_default()
+            .insert(id.clone());
+        audit_events.by_id.insert(id, event);
 
         Some(())
     }

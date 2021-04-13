@@ -20,13 +20,14 @@ use serde::{Deserialize, Serialize};
 use super::{
     misc::{Kvnr, PrescriptionId, TelematikId},
     primitives::{DateTime, Id},
+    Medication,
 };
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct MedicationDispense {
     pub id: Option<Id>,
     pub prescription_id: PrescriptionId,
-    pub medication: String,
+    pub medication: Medication,
     pub subject: Kvnr,
     pub supporting_information: Vec<String>,
     pub performer: TelematikId,

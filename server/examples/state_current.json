@@ -434,7 +434,37 @@
         {
             "id":"453ce3cd-1dd2-11b2-802f-eb7de13489ec",
             "prescription_id":"160.000.306.303.800.18",
-            "medication":"Medication/1234",
+            "medication":{
+                "id":"5fe6e06c-8725-46d5-aecd-e65e041ca3de",
+                "data":{
+                    "Pzn":{
+                        "code":{
+                            "text":"Sumatriptan-1a Pharma 100 mg Tabletten",
+                            "code":"06313728"
+                        },
+                        "form":{
+                            "system":"https://fhir.kbv.de/CodeSystem/KBV_CS_SFHIR_KBV_DARREICHUNGSFORM",
+                            "code":"TAB"
+                        },
+                        "amount":{
+                            "value":12,
+                            "unit":"TAB",
+                            "code":"{tbl}"
+                        },
+                        "batch":{
+                            "lot_number":"1234567890abcde",
+                            "expiration_date":"2020-02-03T00:00:00+00:00"
+                        }
+                    }
+                },
+                "extension":{
+                    "category":"Medicine",
+                    "vaccine":false,
+                    "instruction":null,
+                    "packaging":null,
+                    "standard_size":"N1"
+                }
+            },
             "subject":"X234567890",
             "supporting_information":[
                 "/Task/13814006-1dd2-11b2-802a-eb7de13489ec"

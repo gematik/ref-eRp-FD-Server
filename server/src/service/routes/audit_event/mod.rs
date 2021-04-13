@@ -29,6 +29,8 @@ use resources::capability_statement::{Interaction, SearchParamType, Type};
 
 use crate::fhir::definitions::RESOURCE_PROFILE_AUDIT_EVENT;
 
+pub use state::AuditEvents;
+
 #[derive(Default)]
 pub struct AutidEventRoutes;
 
@@ -40,7 +42,7 @@ impl AutidEventRoutes {
     #[interaction(Interaction::Read)]
     #[search_param(name="date", type=SearchParamType::Date)]
     #[search_param(name="agent", type=SearchParamType::String)]
-    #[search_param(name="sub-type", type=SearchParamType::Token)]
+    #[search_param(name="subtype", type=SearchParamType::Token)]
     fn configure_all(&self, cfg: &mut ServiceConfig) {
         cfg.service(resource("/AuditEvent").route(get().to(get_all)));
         cfg.service(resource("/AuditEvent/{id}").route(get().to(get_one)));

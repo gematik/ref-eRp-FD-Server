@@ -39,6 +39,9 @@ where
 
     #[error("Unexpected Ident!")]
     UnexpectedIdent,
+
+    #[error("Text is to large!")]
+    TextTooLarge,
 }
 
 impl<S, E> ByteStream<S>
@@ -79,6 +82,10 @@ where
             while j < buffer.len() && f(i, buffer[j]) {
                 i += 1;
                 j += 1;
+            }
+
+            if ret.len() + j > MAX_TEXT_SIZE {
+                return Err(StreamError::TextTooLarge);
             }
 
             ret.extend_from_slice(&buffer[..j]);
@@ -168,3 +175,5 @@ where
         Ok(self.buffer.as_mut())
     }
 }
+
+const MAX_TEXT_SIZE: usize = 1024 * 1024; // 1 MB

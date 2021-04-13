@@ -81,7 +81,9 @@ impl FromQuery for GetAllQueryArgs {
     fn parse_key_value_pair(&mut self, key: &str, value: QueryValue) -> Result<(), String> {
         match key {
             "status" => self.status.push(value.ok()?.parse()?),
-            "authoredOn" | "authored-on" => self.authored_on.push(value.ok()?.parse()?),
+            "authoredOn" | "authored-on" | "authoredon" => {
+                self.authored_on.push(value.ok()?.parse()?)
+            }
             "lastModified" | "last-modified" | "modified" => {
                 self.last_modified.push(value.ok()?.parse()?)
             }
@@ -107,7 +109,7 @@ impl FromStr for SortArgs {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "authoredOn" | "authored-on" => Ok(Self::AuthoredOn),
+            "authoredOn" | "authored-on" | "authoredon" => Ok(Self::AuthoredOn),
             "lastModified" | "last-modified" | "modified" => Ok(Self::LastModified),
             _ => Err(()),
         }
@@ -392,7 +394,7 @@ where
             if let Some(id) = task.resource.output.receipt.as_ref() {
                 let receipt = state
                     .erx_receipts
-                    .get(id)
+                    .get_by_id(id)
                     .ok_or_else(|| Error::ErxReceiptNotFound(id.clone()))?;
 
                 bundle
@@ -408,7 +410,7 @@ where
             if let Some(id) = task.resource.input.patient_receipt.as_ref() {
                 let patient_receipt = state
                     .patient_receipts
-                    .get(id)
+                    .get_by_id(id)
                     .ok_or_else(|| Error::PatientReceiptNotFound(id.clone()))?;
 
                 bundle
@@ -419,7 +421,7 @@ where
             if let Some(id) = task.resource.output.receipt.as_ref() {
                 let receipt = state
                     .erx_receipts
-                    .get(id)
+                    .get_by_id(id)
                     .ok_or_else(|| Error::ErxReceiptNotFound(id.clone()))?;
 
                 bundle

@@ -29,6 +29,7 @@ mod reject;
 mod state;
 
 pub use error::Error;
+pub use state::{TaskMeta, Tasks};
 
 use abort::abort;
 #[cfg(feature = "interface-supplier")]

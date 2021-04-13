@@ -78,7 +78,7 @@ where
 
             return Either::Right(ok(ServiceResponse::new(
                 req,
-                HttpResponse::BadRequest().body("Missing header: User-Agent!"),
+                HttpResponse::Forbidden().body("Missing header: User-Agent!"),
             )));
         }
 

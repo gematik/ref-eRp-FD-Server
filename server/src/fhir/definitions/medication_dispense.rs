@@ -15,11 +15,16 @@
  *
  */
 
+use std::borrow::Cow;
 use std::iter::once;
 
 use async_trait::async_trait;
 use miscellaneous::str::icase_eq;
-use resources::medication_dispense::{DosageInstruction, MedicationDispense};
+use resources::{
+    medication_dispense::{DosageInstruction, MedicationDispense},
+    primitives::Id,
+    Medication,
+};
 
 use crate::fhir::{
     decode::{decode_any, DataStream, Decode, DecodeError, DecodeStream, Fields},
@@ -28,7 +33,10 @@ use crate::fhir::{
 
 use super::{
     meta::Meta,
-    primitives::{decode_identifier, decode_reference, encode_identifier, encode_reference},
+    primitives::{
+        decode_identifier, decode_reference, encode_identifier, encode_reference,
+        ContainedReference,
+    },
     DecodeBundleResource, EncodeBundleResource,
 };
 
@@ -45,6 +53,7 @@ impl Decode for MedicationDispense {
         let mut fields = Fields::new(&[
             "id",
             "meta",
+            "contained",
             "identifier",
             "status",
             "medicationReference",
@@ -60,9 +69,14 @@ impl Decode for MedicationDispense {
 
         let id = stream.decode_opt(&mut fields, decode_any).await?;
         let meta = stream.decode::<Meta, _>(&mut fields, decode_any).await?;
+        let medications = stream
+            .resource_vec::<Vec<Medication>, _>(&mut fields, decode_any)
+            .await?;
         let prescription_id = stream.decode(&mut fields, decode_identifier).await?;
         let _status = stream.fixed(&mut fields, "completed").await?;
-        let medication = stream.decode(&mut fields, decode_reference).await?;
+        let medication_id = stream
+            .decode::<ContainedReference<Id>, _>(&mut fields, decode_reference)
+            .await?;
         let subject = {
             stream.begin_substream(&mut fields).await?;
             stream.element().await?;
@@ -108,6 +122,17 @@ impl Decode for MedicationDispense {
                 expected: vec![PROFILE.into()],
             });
         }
+
+        let medication = medications
+            .into_iter()
+            .find(|m| m.id == *medication_id)
+            .ok_or_else(|| DecodeError::Custom {
+                message: format!(
+                    "Unable to find referenced resource `medicationReference` with id `{}`",
+                    *medication_id
+                ),
+                path: stream.path().into(),
+            })?;
 
         Ok(MedicationDispense {
             id,
@@ -155,13 +180,16 @@ impl Encode for &MedicationDispense {
             ..Default::default()
         };
 
+        let medication_id = ContainedReference(Cow::Borrowed(&self.medication.id));
+
         stream
             .root("MedicationDispense")?
             .encode_opt("id", &self.id, encode_any)?
             .encode("meta", meta, encode_any)?
+            .resource_vec("contained", once(&self.medication), encode_any)?
             .encode_vec("identifier", once(&self.prescription_id), encode_identifier)?
             .encode("status", "completed", encode_any)?
-            .encode("medicationReference", &self.medication, encode_reference)?
+            .encode("medicationReference", &medication_id, encode_reference)?
             .field_name("subject")?
             .element()?
             .encode("identifier", &self.subject, encode_identifier)?
@@ -220,7 +248,10 @@ pub mod tests {
         encode::{JsonEncode, XmlEncode},
     };
 
-    use super::super::super::tests::{trim_json_str, trim_xml_str};
+    use super::super::{
+        super::tests::{trim_json_str, trim_xml_str},
+        medication::tests::test_medication_pzn,
+    };
 
     #[tokio::test]
     async fn test_decode_json() {
@@ -268,7 +299,7 @@ pub mod tests {
         MedicationDispense {
             id: None,
             prescription_id: "160.123.456.789.123.58".parse().unwrap(),
-            medication: "Medication/1234".into(),
+            medication: test_medication_pzn(),
             subject: Kvnr::new("X234567890").unwrap(),
             supporting_information: Vec::new(),
             performer: TelematikId::new("606358757"),

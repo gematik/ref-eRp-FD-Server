@@ -22,7 +22,7 @@ mod get;
 mod state;
 
 pub use error::Error;
-pub use state::CommunicationRefMut;
+pub use state::{CommunicationRefMut, Communications};
 
 use create::create;
 use delete::delete_one;

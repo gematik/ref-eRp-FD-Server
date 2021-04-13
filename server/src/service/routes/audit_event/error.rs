@@ -22,4 +22,7 @@ use thiserror::Error;
 pub enum Error {
     #[error("Not Found: /AuditEvent/{0}")]
     NotFound(Id),
+
+    #[error("Forbidden: /AuditEvent/{0}!")]
+    Forbidden(Id),
 }

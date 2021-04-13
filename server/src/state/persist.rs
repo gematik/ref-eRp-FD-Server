@@ -26,9 +26,9 @@ use resources::{
 use serde::{Deserialize, Serialize};
 use serde_json::{from_reader, to_writer};
 
-use crate::{error::Error, fhir::security::Signed};
+use crate::{error::Error, fhir::security::Signed, service::TaskMeta};
 
-use super::{History, Inner, TaskMeta, Version};
+use super::{History, Inner, Version};
 
 impl Inner {
     pub fn load<R>(&mut self, reader: R) -> Result<(), Error>
@@ -46,16 +46,8 @@ impl Inner {
                 accept_timestamp: task.accept_timestamp,
                 communication_count: 0,
             };
-            let id = task_meta
-                .history
-                .get_current()
-                .resource
-                .id
-                .as_ref()
-                .unwrap()
-                .clone();
 
-            self.tasks.insert(id, task_meta);
+            self.tasks.insert_task_meta(task_meta);
         }
 
         for (id, kbv_binary) in data.e_prescriptions {
@@ -64,31 +56,23 @@ impl Inner {
 
         for patient_receipt in data.patient_receipts {
             self.patient_receipts
-                .insert(patient_receipt.id.clone(), Signed::new(patient_receipt));
+                .insert_signed(Signed::new(patient_receipt));
         }
 
         for erx_receipt in data.erx_receipts {
-            self.erx_receipts
-                .insert(erx_receipt.id.clone(), Signed::new(erx_receipt));
+            self.erx_receipts.insert_signed(Signed::new(erx_receipt));
         }
 
         for communication in data.communications {
-            self.communications
-                .insert(communication.id().as_ref().unwrap().clone(), communication);
+            self.communications.insert(communication);
         }
 
         for medication_dispense in data.medication_dispenses {
-            self.medication_dispenses.insert(
-                medication_dispense.id.as_ref().unwrap().clone(),
-                medication_dispense,
-            );
+            self.medication_dispenses.insert(medication_dispense);
         }
 
         for audit_event in data.audit_events {
-            self.audit_events
-                .entry(audit_event.entity.name.clone())
-                .or_default()
-                .push(audit_event);
+            self.audit_events.insert(audit_event)
         }
 
         Ok(())
@@ -98,8 +82,8 @@ impl Inner {
     where
         W: Write,
     {
-        let data = Data {
-            tasks: self.tasks.values().map(From::from).collect(),
+        let mut data = Data {
+            tasks: self.tasks.iter().map(From::from).collect(),
             e_prescriptions: self
                 .e_prescriptions
                 .iter()
@@ -107,20 +91,43 @@ impl Inner {
                 .collect(),
             patient_receipts: self
                 .patient_receipts
-                .values()
+                .iter()
                 .map(Deref::deref)
                 .cloned()
                 .collect(),
             erx_receipts: self
                 .erx_receipts
-                .values()
+                .iter()
                 .map(Deref::deref)
                 .cloned()
                 .collect(),
-            communications: self.communications.values().cloned().collect(),
-            medication_dispenses: self.medication_dispenses.values().cloned().collect(),
-            audit_events: self.audit_events.values().flatten().cloned().collect(),
+            communications: self.communications.iter().cloned().collect(),
+            medication_dispenses: self.medication_dispenses.iter().cloned().collect(),
+            audit_events: self.audit_events.iter().cloned().collect(),
         };
+
+        data.tasks.sort_by(|a, b| {
+            let a = a.history.first().unwrap().resource.id.as_ref().unwrap();
+            let b = b.history.first().unwrap().resource.id.as_ref().unwrap();
+
+            a.cmp(&b)
+        });
+        data.e_prescriptions.sort_by(|(a, _), (b, _)| a.cmp(&b));
+        data.patient_receipts.sort_by(|a, b| a.id.cmp(&b.id));
+        data.erx_receipts.sort_by(|a, b| a.id.cmp(&b.id));
+        data.communications.sort_by(|a, b| {
+            let a = a.id().as_ref().unwrap();
+            let b = b.id().as_ref().unwrap();
+
+            a.cmp(&b)
+        });
+        data.medication_dispenses.sort_by(|a, b| {
+            let a = a.id.as_ref().unwrap();
+            let b = b.id.as_ref().unwrap();
+
+            a.cmp(&b)
+        });
+        data.audit_events.sort_by(|a, b| a.id.cmp(&b.id));
 
         to_writer(writer, &data)?;
 
