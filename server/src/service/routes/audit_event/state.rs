@@ -38,12 +38,14 @@ use super::Error;
 pub struct AuditEvents {
     by_id: HashMap<Id, AuditEvent>,
     by_kvnr: HashMap<Kvnr, HashSet<Id>>,
+    by_task: HashMap<Id, HashSet<Id>>,
 }
 
 impl AuditEvents {
     pub fn insert(&mut self, audit_event: AuditEvent) {
         let id = audit_event.id.clone();
         let kvnr = audit_event.entity.name.clone();
+        let task_id = audit_event.entity.what.clone();
 
         match self.by_id.entry(id.clone()) {
             Entry::Occupied(_) => {
@@ -54,7 +56,8 @@ impl AuditEvents {
             }
         }
 
-        self.by_kvnr.entry(kvnr).or_default().insert(id);
+        self.by_kvnr.entry(kvnr).or_default().insert(id.clone());
+        self.by_task.entry(task_id).or_default().insert(id);
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &AuditEvent> {
@@ -107,6 +110,24 @@ impl Inner {
         })
     }
 
+    pub fn audit_event_iter_by_task(
+        &self,
+        task_id: &Id,
+    ) -> Option<impl Iterator<Item = &AuditEvent>> {
+        let AuditEvents {
+            ref by_id,
+            ref by_task,
+            ..
+        } = &self.audit_events;
+
+        Some(
+            by_task
+                .get(task_id)?
+                .iter()
+                .map(move |id| by_id.get(id).unwrap()),
+        )
+    }
+
     pub fn audit_event_delete_by_id(&mut self, id: &Id) {
         let Self {
             ref mut audit_events,
@@ -115,8 +136,13 @@ impl Inner {
 
         let audit_event = audit_events.by_id.get(id).unwrap();
         let kvnr = &audit_event.entity.name;
+        let task_id = &audit_event.entity.what;
 
         if let Some(ids) = audit_events.by_kvnr.get_mut(&kvnr) {
+            ids.remove(id);
+        }
+
+        if let Some(ids) = audit_events.by_task.get_mut(&task_id) {
             ids.remove(id);
         }
 
@@ -148,12 +174,13 @@ impl Inner {
     }
 }
 
+#[derive(Debug)]
 pub struct Builder {
     error_outcome: Option<Outcome>,
     sub_type: Option<SubType>,
     action: Option<Action>,
     agent: Option<Agent>,
-    what: Option<String>,
+    what: Option<Id>,
     patient: Option<Kvnr>,
     description: Option<PrescriptionId>,
     text: Option<String>,
@@ -210,20 +237,14 @@ impl Builder {
             },
             entity: Entity {
                 what,
-                name: patient.clone(),
+                name: patient,
                 description,
             },
         };
 
         timeouts.insert(&event);
 
-        let id = event.id.clone();
-        audit_events
-            .by_kvnr
-            .entry(patient)
-            .or_default()
-            .insert(id.clone());
-        audit_events.by_id.insert(id, event);
+        audit_events.insert(event);
 
         Some(())
     }
@@ -254,7 +275,7 @@ impl Builder {
 
     pub fn what<T>(&mut self, value: T) -> &mut Self
     where
-        T: Into<String>,
+        T: Into<Id>,
     {
         self.what = Some(value.into());
 

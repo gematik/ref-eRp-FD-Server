@@ -24,7 +24,6 @@ use openssl::{
     asn1::{Asn1Time, Asn1TimeRef},
     hash::MessageDigest,
     ocsp::{OcspCertId, OcspFlag, OcspRequest, OcspResponse, OcspResponseStatus},
-    stack::Stack,
     x509::X509Ref,
 };
 use reqwest::{
@@ -32,7 +31,7 @@ use reqwest::{
     RequestBuilder, Url,
 };
 
-use super::{Error, Tsl};
+use super::{Error, TimeCheck, Tsl};
 
 pub struct Client {
     http_proxy: HttpClient,
@@ -101,7 +100,7 @@ impl Client {
         tsl: &Tsl,
         cert: &X509Ref,
     ) -> Result<OcspResponse, Error> {
-        let issuer = tsl.verify_cert(cert, false)?;
+        let issuer = tsl.verify_cert(cert, TimeCheck::None)?;
 
         for supply_point in &issuer.supply_points {
             match self
@@ -160,9 +159,11 @@ impl Client {
             return Err(Error::InvalidOcspStatus(status));
         }
 
-        let certs = Stack::new()?;
-        res.basic()?
-            .verify(&certs, &tsl.store, OcspFlag::TRUST_OTHER)?;
+        res.basic()?.verify(
+            &tsl.stack,
+            &tsl.store,
+            OcspFlag::NO_INTERN | OcspFlag::NO_CHAIN | OcspFlag::TRUST_OTHER,
+        )?;
 
         Ok(res)
     }
@@ -192,14 +193,15 @@ pub fn asn1_to_chrono(time: &Asn1TimeRef) -> DateTime<Utc> {
         - Duration::nanoseconds(now.timestamp_subsec_nanos() as _)
 }
 
-pub fn check_cert_time(cert: &X509Ref) -> Result<(), Error> {
+pub fn check_cert_time(cert: &X509Ref, time: Option<&DateTime<Utc>>) -> Result<(), Error> {
     let now = Utc::now();
+    let time = time.unwrap_or(&now);
     let not_after = asn1_to_chrono(cert.not_after());
     let not_before = asn1_to_chrono(cert.not_before());
 
-    if now < not_before {
+    if *time < not_before {
         return Err(Error::CertNotValidYet);
-    } else if now > not_after {
+    } else if *time > not_after {
         return Err(Error::CertNotValidAnymore);
     }
 

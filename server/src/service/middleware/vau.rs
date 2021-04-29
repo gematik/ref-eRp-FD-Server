@@ -42,7 +42,7 @@ use crate::{
     pki_store::PkiStore,
     service::{
         misc::{AccessToken, AccessTokenError},
-        RequestError, TypedRequestResult,
+        RequestError,
     },
 };
 
@@ -189,13 +189,17 @@ where
 
         let (decoded, inner_service_req, outer_http_req) = decode(outer_http_req, &outer_payload)?;
 
-        extract_access_token(&inner_service_req, Some(&decoded.access_token))
-            .map_err(|_| RequestError::InvalidAccessToken)
-            .err_with_type_from(&inner_service_req)?;
+        let inner_http_res = if let Err(err) =
+            extract_access_token(&inner_service_req, Some(&decoded.access_token))
+        {
+            let err: ActixError = err.with_type_from(&inner_service_req).into();
 
-        let inner_http_res = match this.service.call(inner_service_req).await {
-            Ok(res) => res.into(),
-            Err(err) => err.as_response_error().error_response(),
+            err.as_response_error().error_response()
+        } else {
+            match this.service.call(inner_service_req).await {
+                Ok(res) => res.into(),
+                Err(err) => err.as_response_error().error_response(),
+            }
         };
 
         let inner_res = encode(decoded.request_id, inner_http_res).await?;
@@ -379,4 +383,4 @@ lazy_static! {
         HeaderName::from_lowercase(b"authorization").unwrap();
 }
 
-const URI_WHITELIST: &[&str] = &["/CertList", "/OCSPList", "/Random"];
+const URI_WHITELIST: &[&str] = &["/CertList", "/OCSPList", "/Random", "/Health"];

@@ -17,6 +17,8 @@
 
 use async_trait::async_trait;
 
+use resources::primitives::Id;
+
 use crate::fhir::{
     decode::{decode_any, DataStream, DecodeError, DecodeStream, Fields},
     encode::{encode_any, DataStorage, EncodeError, EncodeStream},
@@ -44,8 +46,9 @@ where
 }
 
 pub trait BinaryEx: Sized {
-    fn from_parts(data: String) -> Result<Self, String>;
+    fn from_parts(id: Option<Id>, data: String) -> Result<Self, String>;
 
+    fn id(&self) -> Option<&Id>;
     fn data(&self) -> String;
 
     fn content_type() -> Option<&'static str>;
@@ -68,16 +71,17 @@ impl<T: BinaryEx + Send> Binary for T {
     where
         S: DataStream,
     {
-        let mut fields = Fields::new(&["contentType", "data"]);
+        let mut fields = Fields::new(&["id", "contentType", "data"]);
 
         stream.root("Binary").await?;
 
+        let id = stream.decode_opt(&mut fields, decode_any).await?;
         let _content_type = stream.fixed_opt(&mut fields, Self::content_type()).await?;
         let data = stream.decode(&mut fields, decode_any).await?;
 
         stream.end().await?;
 
-        let value = Self::from_parts(data).map_err(|value| DecodeError::InvalidValue {
+        let value = Self::from_parts(id, data).map_err(|value| DecodeError::InvalidValue {
             value,
             path: stream.path().into(),
         })?;
@@ -91,6 +95,7 @@ impl<T: BinaryEx + Send> Binary for T {
     {
         stream
             .root("Binary")?
+            .encode_opt("id", self.id(), encode_any)?
             .encode_opt("contentType", Self::content_type(), encode_any)?
             .encode("data", self.data(), encode_any)?
             .end()?;

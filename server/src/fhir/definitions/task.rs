@@ -62,7 +62,7 @@ impl Decode for Task {
 
         stream.root("Task").await?;
 
-        let id = stream.decode_opt(&mut fields, decode_any).await?;
+        let id = stream.decode(&mut fields, decode_any).await?;
         let meta = stream.decode::<Meta, _>(&mut fields, decode_any).await?;
         let extension = stream.decode(&mut fields, decode_any).await?;
         let identifier = stream.decode(&mut fields, decode_any).await?;
@@ -383,7 +383,7 @@ impl<T: AsTask> Encode for TaskContainer<'_, T> {
 
         stream
             .root("Task")?
-            .encode_opt("id", &task.id, encode_any)?
+            .encode("id", &task.id, encode_any)?
             .encode("meta", meta, encode_any)?
             .encode("extension", &task.extension, encode_any)?
             .encode("identifier", identifier, encode_any)?
@@ -696,7 +696,7 @@ pub mod tests {
 
     fn test_task() -> Task {
         Task {
-            id: None,
+            id: "1234567890".try_into().unwrap(),
             extension: Extension {
                 accept_date: Some("2020-03-02".try_into().unwrap()),
                 expiry_date: Some("2020-05-02".try_into().unwrap()),

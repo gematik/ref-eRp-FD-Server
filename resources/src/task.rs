@@ -25,7 +25,7 @@ use super::{
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Task {
-    pub id: Option<Id>,
+    pub id: Id,
     pub extension: Extension,
     pub identifier: Identifier,
     pub status: Status,

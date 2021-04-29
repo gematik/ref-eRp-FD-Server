@@ -172,7 +172,7 @@
   },
   {
     "name": "async-trait",
-    "version": "0.1.48",
+    "version": "0.1.50",
     "authors": "David Tolnay <dtolnay@gmail.com>",
     "repository": "https://github.com/dtolnay/async-trait",
     "license": "Apache-2.0 OR MIT",
@@ -232,6 +232,15 @@
     "license": "Apache-2.0 OR MIT",
     "license_file": null,
     "description": "encodes and decodes base64 as bytes or utf8"
+  },
+  {
+    "name": "bdays",
+    "version": "0.1.2",
+    "authors": "Felipe Noronha <felipenoris@gmail.com>",
+    "repository": "https://github.com/felipenoris/bdays",
+    "license": "MIT",
+    "license_file": null,
+    "description": "Business Days calendars for Rustaceans."
   },
   {
     "name": "bitflags",
@@ -370,7 +379,7 @@
   },
   {
     "name": "const_fn",
-    "version": "0.4.6",
+    "version": "0.4.7",
     "authors": "Taiki Endo <te316e89@gmail.com>",
     "repository": "https://github.com/taiki-e/const_fn",
     "license": "Apache-2.0 OR MIT",
@@ -775,7 +784,7 @@
   },
   {
     "name": "httparse",
-    "version": "1.3.6",
+    "version": "1.4.0",
     "authors": "Sean McArthur <sean@seanmonstar.com>",
     "repository": "https://github.com/seanmonstar/httparse",
     "license": "Apache-2.0 OR MIT",
@@ -820,7 +829,7 @@
   },
   {
     "name": "idna",
-    "version": "0.2.2",
+    "version": "0.2.3",
     "authors": "The rust-url developers",
     "repository": "https://github.com/servo/rust-url/",
     "license": "Apache-2.0 OR MIT",
@@ -928,7 +937,7 @@
   },
   {
     "name": "libc",
-    "version": "0.2.93",
+    "version": "0.2.94",
     "authors": "The Rust Project Developers",
     "repository": "https://github.com/rust-lang/libc",
     "license": "Apache-2.0 OR MIT",
@@ -1243,7 +1252,7 @@
   },
   {
     "name": "pin-project",
-    "version": "1.0.6",
+    "version": "1.0.7",
     "authors": "Taiki Endo <te316e89@gmail.com>",
     "repository": "https://github.com/taiki-e/pin-project",
     "license": "Apache-2.0 OR MIT",
@@ -1261,7 +1270,7 @@
   },
   {
     "name": "pin-project-internal",
-    "version": "1.0.6",
+    "version": "1.0.7",
     "authors": "Taiki Endo <te316e89@gmail.com>",
     "repository": "https://github.com/taiki-e/pin-project",
     "license": "Apache-2.0 OR MIT",
@@ -1441,7 +1450,7 @@
   },
   {
     "name": "redox_syscall",
-    "version": "0.2.5",
+    "version": "0.2.7",
     "authors": "Jeremy Soller <jackpot51@gmail.com>",
     "repository": "https://gitlab.redox-os.org/redox-os/syscall",
     "license": "MIT",
@@ -1459,7 +1468,7 @@
   },
   {
     "name": "regex",
-    "version": "1.4.5",
+    "version": "1.4.6",
     "authors": "The Rust Project Developers",
     "repository": "https://github.com/rust-lang/regex",
     "license": "Apache-2.0 OR MIT",
@@ -1675,9 +1684,9 @@
   },
   {
     "name": "slab",
-    "version": "0.4.2",
+    "version": "0.4.3",
     "authors": "Carl Lerche <me@carllerche.com>",
-    "repository": "https://github.com/carllerche/slab",
+    "repository": "https://github.com/tokio-rs/slab",
     "license": "MIT",
     "license_file": null,
     "description": "Pre-allocated storage for a uniform data type"
@@ -1792,7 +1801,7 @@
   },
   {
     "name": "syn",
-    "version": "1.0.69",
+    "version": "1.0.71",
     "authors": "David Tolnay <dtolnay@gmail.com>",
     "repository": "https://github.com/dtolnay/syn",
     "license": "Apache-2.0 OR MIT",
@@ -2134,7 +2143,7 @@
   },
   {
     "name": "vcpkg",
-    "version": "0.2.11",
+    "version": "0.2.12",
     "authors": "Jim McGrath <jimmc2@gmail.com>",
     "repository": "https://github.com/mcgoo/vcpkg-rs",
     "license": "Apache-2.0 OR MIT",

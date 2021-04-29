@@ -76,6 +76,11 @@ pub mod tests {
         assert_some_ok!(Item::BeginElement {
             name: "Task".into()
         });
+        assert_some_ok!(Item::Field {
+            name: "id".into(),
+            value: "1234567890".into(),
+            extension: Vec::new(),
+        });
         assert_some_ok!(Item::BeginElement {
             name: "meta".into()
         });

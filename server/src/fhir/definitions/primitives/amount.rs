@@ -55,13 +55,20 @@ pub trait AmountEx {
         &None
     }
 
-    fn system() -> Option<&'static str> {
-        None
+    fn system() -> AmountSystem {
+        AmountSystem::None
     }
 
     fn denominator(&self) -> usize {
         1
     }
+}
+
+#[allow(dead_code)]
+pub enum AmountSystem {
+    None,
+    Fixed(&'static str),
+    OptionalFixed(&'static str),
 }
 
 #[async_trait(?Send)]
@@ -92,9 +99,26 @@ impl<T: AmountEx> Amount for T {
 
         let numerator = stream.decode(&mut fields_numerator, decode_any).await?;
         let unit = stream.decode(&mut fields_numerator, decode_any).await?;
-        let _system = stream
-            .ifixed_opt(&mut fields_numerator, Self::system())
-            .await?;
+        match Self::system() {
+            AmountSystem::None => {
+                fields_numerator.next();
+            }
+            AmountSystem::Fixed(s) => stream.ifixed(&mut fields_numerator, s).await?,
+            AmountSystem::OptionalFixed(expected) => {
+                let actual = stream
+                    .decode_opt::<Option<String>, _>(&mut fields_numerator, decode_any)
+                    .await?;
+                if let Some(actual) = actual {
+                    if actual != expected {
+                        return Err(DecodeError::InvalidFixedValue {
+                            actual: Some(actual).into(),
+                            expected: Some(expected.to_owned()).into(),
+                            path: stream.path().into(),
+                        });
+                    }
+                }
+            }
+        }
         let code = stream.decode_opt(&mut fields_numerator, decode_any).await?;
 
         stream.end().await?;
@@ -124,8 +148,19 @@ impl<T: AmountEx> Amount for T {
             .field_name("numerator")?
             .element()?
             .encode("value", self.numerator(), encode_any)?
-            .encode("unit", self.unit(), encode_any)?
-            .encode_opt("system", Self::system(), encode_any)?
+            .encode("unit", self.unit(), encode_any)?;
+
+        match Self::system() {
+            AmountSystem::None => (),
+            AmountSystem::Fixed(s) => {
+                stream.encode("system", s, encode_any)?;
+            }
+            AmountSystem::OptionalFixed(s) => {
+                stream.encode("system", s, encode_any)?;
+            }
+        }
+
+        stream
             .encode_opt("code", self.code(), encode_any)?
             .end()?
             .field_name("denominator")?

@@ -111,18 +111,22 @@ where
     ) -> Result<(), Error> {
         let data = &self.0 as *const T;
 
+        #[cfg(openssl300)]
+        lazy_static! {
+            static ref FLAGS: CMSOptions = CMSOptions::BINARY | CMSOptions::CADES;
+        }
+
+        #[cfg(not(openssl300))]
+        lazy_static! {
+            static ref FLAGS: CMSOptions = CMSOptions::BINARY;
+        }
+
         // Without the unsafe block, data would be borrowed for 'e until the end of the function.
         // If it's still borrowed, we could not update the signatures. So we use an unsafe block
         // here to avoid the borrowing. No worries, the code is still safe, because the 'xml'
         // method returns no references.
         let xml = unsafe { (&*data).xml()? };
-        let cms = CmsContentInfo::sign(
-            Some(sig_cert),
-            Some(sig_key),
-            None,
-            Some(&xml),
-            CMSOptions::BINARY,
-        )?;
+        let cms = CmsContentInfo::sign(Some(sig_cert), Some(sig_key), None, Some(&xml), *FLAGS)?;
 
         let data = cms.to_der()?;
         let data = encode(&data);

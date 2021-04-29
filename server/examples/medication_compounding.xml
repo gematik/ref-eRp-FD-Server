@@ -13,7 +13,7 @@
     <extension url="https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Medication_Vaccine">
         <valueBoolean value="false"/>
     </extension>
-    <extension url="https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Medication_compoundingInstruction">
+    <extension url="https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Medication_CompoundingInstruction">
         <valueString value="Dummy-Herstellungsanweisung einer Rezeptur"/>
     </extension>
     <extension url="https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Medication_Packaging">

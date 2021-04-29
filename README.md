@@ -119,6 +119,9 @@ The ref-erx-fd-server has dependencies to external libraries listed below.
     send to the service. Please make sure you also have installed the development dependencies
     of OpenSSL. You will need at least openssl v1.1.1.
 
+WARN: In openssl v1.1.1 CAdES signatures are not fully implemented. To get a valid CAdES signature
+from the service you need to use openssl v3.0.0!
+
 -   [libxml2](http://www.xmlsoft.org/) - libxml2 is used to parse and verify the XML representation of
     the TSL and the BNetzA-VL.
 

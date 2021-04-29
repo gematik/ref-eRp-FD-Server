@@ -20,7 +20,7 @@ use std::fs::read_to_string;
 use std::time::Duration;
 
 use log::{error, info, warn};
-use openssl::x509::store::X509StoreBuilder;
+use openssl::{stack::Stack, x509::store::X509StoreBuilder};
 use regex::{Regex, RegexBuilder};
 use tokio::time::delay_for;
 use url::Url;
@@ -88,9 +88,14 @@ where
                 &url
             );
 
+            let mut stack = ok!(Stack::new(), "Unable to create cert stack: {}");
             let mut store = ok!(X509StoreBuilder::new(), "Unable to create cert store: {}");
             for items in items.values() {
                 for item in items {
+                    ok!(
+                        stack.push(item.cert.clone()),
+                        "Unable to add cert to stack: {}"
+                    );
                     ok!(
                         store.add_cert(item.cert.clone()),
                         "Unable to add cert to store: {}"
@@ -104,6 +109,7 @@ where
                 sha2,
                 items,
                 store,
+                stack,
             };
         };
 

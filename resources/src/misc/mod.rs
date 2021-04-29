@@ -24,7 +24,7 @@ mod participant_id;
 mod prescription_id;
 mod telematik_id;
 
-pub use address::Address;
+pub use address::{Address, Line, LineExtension, Type as AddressType};
 pub use code::Code;
 pub use insurance_id::InsuranceId;
 pub use kvnr::Kvnr;

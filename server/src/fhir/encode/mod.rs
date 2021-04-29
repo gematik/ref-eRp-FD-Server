@@ -39,6 +39,11 @@ pub mod tests {
             Item::Root {
                 name: "Task".into(),
             },
+            Item::Field { name: "id".into() },
+            Item::Value {
+                value: "1234567890".into(),
+                extension: vec![],
+            },
             Item::Field {
                 name: "meta".into(),
             },

@@ -15,6 +15,7 @@
  *
  */
 
+use std::borrow::ToOwned;
 use std::str::FromStr;
 
 use actix_web::{
@@ -47,6 +48,7 @@ use super::{misc::Resource, Error};
 #[derive(Default)]
 pub struct GetOneQueryArgs {
     secret: Option<String>,
+    rev_include: Vec<IncludeArgs>,
 }
 
 #[derive(Default)]
@@ -57,6 +59,13 @@ pub struct GetAllQueryArgs {
     sort: Option<Sort<SortArgs>>,
     count: Option<usize>,
     page_id: Option<usize>,
+}
+
+#[derive(Default, Debug)]
+pub struct IncludeArgs {
+    source: String,
+    path: String,
+    target: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -70,6 +79,23 @@ impl FromQuery for GetOneQueryArgs {
     fn parse_key_value_pair(&mut self, key: &str, value: QueryValue) -> Result<(), String> {
         match key {
             "secret" => self.secret = Some(value.ok()?.to_owned()),
+            "_revinclude" => {
+                let mut it = value.ok()?.split(':');
+
+                let source = it.next().ok_or("Invalid _revinclude")?.to_owned();
+                let path = it.next().ok_or("Invalid _revinclude")?.to_owned();
+                let target = it.next().map(ToOwned::to_owned);
+
+                if it.next().is_some() {
+                    return Err("Invalid _revinclude".into());
+                }
+
+                self.rev_include.push(IncludeArgs {
+                    source,
+                    path,
+                    target,
+                });
+            }
             _ => (),
         }
 
@@ -220,7 +246,7 @@ async fn get(
     match reference {
         TaskReference::One(id, query) => {
             let (state, task) = state
-                .task_get(id, None, kvnr, access_code, query.secret, agent)
+                .task_get(id.clone(), None, kvnr, access_code, query.secret, agent)
                 .into_req_err()
                 .err_with_type(accept)?;
 
@@ -228,6 +254,26 @@ async fn get(
             add_task_to_bundle(&mut bundle, &task, &access_token, Some(&state))
                 .into_req_err()
                 .err_with_type(accept)?;
+
+            for inc in &query.rev_include {
+                let inc_audit_event = matches!(
+                    inc,
+                    IncludeArgs {
+                        ref source,
+                        ref path,
+                        ref target,
+                    } if source == "AuditEvent"
+                        && path == "entity.what"
+                        && (target.is_none() || target.as_deref() == Some("AuditEvent")));
+
+                if inc_audit_event {
+                    if let Some(events) = state.audit_event_iter_by_task(&id) {
+                        for event in events {
+                            bundle.entries.push(Entry::new(Resource::AuditEvent(event)));
+                        }
+                    }
+                }
+            }
 
             create_response(&bundle, accept)
         }

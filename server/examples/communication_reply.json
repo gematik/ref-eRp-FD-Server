@@ -30,7 +30,7 @@
         {
             "extension":[
                 {
-                    "url":"https://gematik.de/fhir/StructureDefinition/AvailabilityStatus",
+                    "url":"https://gematik.de/fhir/StructureDefinition/AvailabilityStateExtension",
                     "valueCoding":{
                         "system":"https://gematik.de/fhir/CodeSystem/AvailabilityStatus",
                         "code":"10"

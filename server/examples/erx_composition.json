@@ -1,5 +1,6 @@
 {
     "resourceType":"Composition",
+    "id":"0123456789",
     "meta":{
         "profile":[
             "https://gematik.de/fhir/StructureDefinition/ErxComposition"

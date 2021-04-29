@@ -17,10 +17,14 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{misc::TelematikId, primitives::DateTime};
+use super::{
+    misc::TelematikId,
+    primitives::{DateTime, Id},
+};
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct ErxComposition {
+    pub id: Id,
     pub beneficiary: TelematikId,
     pub date: DateTime,
     pub author: String,

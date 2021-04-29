@@ -27,7 +27,7 @@ mod identifier;
 mod instant;
 mod reference;
 
-pub use amount::{decode_amount, encode_amount, Amount, AmountEx};
+pub use amount::{decode_amount, encode_amount, Amount, AmountEx, AmountSystem};
 pub use binary::{decode_binary, encode_binary, Binary, BinaryEx};
 pub use code::{decode_code, encode_code, Code, CodeEx};
 pub use codeable_concept::{

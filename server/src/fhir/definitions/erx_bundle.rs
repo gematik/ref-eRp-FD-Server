@@ -89,7 +89,7 @@ impl Decode for ErxBundle {
                 }
             }
         };
-        let signature = stream.decode_vec(&mut fields, decode_any).await?;
+        let signature = vec![stream.decode(&mut fields, decode_any).await?];
 
         stream.end().await?;
 
@@ -145,14 +145,15 @@ impl Encode for &ErxBundle {
             ..Default::default()
         };
 
-        let signature =
-            self.signature
-                .iter()
-                .find(|s| match (s.format.as_ref(), stream.format()) {
-                    (Some(SignatureFormat::Xml), Some(Format::Xml)) => true,
-                    (Some(SignatureFormat::Json), Some(Format::Json)) => true,
-                    (_, _) => false,
-                });
+        let signature = self
+            .signature
+            .iter()
+            .find(|s| match (s.format.as_ref(), stream.format()) {
+                (Some(SignatureFormat::Xml), Some(Format::Xml)) => true,
+                (Some(SignatureFormat::Json), Some(Format::Json)) => true,
+                (_, _) => false,
+            })
+            .ok_or_else(|| EncodeError::Other("ErxBundle is missing a signature!".into()))?;
 
         stream
             .root("Bundle")?
@@ -166,7 +167,7 @@ impl Encode for &ErxBundle {
             .inline_opt(self.entry.composition.as_ref().map(EntryPair), encode_any)?
             .inline_opt(self.entry.device.as_ref().map(EntryPair), encode_any)?
             .end()?
-            .encode_opt("signature", signature, encode_any)?
+            .encode("signature", signature, encode_any)?
             .end()?;
 
         Ok(())
@@ -223,8 +224,7 @@ pub mod tests {
         let mut stream = load_stream("./examples/erx_bundle.json");
 
         let actual = stream.json::<ErxBundle>().await.unwrap();
-        let mut expected = test_erx_bundle();
-        expected.signature.clear();
+        let expected = test_erx_bundle_json();
 
         assert_eq!(actual, expected);
     }
@@ -234,14 +234,14 @@ pub mod tests {
         let mut stream = load_stream("./examples/erx_bundle.xml");
 
         let actual = stream.xml::<ErxBundle>().await.unwrap();
-        let expected = test_erx_bundle();
+        let expected = test_erx_bundle_xml();
 
         assert_eq!(actual, expected);
     }
 
     #[tokio::test]
     async fn test_encode_json() {
-        let value = test_erx_bundle();
+        let value = test_erx_bundle_json();
 
         let actual = (&value).json().unwrap();
         let actual = from_utf8(&actual).unwrap();
@@ -252,7 +252,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn test_encode_xml() {
-        let value = test_erx_bundle();
+        let value = test_erx_bundle_xml();
 
         let actual = (&value).xml().unwrap();
         let actual = from_utf8(&actual).unwrap();
@@ -261,7 +261,31 @@ pub mod tests {
         assert_eq!(trim_xml_str(&actual), trim_xml_str(&expected));
     }
 
-    pub fn test_erx_bundle() -> ErxBundle {
+    pub fn test_erx_bundle_json() -> ErxBundle {
+        ErxBundle {
+            id: "281a985c-f25b-4aae-91a6-41ad744080b0".try_into().unwrap(),
+            identifier: PrescriptionId::new(
+                FlowType::ApothekenpflichtigeArzneimittel,
+                123456789123,
+            ),
+            timestamp: DateTime::parse_from_rfc3339("2020-03-20T07:31:34.328+00:00")
+                .unwrap()
+                .into(),
+            entry: Entry {
+                composition: Some(test_erx_composition()),
+                device: Some(test_device()),
+            },
+            signature: vec![Signature {
+                type_: SignatureType::AuthorsSignature,
+                when: "2020-03-20T07:31:34.328+00:00".try_into().unwrap(),
+                who: "https://prescriptionserver.telematik/Device/ErxService".into(),
+                data: "FakeData".into(),
+                format: Some(SignatureFormat::Json),
+            }],
+        }
+    }
+
+    pub fn test_erx_bundle_xml() -> ErxBundle {
         ErxBundle {
             id: "281a985c-f25b-4aae-91a6-41ad744080b0".try_into().unwrap(),
             identifier: PrescriptionId::new(FlowType::ApothekenpflichtigeArzneimittel, 123456789123),
@@ -279,7 +303,7 @@ pub mod tests {
                     who: "https://prescriptionserver.telematik/Device/ErxService".into(),
                     data: "QXVmZ3J1bmQgZGVyIENvcm9uYS1TaXR1YXRpb24ga29ubnRlIGhpZXIga3VyemZyaXN0aWcga2VpbiBCZWlzcGllbCBpbiBkZXIgTGFib3J1bWdlYnVuZyBkZXIgZ2VtYXRpayBlcnN0ZWxsdCB3ZWRlbi4gRGllc2VzIHdpcmQgbmFjaGdlcmVpY2h0LgoKSW5oYWx0bGljaCB1bmQgc3RydWt0dXJlbGwgaXN0IGRpZSBTZXJ2ZXJzaWduYXR1ciBkZXIgUXVpdHR1bmcgZWluZSBFbnZlbG9waW5nIENBZEVTLVNpZ25hdHVyLCBkaWUgZGVuIHNpZ25pZXJ0ZW4gRGF0ZW5zYXR6IGFuYWxvZyB6dXIgS29ubmVrdG9yLVNpZ25hdHVyIGlubmVyaGFsYiBkZXMgQVNOMS5Db250YWluZXJzIHRyYW5zcG9ydGllcnQu".into(),
                     format: Some(SignatureFormat::Xml),
-                }
+                },
             ],
         }
     }

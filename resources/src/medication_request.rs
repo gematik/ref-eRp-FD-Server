@@ -64,7 +64,7 @@ pub struct TimeRange {
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct AccidentInformation {
     pub cause: AccidentCause,
-    pub date: Date,
+    pub date: Option<Date>,
     pub business: Option<String>,
 }
 
@@ -94,4 +94,5 @@ pub enum AccidentCause {
     Accident,
     WorkAccident,
     SupplyProblem,
+    OccupationalDisease,
 }

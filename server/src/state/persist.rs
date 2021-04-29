@@ -44,7 +44,7 @@ impl Inner {
                     .into_iter()
                     .collect::<Result<History<_>, _>>()?,
                 accept_timestamp: task.accept_timestamp,
-                communication_count: 0,
+                communication_count: task.communication_count,
             };
 
             self.tasks.insert_task_meta(task_meta);
@@ -107,8 +107,8 @@ impl Inner {
         };
 
         data.tasks.sort_by(|a, b| {
-            let a = a.history.first().unwrap().resource.id.as_ref().unwrap();
-            let b = b.history.first().unwrap().resource.id.as_ref().unwrap();
+            let a = &a.history.first().unwrap().resource.id;
+            let b = &b.history.first().unwrap().resource.id;
 
             a.cmp(&b)
         });
@@ -152,6 +152,9 @@ struct TaskData {
 
     #[serde(with = "ts_nanoseconds_option")]
     accept_timestamp: Option<DateTime<Utc>>,
+
+    #[serde(default)]
+    communication_count: usize,
 }
 
 impl From<&TaskMeta> for TaskData {
@@ -159,6 +162,7 @@ impl From<&TaskMeta> for TaskData {
         Self {
             history: v.history.iter().cloned().collect(),
             accept_timestamp: v.accept_timestamp,
+            communication_count: v.communication_count,
         }
     }
 }
@@ -179,7 +183,7 @@ pub mod tests {
         let sig_key = PKey::generate_ed448().unwrap();
         let sig_cert = X509::builder().unwrap().build();
 
-        let state = State::new(sig_key, sig_cert, 10);
+        let state = State::new(sig_key, sig_cert, 10, 500, "999 Throttling active".into());
         let mut state = state.lock().await;
 
         let content = read_to_string("./examples/state_001.json").unwrap();

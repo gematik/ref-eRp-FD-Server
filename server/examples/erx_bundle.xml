@@ -12,6 +12,7 @@
     <entry>
         <resource>
             <Composition>
+                <id value="0123456789"/>
                 <meta>
                     <profile value="https://gematik.de/fhir/StructureDefinition/ErxComposition"/>
                 </meta>

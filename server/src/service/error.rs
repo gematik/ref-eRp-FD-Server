@@ -145,15 +145,22 @@ impl ResponseError for TypedRequestError {
                 TaskError::GeneratePrescriptionId => res.status(StatusCode::SERVICE_UNAVAILABLE).severity(Severity::Error),
                 TaskError::AuditEventAgentInvalid => res.status(StatusCode::BAD_REQUEST),
             },
-            E::CmsContainerError(_) => res.status(StatusCode::BAD_REQUEST),
+            E::CmsContainerError { warning, .. } => {
+                let res = res.status(StatusCode::BAD_REQUEST);
+
+                if let Some(warning) = warning {
+                    res.header("Warning", warning)
+                } else {
+                    res
+                }
+            },
             E::NotFound(_) => res.status(StatusCode::NOT_FOUND).code(IssueType::ProcessingNotFound),
             E::HeaderInvalid(_) => res.status(StatusCode::BAD_REQUEST),
             E::HeaderMissing(_) => res.status(StatusCode::BAD_REQUEST),
             E::QueryInvalid(_) => res.status(StatusCode::BAD_REQUEST),
             E::ContentTypeNotSupported => res.status(StatusCode::BAD_REQUEST),
             E::AcceptUnsupported => res.status(StatusCode::BAD_REQUEST),
-            E::MissingAccessCode => res.status(StatusCode::FORBIDDEN),
-            E::InvalidAccessToken => res.status(StatusCode::FORBIDDEN),
+            E::MissingAccessCode => res.status(StatusCode::UNAUTHORIZED),
         };
 
         if res.details.is_none() {
@@ -201,8 +208,11 @@ pub enum RequestError {
     #[error("Task Resource Error: {0}")]
     TaskError(TaskError),
 
-    #[error("Unable to verify CMS container: {0}")]
-    CmsContainerError(PkiError),
+    #[error("Unable to verify CMS container: {err}")]
+    CmsContainerError {
+        err: PkiError,
+        warning: Option<String>,
+    },
 
     #[error("Not Found: {0}!")]
     NotFound(String),
@@ -224,9 +234,6 @@ pub enum RequestError {
 
     #[error("Missing Access Code!")]
     MissingAccessCode,
-
-    #[error("Invalid Access Token!")]
-    InvalidAccessToken,
 }
 
 impl RequestError {
@@ -463,7 +470,7 @@ struct ResponseBuilder {
     details: Option<String>,
     severity: Option<Severity>,
     data_type: Option<DataType>,
-    header: Vec<(&'static str, &'static str)>,
+    header: Vec<(&'static str, String)>,
     expression: Vec<String>,
 }
 
@@ -511,8 +518,11 @@ impl ResponseBuilder {
         self
     }
 
-    pub fn header(mut self, key: &'static str, value: &'static str) -> Self {
-        self.header.push((key, value));
+    pub fn header<V>(mut self, key: &'static str, value: V) -> Self
+    where
+        V: Into<String>,
+    {
+        self.header.push((key, value.into()));
 
         self
     }

@@ -56,7 +56,13 @@ async fn run(opts: Options) -> Result<(), Error> {
     let local = LocalSet::new();
 
     let pki_store = PkiStore::new(enc_key, enc_cert, opts.tsl, opts.bnetza, opts.token)?;
-    let state = State::new(sig_key, sig_cert, opts.max_communications);
+    let state = State::new(
+        sig_key,
+        sig_cert,
+        opts.max_communications,
+        opts.throttling,
+        opts.throttling_header,
+    );
 
     if let Some(path) = &opts.state {
         if path.is_file() {
@@ -186,4 +192,21 @@ struct Options {
         default_value = "10"
     )]
     max_communications: usize,
+
+    /// Throttling in case of invalid QES containers (in ms; 0 for disable)
+    #[structopt(
+        verbatim_doc_comment,
+        short = "t",
+        long = "throttling",
+        default_value = "500"
+    )]
+    throttling: usize,
+
+    /// Value of the warning header to add, when throttling is active
+    #[structopt(
+        verbatim_doc_comment,
+        long = "throttling-header",
+        default_value = "999 Throttling active"
+    )]
+    throttling_header: String,
 }

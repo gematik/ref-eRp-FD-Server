@@ -34,8 +34,8 @@ use super::{
     meta::Meta,
     primitives::{
         decode_amount, decode_code, decode_codeable_concept, decode_coding, encode_amount,
-        encode_code, encode_codeable_concept, encode_coding, AmountEx, CodeEx, CodeableConcept,
-        CodeableConceptEx, CodingEx,
+        encode_code, encode_codeable_concept, encode_coding, AmountEx, AmountSystem, CodeEx,
+        CodeableConcept, CodeableConceptEx, CodingEx,
     },
 };
 
@@ -918,8 +918,8 @@ impl AmountEx for Amount {
         &self.code
     }
 
-    fn system() -> Option<&'static str> {
-        Some("http://unitsofmeasure.org")
+    fn system() -> AmountSystem {
+        AmountSystem::OptionalFixed("http://unitsofmeasure.org")
     }
 }
 
@@ -935,7 +935,7 @@ const PROFILE_MEDICATION_PZN: &str =
 const URL_CATEGORY: &str = "https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Medication_Category";
 const URL_VACCINE: &str = "https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Medication_Vaccine";
 const URL_INSTRUCTION: &str =
-    "https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Medication_compoundingInstruction";
+    "https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Medication_CompoundingInstruction";
 const URL_PACKAGING: &str =
     "https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Medication_Packaging";
 const URL_STANDARD_SIZE: &str = "http://fhir.de/StructureDefinition/normgroesse";

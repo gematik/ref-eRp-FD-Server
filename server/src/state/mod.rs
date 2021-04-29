@@ -28,7 +28,10 @@ use openssl::{
     pkey::{PKey, Private},
     x509::X509,
 };
-use tokio::sync::{Mutex, MutexGuard};
+use tokio::{
+    sync::{Mutex, MutexGuard},
+    time::{delay_for, Duration},
+};
 
 pub use history::{Error as HistoryError, History, Version};
 
@@ -40,7 +43,10 @@ pub use patient_receipts::PatientReceipts;
 pub use timeouts::{ResourceId, Timeouts};
 
 #[derive(Clone)]
-pub struct State(Arc<Mutex<Inner>>);
+pub struct State {
+    inner: Arc<Mutex<Inner>>,
+    config: Arc<Config>,
+}
 
 pub struct Inner {
     pub(super) max_communications: usize,
@@ -55,8 +61,19 @@ pub struct Inner {
     pub(super) timeouts: Timeouts,
 }
 
+struct Config {
+    throttling: usize,
+    throttling_header: String,
+}
+
 impl State {
-    pub fn new(sig_key: PKey<Private>, sig_cert: X509, max_communications: usize) -> Self {
+    pub fn new(
+        sig_key: PKey<Private>,
+        sig_cert: X509,
+        max_communications: usize,
+        throttling: usize,
+        throttling_header: String,
+    ) -> Self {
         let inner = Inner {
             max_communications,
 
@@ -69,15 +86,31 @@ impl State {
             audit_events: Default::default(),
             timeouts: Default::default(),
         };
+        let inner = Arc::new(Mutex::new(inner));
 
-        let ret = Self(Arc::new(Mutex::new(inner)));
+        let config = Config {
+            throttling,
+            throttling_header,
+        };
+        let config = Arc::new(config);
 
+        let ret = Self { inner, config };
         ret.spawn_timeout_task();
 
         ret
     }
 
     pub async fn lock(&self) -> MutexGuard<'_, Inner> {
-        self.0.lock().await
+        self.inner.lock().await
+    }
+
+    pub async fn throttle(&self) -> Option<String> {
+        if self.config.throttling > 0 {
+            delay_for(Duration::from_millis(self.config.throttling as u64)).await;
+
+            Some(self.config.throttling_header.clone())
+        } else {
+            None
+        }
     }
 }

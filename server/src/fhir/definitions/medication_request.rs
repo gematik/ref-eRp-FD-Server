@@ -246,10 +246,6 @@ impl Decode for AccidentInformation {
             url: "unfallkennzeichen".into(),
             path: stream.path().into(),
         })?;
-        let date = date.ok_or_else(|| DecodeError::MissingExtension {
-            url: "unfalltag".into(),
-            path: stream.path().into(),
-        })?;
 
         Ok(AccidentInformation {
             cause,
@@ -587,11 +583,13 @@ impl Encode for &AccidentInformation {
                 .end()?;
         }
 
-        stream
-            .element()?
-            .attrib("url", "unfalltag", encode_any)?
-            .encode("valueDate", &self.date, encode_any)?
-            .end()?;
+        if let Some(date) = &self.date {
+            stream
+                .element()?
+                .attrib("url", "unfalltag", encode_any)?
+                .encode("valueDate", date, encode_any)?
+                .end()?;
+        }
 
         stream.end()?;
 
@@ -784,6 +782,7 @@ impl CodeEx for AccidentCause {
             "1" => Ok(Self::Accident),
             "2" => Ok(Self::WorkAccident),
             "3" => Ok(Self::SupplyProblem),
+            "4" => Ok(Self::OccupationalDisease),
             _ => Err(value),
         }
     }
@@ -793,6 +792,7 @@ impl CodeEx for AccidentCause {
             Self::Accident => "1",
             Self::WorkAccident => "2",
             Self::SupplyProblem => "3",
+            Self::OccupationalDisease => "4",
         }
     }
 }
@@ -878,7 +878,7 @@ pub mod tests {
                 co_payment: Some(CoPayment::NotExceptFrom),
                 accident_information: Some(AccidentInformation {
                     cause: AccidentCause::WorkAccident,
-                    date: "2020-05-01".try_into().unwrap(),
+                    date: Some("2020-05-01".try_into().unwrap()),
                     business: Some("Dummy-Betrieb".into()),
                 }),
                 multi_prescription: Some(MultiPrescription {

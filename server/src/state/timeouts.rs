@@ -211,7 +211,7 @@ impl TimeoutResource for AuditEvent {
 
 impl TimeoutResource for Task {
     fn id(&self) -> ResourceId {
-        let id = self.id.as_ref().expect("Task without Id!").clone();
+        let id = self.id.clone();
 
         ResourceId::Task(id)
     }

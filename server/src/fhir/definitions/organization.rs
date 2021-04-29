@@ -331,7 +331,7 @@ pub mod tests {
     use std::fs::read_to_string;
     use std::str::from_utf8;
 
-    use resources::misc::Address;
+    use resources::misc::{Address, AddressType, Line, LineExtension};
 
     use crate::fhir::{
         decode::{tests::load_stream, JsonDecode, XmlDecode},
@@ -393,11 +393,14 @@ pub mod tests {
                 mail: None,
             },
             address: Some(Address {
-                address: "Musterstr. 2".into(),
-                street: Some("Musterstr.".into()),
-                number: Some("2".into()),
-                addition: None,
-                post_box: None,
+                type_: AddressType::Both,
+                lines: vec![Line {
+                    value: "Musterstr. 2".into(),
+                    extensions: vec![
+                        LineExtension::Street("Musterstr.".into()),
+                        LineExtension::Number("2".into()),
+                    ],
+                }],
                 city: Some("Berlin".into()),
                 zip_code: Some("10623".into()),
                 country: None,

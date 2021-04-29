@@ -66,6 +66,9 @@ where
 
     #[error("Unexpected End!")]
     UnexpectedEnd,
+
+    #[error("{0}")]
+    Other(String),
 }
 
 pub trait DataStorage {

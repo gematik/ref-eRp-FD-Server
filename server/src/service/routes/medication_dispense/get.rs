@@ -73,6 +73,7 @@ impl FromQuery for QueryArgs {
 pub enum SortArgs {
     WhenHandedOver,
     WhenPrepared,
+    Performer,
 }
 
 impl FromStr for SortArgs {
@@ -82,6 +83,7 @@ impl FromStr for SortArgs {
         match s {
             "whenHandedOver" | "whenhandedover" | "when-handed-over" => Ok(Self::WhenHandedOver),
             "whenPrepared" | "whenprepared" | "when-prepared" => Ok(Self::WhenPrepared),
+            "performer" => Ok(Self::Performer),
             _ => Err(()),
         }
     }
@@ -128,6 +130,12 @@ pub async fn get_all(
                     let b: Option<DateTime<Utc>> = b.when_prepared.clone().map(Into::into);
 
                     a.cmp(&b)
+                }
+                SortArgs::Performer => {
+                    let a = &a.performer;
+                    let b = &b.performer;
+
+                    a.cmp(b)
                 }
             })
         });

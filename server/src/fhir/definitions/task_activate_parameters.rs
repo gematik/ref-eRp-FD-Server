@@ -18,6 +18,8 @@
 use async_trait::async_trait;
 use resources::task::TaskActivateParameters;
 
+use resources::primitives::Id;
+
 use crate::fhir::{
     decode::{DataStream, Decode, DecodeError, DecodeStream, Fields},
     encode::{encode_any, DataStorage, Encode, EncodeError, EncodeStream},
@@ -77,8 +79,12 @@ impl Encode for &TaskActivateParameters {
 /* Misc */
 
 impl BinaryEx for TaskActivateParameters {
-    fn from_parts(data: String) -> Result<Self, String> {
+    fn from_parts(_id: Option<Id>, data: String) -> Result<Self, String> {
         Ok(TaskActivateParameters { data })
+    }
+
+    fn id(&self) -> Option<&Id> {
+        None
     }
 
     fn data(&self) -> String {

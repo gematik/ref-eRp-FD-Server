@@ -19,12 +19,29 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Address {
-    pub address: String,
-    pub street: Option<String>,
-    pub number: Option<String>,
-    pub addition: Option<String>,
-    pub post_box: Option<String>,
+    pub type_: Type,
+    pub lines: Vec<Line>,
     pub city: Option<String>,
     pub zip_code: Option<String>,
     pub country: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum Type {
+    Both,
+    Postal,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Line {
+    pub value: String,
+    pub extensions: Vec<LineExtension>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum LineExtension {
+    Street(String),
+    Number(String),
+    Addition(String),
+    Postbox(String),
 }

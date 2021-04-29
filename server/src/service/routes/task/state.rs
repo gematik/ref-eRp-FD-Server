@@ -21,10 +21,12 @@ use std::convert::TryInto;
 use std::ops::{Add, Deref};
 use std::rc::Rc;
 
-use chrono::{DateTime, Duration, Utc};
+use bdays::easter::easter_naive_date;
+use chrono::{Date, DateTime, Datelike, Duration, Utc, Weekday};
 use rand::{distributions::Standard, rngs::OsRng, Rng};
 use resources::{
     audit_event::{Action, Agent, SubType},
+    composition::LegalBasis,
     erx_bundle::{Entry as ErxEntry, ErxBundle},
     misc::{Kvnr, PrescriptionId, TelematikId},
     primitives::Id,
@@ -52,14 +54,7 @@ impl Tasks {
     }
 
     pub fn insert_task_meta(&mut self, task_meta: TaskMeta) {
-        let id = task_meta
-            .history
-            .get_current()
-            .resource
-            .id
-            .as_ref()
-            .unwrap()
-            .clone();
+        let id = task_meta.history.get_current().resource.id.clone();
 
         match self.by_id.entry(id) {
             Entry::Occupied(e) => {
@@ -109,7 +104,7 @@ impl Inner {
             PrescriptionId::generate(flow_type).map_err(|()| Error::GeneratePrescriptionId)?;
 
         let task = Task {
-            id: Some(id.clone()),
+            id: id.clone(),
             extension: Extension {
                 accept_date: None,
                 expiry_date: None,
@@ -182,7 +177,7 @@ impl Inner {
             event_builder.action(Action::Create);
             event_builder.sub_type(SubType::Create);
             event_builder.patient(kvnr.clone());
-            event_builder.what(format!("Task/{}", &id));
+            event_builder.what(id.clone());
             event_builder.description_opt(task.identifier.prescription_id.clone());
             event_builder.text("/Task/$activate Operation");
 
@@ -223,12 +218,30 @@ impl Inner {
                 }
                 _ => unimplemented!(),
             };
+
             task.extension.accept_date = Some(signing_time.add(accept_duration).date().into());
             task.extension.expiry_date = Some(signing_time.add(expiry_duration).date().into());
 
-            timeouts.borrow_mut().insert(&*task);
+            if let Some(LegalBasis::DischargeManagement) = kbv_bundle
+                .entry
+                .composition
+                .as_ref()
+                .and_then(|(_, c)| c.extension.legal_basis.as_ref())
+            {
+                let mut date = signing_time.date();
+
+                for _ in 0..3 {
+                    date = date.add(Duration::days(1));
+                    while is_holiday(&date) {
+                        date = date.add(Duration::days(1));
+                    }
+                }
+
+                task.extension.accept_date = Some(date.into());
+            }
 
             let task = task_meta.history.get_current();
+            timeouts.borrow_mut().insert(&**task);
 
             Ok(task)
         })
@@ -259,7 +272,7 @@ impl Inner {
             event_builder.agent(agent);
             event_builder.action(Action::Update);
             event_builder.sub_type(SubType::Update);
-            event_builder.what(format!("Task/{}", &id));
+            event_builder.what(id.clone());
             event_builder.patient_opt(task.for_.clone());
             event_builder.description_opt(task.identifier.prescription_id.clone());
             event_builder.text("/Task/$accept Operation");
@@ -326,7 +339,7 @@ impl Inner {
             event_builder.agent(agent);
             event_builder.action(Action::Update);
             event_builder.sub_type(SubType::Update);
-            event_builder.what(format!("Task/{}", &id));
+            event_builder.what(id.clone());
             event_builder.patient_opt(task.for_.clone());
             event_builder.description_opt(task.identifier.prescription_id.clone());
             event_builder.text("/Task/$reject Operation");
@@ -376,7 +389,7 @@ impl Inner {
             event_builder.agent(agent);
             event_builder.action(Action::Update);
             event_builder.sub_type(SubType::Update);
-            event_builder.what(format!("Task/{}", &id));
+            event_builder.what(id.clone());
             event_builder.patient_opt(task.for_.clone());
             event_builder.description_opt(task.identifier.prescription_id.clone());
             event_builder.text("/Task/$close Operation");
@@ -414,6 +427,7 @@ impl Inner {
                 timestamp: Utc::now().into(),
                 entry: ErxEntry {
                     composition: Some(ErxComposition {
+                        id: Id::generate().unwrap(),
                         beneficiary: performer,
                         date: now.clone().into(),
                         author: DEVICE.id.clone().into(),
@@ -484,7 +498,7 @@ impl Inner {
             event_builder.agent(agent);
             event_builder.action(Action::Delete);
             event_builder.sub_type(SubType::Delete);
-            event_builder.what(format!("Task/{}", &id));
+            event_builder.what(id.clone());
             event_builder.patient_opt(task.for_.clone());
             event_builder.description_opt(task.identifier.prescription_id.clone());
             event_builder.text("/Task/$abort Operation");
@@ -567,7 +581,7 @@ impl Inner {
             } else {
                 SubType::Read
             });
-            event_builder.what(format!("Task/{}", &id));
+            event_builder.what(id.clone());
             event_builder.patient_opt(task.for_.clone());
             event_builder.description_opt(task.identifier.prescription_id.clone());
 
@@ -747,7 +761,7 @@ impl<'a> Deref for TaskRef<'a> {
         builder.agent(agent);
         builder.action(Action::Read);
         builder.sub_type(SubType::Read);
-        builder.what(format!("Task/{}", &task.id));
+        builder.what(task.resource.id.clone());
         builder.patient_opt(task.for_.clone());
         builder.description_opt(task.identifier.prescription_id.clone());
         builder.build(&mut audit_events, &mut timeouts, None);
@@ -763,4 +777,24 @@ fn random_id() -> String {
         .map(|x: u8| format!("{:02x}", x))
         .collect::<Vec<_>>()
         .join("")
+}
+
+fn is_holiday(date: &Date<Utc>) -> bool {
+    let easter_sunday = easter_naive_date(date.year()).unwrap();
+    let easter_sunday = Date::<Utc>::from_utc(easter_sunday, Utc);
+    let easter_monday = easter_sunday + Duration::days(1);
+    let easter_friday = easter_sunday - Duration::days(2);
+    let whitsun_monday = easter_sunday + Duration::days(50);
+    let ascension = easter_sunday + Duration::days(39);
+
+    date.weekday() == Weekday::Sun
+    || (date.day() == 1 && date.month() == 1) // 01.01.
+    || (date.day() == 1 && date.month() == 5) // 01.05
+    || (date.day() == 3 && date.month() == 10) // 03.10
+    || (date.day() == 25 && date.month() == 12) // 25.12
+    || (date.day() == 26 && date.month() == 12) // 26.12
+    || date == &easter_friday
+    || date == &easter_monday
+    || date == &whitsun_monday
+    || date == &ascension
 }

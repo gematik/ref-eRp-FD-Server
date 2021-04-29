@@ -21,6 +21,6 @@ mod id;
 mod instant;
 
 pub use date::Date;
-pub use date_time::DateTime;
+pub use date_time::{DateTime, Parts as DateTimeParts};
 pub use id::Id;
 pub use instant::Instant;

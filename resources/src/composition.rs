@@ -31,7 +31,7 @@ pub struct Composition {
     pub section: Section,
 }
 
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Default, Debug, Serialize, Deserialize)]
 pub struct Extension {
     pub legal_basis: Option<LegalBasis>,
     pub pkv: Option<PKV>,

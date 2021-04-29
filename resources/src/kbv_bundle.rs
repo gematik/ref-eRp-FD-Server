@@ -25,7 +25,10 @@ use super::{
 };
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-pub struct KbvBinary(pub String);
+pub struct KbvBinary {
+    pub id: Id,
+    pub data: String,
+}
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct KbvBundle {

@@ -238,7 +238,7 @@ pub mod tests {
     use std::fs::read_to_string;
     use std::str::from_utf8;
 
-    use resources::misc::{Address, Family, Kvnr, Name};
+    use resources::misc::{Address, AddressType, Family, Kvnr, Line, LineExtension, Name};
 
     use crate::fhir::{
         decode::{tests::load_stream, JsonDecode, XmlDecode},
@@ -307,11 +307,14 @@ pub mod tests {
             },
             birth_date: "1935-06-22".try_into().unwrap(),
             address: Address {
-                address: "Musterstr. 1".into(),
-                street: Some("Musterstr.".into()),
-                number: Some("1".into()),
-                addition: None,
-                post_box: None,
+                type_: AddressType::Both,
+                lines: vec![Line {
+                    value: "Musterstr. 1".into(),
+                    extensions: vec![
+                        LineExtension::Street("Musterstr.".into()),
+                        LineExtension::Number("1".into()),
+                    ],
+                }],
                 city: Some("Berlin".into()),
                 zip_code: Some("10623".into()),
                 country: None,

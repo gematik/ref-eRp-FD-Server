@@ -1,4 +1,5 @@
 <Composition xmlns="http://hl7.org/fhir">
+    <id value="0123456789"/>
     <meta>
         <profile value="https://gematik.de/fhir/StructureDefinition/ErxComposition"/>
     </meta>

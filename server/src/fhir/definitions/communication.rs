@@ -815,7 +815,8 @@ const URL_SUBSTITUTION_ALLOWED: &str =
     "https://gematik.de/fhir/StructureDefinition/SubstitutionAllowedType";
 const URL_PRESCRIPTION_TYPE: &str = "https://gematik.de/fhir/StructureDefinition/PrescriptionType";
 const URL_SUPPLY_OPTIONS: &str = "https://gematik.de/fhir/StructureDefinition/SupplyOptionsType";
-const URL_AVAILABILITY: &str = "https://gematik.de/fhir/StructureDefinition/AvailabilityStatus";
+const URL_AVAILABILITY: &str =
+    "https://gematik.de/fhir/StructureDefinition/AvailabilityStateExtension";
 
 const SYSTEM_AVAILABILITY: &str = "https://gematik.de/fhir/CodeSystem/AvailabilityStatus";
 

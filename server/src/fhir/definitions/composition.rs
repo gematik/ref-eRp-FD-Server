@@ -62,7 +62,9 @@ impl Decode for Composition {
 
         let id = stream.decode(&mut fields, decode_any).await?;
         let meta = stream.decode::<Meta, _>(&mut fields, decode_any).await?;
-        let extension = stream.decode(&mut fields, decode_any).await?;
+        let extension = stream
+            .decode_opt::<Option<Extension>, _>(&mut fields, decode_any)
+            .await?;
         let _status = stream.fixed(&mut fields, "final").await?;
         let _type = stream
             .decode::<CompositionType, _>(&mut fields, decode_codeable_concept)
@@ -99,6 +101,8 @@ impl Decode for Composition {
                 expected: vec![PROFILE.into()],
             });
         }
+
+        let extension = extension.unwrap_or_default();
 
         Ok(Composition {
             id,

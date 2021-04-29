@@ -43,6 +43,7 @@ impl Decode for ErxComposition {
         S: DataStream,
     {
         let mut fields = Fields::new(&[
+            "id",
             "meta",
             "extension",
             "status",
@@ -55,6 +56,7 @@ impl Decode for ErxComposition {
 
         stream.root("Composition").await?;
 
+        let id = stream.decode(&mut fields, decode_any).await?;
         let meta = stream.decode::<Meta, _>(&mut fields, decode_any).await?;
         let beneficiary = {
             let mut beneficiary = None;
@@ -124,6 +126,7 @@ impl Decode for ErxComposition {
         }
 
         Ok(ErxComposition {
+            id,
             beneficiary,
             date,
             author,
@@ -147,6 +150,7 @@ impl Encode for &ErxComposition {
 
         stream
             .root("Composition")?
+            .encode("id", &self.id, encode_any)?
             .encode("meta", meta, encode_any)?
             .field_name("extension")?
             .array()?
@@ -239,6 +243,7 @@ pub mod tests {
 
     pub fn test_erx_composition() -> ErxComposition {
         ErxComposition {
+            id: "0123456789".try_into().unwrap(),
             beneficiary: TelematikId::new("606358757"),
             date: "2020-03-20T07:31:34.328+00:00".try_into().unwrap(),
             author: "https://prescriptionserver.telematik/Device/ErxService".into(),

@@ -27,7 +27,7 @@ use tokio::sync::{
     RwLock, RwLockReadGuard,
 };
 
-use super::{PkiStore, Tsl};
+use super::{PkiStore, TimeCheck, Tsl};
 
 pub struct CertList {
     data: RwLock<Data>,
@@ -113,7 +113,7 @@ fn add_to_list(list: &mut Vec<String>, cert: &X509Ref) {
 }
 
 fn find_ca_cert<'a>(tsl: Option<&'a Tsl>, cert: &X509Ref) -> Option<&'a X509Ref> {
-    match tsl?.verify_cert(&cert, false) {
+    match tsl?.verify_cert(&cert, TimeCheck::None) {
         Ok(ca_item) => Some(&ca_item.cert),
         Err(err) => {
             let key = Tsl::cert_key(cert.subject_name()).unwrap_or_else(|_| "<unknown>".to_owned());

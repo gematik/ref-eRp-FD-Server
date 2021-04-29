@@ -1,5 +1,6 @@
 {
     "resourceType":"Task",
+    "id":"1234567890",
     "meta":{
         "profile":[
             "https://gematik.de/fhir/StructureDefinition/ErxTask"

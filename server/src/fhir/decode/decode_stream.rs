@@ -895,14 +895,8 @@ impl Fields {
         Self::Many { names, index: 0 }
     }
 
-    fn name(&self) -> Option<&'static str> {
-        match self {
-            Self::Many { names, index } => Some(&names[*index]),
-            Self::Any => None,
-        }
-    }
-
-    fn next(&mut self) -> Self {
+    #[allow(clippy::should_implement_trait)]
+    pub fn next(&mut self) -> Self {
         let ret = self.clone();
 
         match self {
@@ -911,6 +905,13 @@ impl Fields {
         }
 
         ret
+    }
+
+    fn name(&self) -> Option<&'static str> {
+        match self {
+            Self::Many { names, index } => Some(&names[*index]),
+            Self::Any => None,
+        }
     }
 
     fn cmp(&self, s: &str) -> FieldMatch {

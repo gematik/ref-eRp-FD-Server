@@ -19,7 +19,7 @@ use std::convert::TryInto;
 
 use resources::{
     primitives::{Id, Instant},
-    ErxBundle, KbvBinary, KbvBundle, Task,
+    AuditEvent, ErxBundle, KbvBinary, KbvBundle, Task,
 };
 
 use crate::{
@@ -37,6 +37,7 @@ pub enum Resource<'a> {
     KbvBinary(&'a KbvBinary),
     KbvBundle(&'a KbvBundle),
     ErxBundle(&'a ErxBundle),
+    AuditEvent(&'a AuditEvent),
 }
 
 impl AsTask for Version<Task> {
@@ -66,6 +67,7 @@ impl Encode for Resource<'_> {
             Self::KbvBinary(v) => v.encode(stream),
             Self::KbvBundle(v) => v.encode(stream),
             Self::ErxBundle(v) => v.encode(stream),
+            Self::AuditEvent(v) => v.encode(stream),
         }
     }
 }

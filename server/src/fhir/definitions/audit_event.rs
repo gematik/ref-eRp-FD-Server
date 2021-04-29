@@ -15,12 +15,16 @@
  *
  */
 
+use std::convert::TryInto;
 use std::iter::once;
 
 use async_trait::async_trait;
 use miscellaneous::str::icase_eq;
-use resources::audit_event::{
-    Action, Agent, AuditEvent, Entity, Outcome, ParticipationRoleType, Source, SubType,
+use resources::{
+    audit_event::{
+        Action, Agent, AuditEvent, Entity, Outcome, ParticipationRoleType, Source, SubType,
+    },
+    primitives::Id,
 };
 
 use crate::fhir::{
@@ -73,12 +77,15 @@ impl Decode for AuditEvent {
             stream.element().await?;
 
             let _additional = stream.fixed(&mut fields, "additional").await?;
-            let div = stream.decode(&mut fields, decode_any).await?;
+            let div = stream.decode::<String, _>(&mut fields, decode_any).await?;
 
             stream.end().await?;
             stream.end_substream().await?;
 
-            Some(div)
+            let div = div.strip_prefix("<div>").unwrap_or(&div);
+            let div = div.strip_suffix("</div>").unwrap_or(&div);
+
+            Some(div.to_owned())
         } else {
             None
         };
@@ -183,11 +190,18 @@ impl Decode for Entity {
 
         stream.element().await?;
 
-        let what = stream.decode(&mut fields, decode_reference).await?;
+        let what = stream
+            .decode::<String, _>(&mut fields, decode_reference)
+            .await?;
         let name = stream.decode(&mut fields, decode_any).await?;
         let description = stream.decode(&mut fields, decode_any).await?;
 
         stream.end().await?;
+
+        let what = parse_task_id(&what).map_err(|_| DecodeError::Custom {
+            message: format!("Invalid task id: {}", &what),
+            path: stream.path().into(),
+        })?;
 
         Ok(Entity {
             what,
@@ -195,6 +209,12 @@ impl Decode for Entity {
             description,
         })
     }
+}
+
+fn parse_task_id(id: &str) -> Result<Id, ()> {
+    let mut it = id.split('/');
+    it.next();
+    it.next().ok_or(())?.try_into().map_err(|_| ())
 }
 
 /* Encode */
@@ -221,7 +241,7 @@ impl Encode for &AuditEvent {
                 .field_name("text")?
                 .element()?
                 .encode("status", "additional", encode_any)?
-                .encode("div", text, encode_any)?
+                .encode("div", format!("<div>{}</div>", text), encode_any)?
                 .end()?;
         }
 
@@ -282,9 +302,11 @@ impl Encode for &Entity {
     where
         S: DataStorage,
     {
+        let what = format!("Task/{}", &self.what);
+
         stream
             .element()?
-            .encode("what", &self.what, encode_reference)?
+            .encode("what", &what, encode_reference)?
             .encode("name", &self.name, encode_any)?
             .encode("description", &self.description, encode_any)?;
 
@@ -607,7 +629,7 @@ pub mod tests {
                 observer: "Device/eRx-Fachdienst".into(),
             },
             entity: Entity {
-                what: "Task/4711".into(),
+                what: "4711".try_into().unwrap(),
                 name: Kvnr::new("X123456789").unwrap(),
                 description: "160.123.456.789.123.58".parse().unwrap(),
             },

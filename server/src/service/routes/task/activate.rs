@@ -69,11 +69,19 @@ pub async fn activate(
     let args = read_payload::<TaskActivateParameters>(data_type, payload)
         .await
         .err_with_type(accept)?;
-    let kbv_binary = KbvBinary(args.data);
-    let (kbv_bundle, signing_time) = pki_store
-        .verify_cms(&kbv_binary.0)
-        .map_err(RequestError::CmsContainerError)
-        .err_with_type(accept)?;
+    let kbv_binary = KbvBinary {
+        id: Id::generate().unwrap(),
+        data: args.data,
+    };
+    let (kbv_bundle, signing_time) = match pki_store.verify_cms(&kbv_binary.data) {
+        Ok((kbv_bundle, signing_time)) => (kbv_bundle, signing_time),
+        Err(err) => {
+            let warning = state.throttle().await;
+
+            return Err(RequestError::CmsContainerError { err, warning }.with_type(accept));
+        }
+    };
+
     let kbv_bundle = kbv_bundle.into();
     let kbv_bundle = Result::<Bytes, PayloadError>::Ok(kbv_bundle);
     let kbv_bundle: KbvBundle = once(ready(kbv_bundle))

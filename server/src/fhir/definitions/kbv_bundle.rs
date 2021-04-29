@@ -19,6 +19,7 @@ use async_trait::async_trait;
 use miscellaneous::str::icase_eq;
 use resources::{
     kbv_bundle::{Entry, KbvBinary, KbvBundle},
+    primitives::Id,
     Composition, Coverage, Medication, MedicationRequest, Organization, Patient, Practitioner,
     PractitionerRole, SignatureFormat,
 };
@@ -45,6 +46,7 @@ enum Resource {
     Organization(Organization),
     Coverage(Coverage),
     PractitionerRole(PractitionerRole),
+    Other,
 }
 
 #[async_trait(?Send)]
@@ -97,6 +99,7 @@ impl Decode for KbvBundle {
                         Resource::Organization(v) => organization = Some((url, v)),
                         Resource::Coverage(v) => coverage = Some((url, v)),
                         Resource::PractitionerRole(v) => practitioner_role = Some((url, v)),
+                        Resource::Other => (),
                     }
 
                     stream.end().await?;
@@ -169,10 +172,7 @@ impl Decode for Resource {
             "PractitionerRole" => Ok(Self::PractitionerRole(
                 stream.decode(&mut Fields::Any, decode_any).await?,
             )),
-            _ => Err(DecodeError::UnexpectedElement {
-                id: element.into(),
-                path: stream.path().into(),
-            }),
+            _ => Ok(Resource::Other),
         }
     }
 }
@@ -270,12 +270,18 @@ impl Encode for &KbvBinary {
 /* Misc */
 
 impl BinaryEx for KbvBinary {
-    fn from_parts(data: String) -> Result<Self, String> {
-        Ok(KbvBinary(data))
+    fn from_parts(id: Option<Id>, data: String) -> Result<Self, String> {
+        let id = id.ok_or_else(|| "KbvBinary is missing the 'id' field".to_owned())?;
+
+        Ok(KbvBinary { id, data })
+    }
+
+    fn id(&self) -> Option<&Id> {
+        Some(&self.id)
     }
 
     fn data(&self) -> String {
-        self.0.clone()
+        self.data.clone()
     }
 
     fn content_type() -> Option<&'static str> {

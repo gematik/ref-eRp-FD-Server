@@ -38,6 +38,23 @@ appenders:
         count: 5
         base: 1
 
+  req_res:
+    kind: rolling_file
+    path: "log/req_res.log"
+    append: true
+    encoder:
+      pattern: "{d}: {m}{n}"
+    policy:
+      kind: compound
+      trigger:
+        kind: size
+        limit: 5 mb
+      roller:
+        kind: fixed_window
+        pattern: log/req_res.{}.log
+        count: 5
+        base: 1
+
 root:
   level: info
   appenders:
@@ -48,6 +65,10 @@ loggers:
     level: info
     appenders:
       - access
+  req_res_log:
+    level: info
+    appenders:
+      - req_res
   ref_erx_fd_server:
     level: debug
     appenders:

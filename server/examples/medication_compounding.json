@@ -19,7 +19,7 @@
             "valueBoolean":false
         },
         {
-            "url":"https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Medication_compoundingInstruction",
+            "url":"https://fhir.kbv.de/StructureDefinition/KBV_EX_ERP_Medication_CompoundingInstruction",
             "valueString":"Dummy-Herstellungsanweisung einer Rezeptur"
         },
         {

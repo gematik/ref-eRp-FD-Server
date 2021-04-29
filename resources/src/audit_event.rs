@@ -53,7 +53,7 @@ pub struct Source {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Entity {
-    pub what: String,
+    pub what: Id,
     pub name: Kvnr,
     pub description: PrescriptionId,
 }

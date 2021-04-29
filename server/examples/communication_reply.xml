@@ -20,7 +20,7 @@
         </identifier>
     </sender>
     <payload>
-        <extension url="https://gematik.de/fhir/StructureDefinition/AvailabilityStatus">
+        <extension url="https://gematik.de/fhir/StructureDefinition/AvailabilityStateExtension">
             <valueCoding>
                 <system value="https://gematik.de/fhir/CodeSystem/AvailabilityStatus"/>
                 <code value="10"/>

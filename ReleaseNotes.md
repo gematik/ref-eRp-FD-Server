@@ -1,3 +1,20 @@
+# Release 0.17.0
+Implemented features:
+- Implemented throttling in case of invalid QES
+- Implemented middleware to log incomming requests and corresponding responses
+- Implemented RevInclude for AuditEvents 
+
+Bugfixes / Improvements:
+- Check siging time while verifying QES signature
+- Store communication count of each task on disc
+- Fixed CAdES signature (this fix needs openssl 3.0.0, see README for more details)
+- Fixed panic in thask close operation
+- Fixed FHIR profiles
+
+Developer Hints:
+- This release will break the format of the state stored to disc!
+
+
 # Release 0.16.0
 Implemented features:
 - Auto-Delete timed out Resources

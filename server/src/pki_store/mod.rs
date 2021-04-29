@@ -43,7 +43,7 @@ use url::Url;
 
 pub use error::Error;
 pub use puk_token::PukToken;
-pub use tsl::Tsl;
+pub use tsl::{TimeCheck, Tsl};
 
 use cert_list::CertList;
 use misc::asn1_to_chrono;
@@ -165,8 +165,7 @@ impl PkiStore {
         )?;
 
         /* get verified signers */
-        let mut signer_count = 0;
-        let mut signing_time = Utc::now();
+        let mut signing_time = None;
         let signer_infos = cms.signer_infos()?;
         for signer_info in signer_infos {
             // 'signer' is only set if the CMS container
@@ -176,22 +175,24 @@ impl PkiStore {
                 Err(_) => continue,
             };
 
-            bnetza.verify_cert(&signer_cert, true)?;
-            signer_count += 1;
-
             let st = signer_info
                 .signing_time()?
                 .ok_or(Error::UnknownSigningTime)?;
             let st = asn1_to_chrono(st);
-            if signing_time > st {
-                signing_time = st;
+            if bnetza
+                .verify_cert(&signer_cert, TimeCheck::Time(st))
+                .is_err()
+            {
+                continue;
             }
+
+            signing_time = match signing_time {
+                Some(t) if t < st => Some(st),
+                _ => Some(st),
+            };
         }
 
-        /* dobule check that at least one signer certificate was used */
-        if signer_count == 0 {
-            return Err(Error::UnknownIssuerCert);
-        }
+        let signing_time = signing_time.ok_or(Error::UnknownIssuerCert)?;
 
         Ok((data, signing_time))
     }
@@ -286,9 +287,11 @@ pub mod tests {
         let bnetza = read_to_string("./examples/Pseudo-BNetzA-VL-seq24.xml").unwrap();
         let items = extract(&bnetza, &prepare_no_op).unwrap();
 
+        let mut stack = Stack::new().unwrap();
         let mut store = X509StoreBuilder::new().unwrap();
         for items in items.values() {
             for item in items {
+                stack.push(item.cert.clone()).unwrap();
                 store.add_cert(item.cert.clone()).unwrap();
             }
         }
@@ -299,6 +302,7 @@ pub mod tests {
             sha2: None,
             items,
             store,
+            stack,
         };
 
         pki_store.0.bnetza.store(Some(Arc::new(bnetza)));

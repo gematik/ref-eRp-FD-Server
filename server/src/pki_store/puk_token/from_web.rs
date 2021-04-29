@@ -28,7 +28,7 @@ use tokio::{spawn, time::delay_for};
 use url::Url;
 
 use super::{
-    super::{misc::Client, PkiStore},
+    super::{misc::Client, PkiStore, TimeCheck},
     Error, PukToken,
 };
 
@@ -119,7 +119,7 @@ async fn update_task(store: PkiStore, url: Url) {
             );
 
             ok!(
-                tsl.verify_cert(&dd_cert, true),
+                tsl.verify_cert(&dd_cert, TimeCheck::Now),
                 "Unable to verify discovery document: {}"
             );
 
@@ -135,7 +135,7 @@ async fn update_task(store: PkiStore, url: Url) {
             );
 
             ok!(
-                tsl.verify_cert(&cert, true),
+                tsl.verify_cert(&cert, TimeCheck::Now),
                 "Unable to verify PUK_TOKEN_KEY: {}"
             );
 
