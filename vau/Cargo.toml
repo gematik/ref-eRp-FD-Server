@@ -15,4 +15,4 @@ openssl = "=0.10.33"
 pin-project = "0.4"
 rand = "0.7"
 thiserror = "1.0"
-tokio = { version = "0.2", features = [ "sync" ] }
+tokio = { version = "0.2", features = [ "sync", "rt-threaded", "macros" ] }

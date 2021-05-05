@@ -16,11 +16,13 @@
  */
 
 mod accept;
+mod accept_language;
 mod authorization;
 mod content_type;
 mod x_access_code;
 
 pub use accept::{Accept, ACCEPT};
+pub use accept_language::{AcceptLanguage, ACCEPT_LANGUAGE};
 pub use authorization::Authorization;
 pub use content_type::{ContentType, CONTENT_TYPE};
 pub use x_access_code::{XAccessCode, X_ACCESS_CODE};

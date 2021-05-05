@@ -18,14 +18,14 @@
 use std::cell::RefCell;
 use std::collections::hash_map::{Entry, HashMap};
 use std::convert::TryInto;
-use std::ops::{Add, Deref};
+use std::ops::Add;
 use std::rc::Rc;
 
 use bdays::easter::easter_naive_date;
 use chrono::{Date, DateTime, Datelike, Duration, Utc, Weekday};
 use rand::{distributions::Standard, rngs::OsRng, Rng};
 use resources::{
-    audit_event::{Action, Agent, SubType},
+    audit_event::{Action, Agent, SubType, Text, What},
     composition::LegalBasis,
     erx_bundle::{Entry as ErxEntry, ErxBundle},
     misc::{Kvnr, PrescriptionId, TelematikId},
@@ -36,8 +36,10 @@ use resources::{
 };
 
 use crate::{
-    service::{header::XAccessCode, misc::DEVICE, AuditEvents},
-    state::{History, Inner, Timeouts, Version},
+    service::{
+        header::XAccessCode, misc::DEVICE, AuditEventBuilder, Loggable, LoggedIter, LoggedRef,
+    },
+    state::{History, Inner, Version},
 };
 
 use super::Error;
@@ -177,9 +179,9 @@ impl Inner {
             event_builder.action(Action::Create);
             event_builder.sub_type(SubType::Create);
             event_builder.patient(kvnr.clone());
-            event_builder.what(id.clone());
+            event_builder.what(What::Task(id.clone()));
             event_builder.description_opt(task.identifier.prescription_id.clone());
-            event_builder.text("/Task/$activate Operation");
+            event_builder.text(Text::TaskActivate);
 
             /* validate request */
 
@@ -272,10 +274,10 @@ impl Inner {
             event_builder.agent(agent);
             event_builder.action(Action::Update);
             event_builder.sub_type(SubType::Update);
-            event_builder.what(id.clone());
+            event_builder.what(What::Task(id.clone()));
             event_builder.patient_opt(task.for_.clone());
             event_builder.description_opt(task.identifier.prescription_id.clone());
-            event_builder.text("/Task/$accept Operation");
+            event_builder.text(Text::TaskAccept);
 
             match &task.identifier.access_code {
                 Some(ac) if ac == &access_code.0 => (),
@@ -339,10 +341,10 @@ impl Inner {
             event_builder.agent(agent);
             event_builder.action(Action::Update);
             event_builder.sub_type(SubType::Update);
-            event_builder.what(id.clone());
+            event_builder.what(What::Task(id.clone()));
             event_builder.patient_opt(task.for_.clone());
             event_builder.description_opt(task.identifier.prescription_id.clone());
-            event_builder.text("/Task/$reject Operation");
+            event_builder.text(Text::TaskReject);
 
             if task.status != Status::InProgress || task.identifier.secret != secret {
                 return Err(Error::Forbidden(id));
@@ -389,10 +391,10 @@ impl Inner {
             event_builder.agent(agent);
             event_builder.action(Action::Update);
             event_builder.sub_type(SubType::Update);
-            event_builder.what(id.clone());
+            event_builder.what(What::Task(id.clone()));
             event_builder.patient_opt(task.for_.clone());
             event_builder.description_opt(task.identifier.prescription_id.clone());
-            event_builder.text("/Task/$close Operation");
+            event_builder.text(Text::TaskClose);
 
             /* check the preconditions */
 
@@ -498,10 +500,18 @@ impl Inner {
             event_builder.agent(agent);
             event_builder.action(Action::Delete);
             event_builder.sub_type(SubType::Delete);
-            event_builder.what(id.clone());
+            event_builder.what(What::Task(id.clone()));
             event_builder.patient_opt(task.for_.clone());
             event_builder.description_opt(task.identifier.prescription_id.clone());
-            event_builder.text("/Task/$abort Operation");
+            event_builder.text(if is_pharmacy {
+                Text::TaskAbortPharmacy
+            } else if kvnr.is_none() {
+                Text::TaskAbortDoctor
+            } else if task.for_ != kvnr {
+                Text::TaskAbortRepresentative
+            } else {
+                Text::TaskAbortPatient
+            });
 
             let is_secret_ok = secret.is_some() && task.identifier.secret == secret;
             let is_access_ok = Self::task_matches(&task, &kvnr, &access_code, &None);
@@ -581,9 +591,16 @@ impl Inner {
             } else {
                 SubType::Read
             });
-            event_builder.what(id.clone());
+            event_builder.what(What::Task(id.clone()));
             event_builder.patient_opt(task.for_.clone());
             event_builder.description_opt(task.identifier.prescription_id.clone());
+            event_builder.text(if secret.is_some() {
+                Text::TaskGetPharmacy
+            } else if task.for_ != kvnr {
+                Text::TaskGetRepresentative
+            } else {
+                Text::TaskGetPatient
+            });
 
             if !Self::task_matches(&task, &kvnr, &access_code, &secret) {
                 return Err(Error::Forbidden(id));
@@ -610,7 +627,7 @@ impl Inner {
         access_code: Option<XAccessCode>,
         agent: Agent,
         mut f: F,
-    ) -> impl Iterator<Item = TaskRef>
+    ) -> impl Iterator<Item = LoggedRef<(&Version<Task>, Text)>>
     where
         F: FnMut(&Task) -> bool,
     {
@@ -632,18 +649,23 @@ impl Inner {
                 return None;
             }
 
-            Some(task)
+            let text = if task.for_ == kvnr {
+                Text::TaskGetPatient
+            } else {
+                Text::TaskGetRepresentative
+            };
+
+            Some((task, text))
         });
 
-        TaskIter {
-            iter,
-            audit_events: AuditEventsRef::new(agent, audit_events, timeouts),
-        }
+        LoggedIter::new(audit_events, timeouts, agent, iter)
     }
 
     pub fn task_delete_by_id(&mut self, id: &Id) {
         let Self {
             ref mut tasks,
+            ref mut timeouts,
+            ref mut audit_events,
             ref mut erx_receipts,
             ref mut e_prescriptions,
             ref mut patient_receipts,
@@ -651,26 +673,40 @@ impl Inner {
             ..
         } = self;
 
-        let task = tasks.by_id.get(id).unwrap();
-        let task = task.history.get_current();
+        let timeouts = Rc::new(RefCell::new(timeouts));
+        Self::logged::<_, (), String>(audit_events, timeouts.clone(), move |event_builder| {
+            let task = tasks.by_id.get(id).unwrap();
+            let task = task.history.get_current();
 
-        if let Some(prescription_id) = &task.identifier.prescription_id {
-            medication_dispenses.remove_by_prescription_id(prescription_id);
-        }
+            event_builder.agent(Self::agent().clone());
+            event_builder.action(Action::Delete);
+            event_builder.sub_type(SubType::Delete);
+            event_builder.what(What::Task(id.clone()));
+            event_builder.patient_opt(task.for_.clone());
+            event_builder.description_opt(task.identifier.prescription_id.clone());
+            event_builder.text(Text::TaskDelete);
 
-        if let Some(e_prescription) = &task.input.e_prescription {
-            e_prescriptions.remove_by_id(e_prescription);
-        }
+            if let Some(prescription_id) = &task.identifier.prescription_id {
+                medication_dispenses.remove_by_prescription_id(prescription_id);
+            }
 
-        if let Some(patient_receipt) = &task.input.patient_receipt {
-            patient_receipts.remove_by_id(&patient_receipt);
-        }
+            if let Some(e_prescription) = &task.input.e_prescription {
+                e_prescriptions.remove_by_id(e_prescription);
+            }
 
-        if let Some(receipt) = &task.output.receipt {
-            erx_receipts.remove_by_id(&receipt);
-        }
+            if let Some(patient_receipt) = &task.input.patient_receipt {
+                patient_receipts.remove_by_id(&patient_receipt);
+            }
 
-        tasks.by_id.remove(id);
+            if let Some(receipt) = &task.output.receipt {
+                erx_receipts.remove_by_id(&receipt);
+            }
+
+            tasks.by_id.remove(id);
+
+            Ok(())
+        })
+        .unwrap();
     }
 
     pub fn task_matches(
@@ -698,75 +734,20 @@ impl Inner {
     }
 }
 
-#[derive(Clone)]
-struct AuditEventsRef<'a> {
-    agent: Agent,
-    inner: Rc<RefCell<&'a mut AuditEvents>>,
-    timeouts: Rc<RefCell<&'a mut Timeouts>>,
-}
+impl<'a> Loggable for (&'a Version<Task>, Text) {
+    type Item = &'a Version<Task>;
 
-impl<'a> AuditEventsRef<'a> {
-    fn new(agent: Agent, audit_events: &'a mut AuditEvents, timeouts: &'a mut Timeouts) -> Self {
-        Self {
-            agent,
-            inner: Rc::new(RefCell::new(audit_events)),
-            timeouts: Rc::new(RefCell::new(timeouts)),
-        }
+    fn unlogged(&self) -> &Self::Item {
+        &self.0
     }
-}
 
-struct TaskIter<'a, T> {
-    iter: T,
-    audit_events: AuditEventsRef<'a>,
-}
+    fn logged(&self, builder: &mut AuditEventBuilder) -> &Self::Item {
+        builder.what(What::Task(self.0.resource.id.clone()));
+        builder.patient_opt(self.0.for_.clone());
+        builder.description_opt(self.0.identifier.prescription_id.clone());
+        builder.text(self.1.clone());
 
-impl<'a, T> Iterator for TaskIter<'a, T>
-where
-    T: Iterator<Item = &'a Version<Task>>,
-{
-    type Item = TaskRef<'a>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let task = self.iter.next()?;
-
-        Some(TaskRef {
-            task,
-            audit_events: self.audit_events.clone(),
-        })
-    }
-}
-
-pub struct TaskRef<'a> {
-    task: &'a Version<Task>,
-    audit_events: AuditEventsRef<'a>,
-}
-
-impl<'a> TaskRef<'a> {
-    pub fn unlogged(&self) -> &'a Version<Task> {
-        self.task
-    }
-}
-
-impl<'a> Deref for TaskRef<'a> {
-    type Target = Version<Task>;
-
-    fn deref(&self) -> &Self::Target {
-        let task = self.task;
-
-        let agent = self.audit_events.agent.clone();
-        let mut audit_events = self.audit_events.inner.borrow_mut();
-        let mut timeouts = self.audit_events.timeouts.borrow_mut();
-
-        let mut builder = Inner::audit_event_builder();
-        builder.agent(agent);
-        builder.action(Action::Read);
-        builder.sub_type(SubType::Read);
-        builder.what(task.resource.id.clone());
-        builder.patient_opt(task.for_.clone());
-        builder.description_opt(task.identifier.prescription_id.clone());
-        builder.build(&mut audit_events, &mut timeouts, None);
-
-        task
+        &self.0
     }
 }
 

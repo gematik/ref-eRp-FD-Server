@@ -24,6 +24,7 @@ use actix_web::{
 };
 use chrono::{DateTime, Utc};
 use resources::{
+    audit_event::Language,
     bundle::{Bundle, Entry, Relation, Type},
     primitives::Id,
     task::Status,
@@ -33,7 +34,7 @@ use serde::Deserialize;
 
 use crate::{
     service::{
-        header::{Accept, Authorization, XAccessCode},
+        header::{Accept, AcceptLanguage, Authorization, XAccessCode},
         misc::{
             create_response, AccessToken, DataType, FromQuery, Profession, Query, QueryValue,
             Search, Sort,
@@ -151,6 +152,7 @@ enum TaskReference {
 pub async fn get_all(
     state: Data<State>,
     accept: Accept,
+    accept_language: AcceptLanguage,
     id_token: Authorization,
     access_code: Option<XAccessCode>,
     query: Query<GetAllQueryArgs>,
@@ -160,6 +162,7 @@ pub async fn get_all(
         &state,
         TaskReference::All(query.0),
         accept,
+        accept_language,
         id_token,
         access_code,
         request.query_string(),
@@ -171,6 +174,7 @@ pub async fn get_one(
     state: Data<State>,
     id: Path<Id>,
     accept: Accept,
+    accept_language: AcceptLanguage,
     id_token: Authorization,
     access_code: Option<XAccessCode>,
     query: Query<GetOneQueryArgs>,
@@ -179,6 +183,7 @@ pub async fn get_one(
         &state,
         TaskReference::One(id.into_inner(), query.0),
         accept,
+        accept_language,
         id_token,
         access_code,
         "",
@@ -190,6 +195,7 @@ pub async fn get_version(
     state: Data<State>,
     args: Path<PathArgs>,
     accept: Accept,
+    accept_language: AcceptLanguage,
     id_token: Authorization,
     access_code: Option<XAccessCode>,
     query: Query<GetOneQueryArgs>,
@@ -200,6 +206,7 @@ pub async fn get_version(
         &state,
         TaskReference::Version(id, version, query.0),
         accept,
+        accept_language,
         id_token,
         access_code,
         "",
@@ -211,6 +218,7 @@ async fn get(
     state: &State,
     reference: TaskReference,
     accept: Accept,
+    accept_language: AcceptLanguage,
     access_token: Authorization,
     mut access_code: Option<XAccessCode>,
     query_str: &str,
@@ -232,6 +240,7 @@ async fn get(
 
     let mut kvnr = access_token.kvnr().ok();
     let agent = (&*access_token).into();
+    let lang: Language = accept_language.into();
 
     #[cfg(feature = "interface-supplier")]
     {
@@ -251,7 +260,7 @@ async fn get(
                 .err_with_type(accept)?;
 
             let mut bundle = Bundle::new(Type::Searchset);
-            add_task_to_bundle(&mut bundle, &task, &access_token, Some(&state))
+            add_to_bundle(&mut bundle, &task, &access_token, Some(&state))
                 .into_req_err()
                 .err_with_type(accept)?;
 
@@ -269,7 +278,9 @@ async fn get(
                 if inc_audit_event {
                     if let Some(events) = state.audit_event_iter_by_task(&id) {
                         for event in events {
-                            bundle.entries.push(Entry::new(Resource::AuditEvent(event)));
+                            bundle
+                                .entries
+                                .push(Entry::new(Resource::AuditEvent(event, lang)));
                         }
                     }
                 }
@@ -284,7 +295,7 @@ async fn get(
                 .err_with_type(accept)?;
 
             let mut bundle = Bundle::new(Type::Searchset);
-            add_task_to_bundle(&mut bundle, &task, &access_token, None)
+            add_to_bundle(&mut bundle, &task, &access_token, None)
                 .into_req_err()
                 .err_with_type(accept)?;
 
@@ -332,7 +343,7 @@ async fn get(
 
             let mut bundle = Bundle::new(Type::Searchset);
             for task in tasks.iter().skip(skip).take(take) {
-                add_task_to_bundle(&mut bundle, &task, &access_token, None)
+                add_to_bundle(&mut bundle, &task, &access_token, None)
                     .into_req_err()
                     .err_with_type(accept)?;
             }
@@ -402,7 +413,7 @@ fn make_uri(query: &str, page_id: usize) -> String {
     }
 }
 
-fn add_task_to_bundle<'b, 's>(
+fn add_to_bundle<'b, 's>(
     bundle: &'b mut Bundle<Resource<'s>>,
     task: &'s Version<Task>,
     access_token: &AccessToken,

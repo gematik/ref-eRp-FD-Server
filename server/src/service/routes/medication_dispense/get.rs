@@ -108,11 +108,12 @@ pub async fn get_all(
         .err_with_type(accept)?;
 
     let kvnr = access_token.kvnr().into_req_err().err_with_type(accept)?;
-    let state = state.lock().await;
+    let mut state = state.lock().await;
 
     // Collect results
+    let agent = (&*access_token).into();
     let mut results = state
-        .medication_dispense_iter(&kvnr, |md| check_query(&query, md))
+        .medication_dispense_iter(&kvnr, agent, |md| check_query(&query, md))
         .collect::<Vec<_>>();
 
     // Sort the result
@@ -120,14 +121,16 @@ pub async fn get_all(
         results.sort_by(|a, b| {
             sort.cmp(|arg| match arg {
                 SortArgs::WhenHandedOver => {
-                    let a: DateTime<Utc> = a.when_handed_over.clone().into();
-                    let b: DateTime<Utc> = b.when_handed_over.clone().into();
+                    let a: DateTime<Utc> = a.unlogged().when_handed_over.clone().into();
+                    let b: DateTime<Utc> = b.unlogged().when_handed_over.clone().into();
 
                     a.cmp(&b)
                 }
                 SortArgs::WhenPrepared => {
-                    let a: Option<DateTime<Utc>> = a.when_prepared.clone().map(Into::into);
-                    let b: Option<DateTime<Utc>> = b.when_prepared.clone().map(Into::into);
+                    let a: Option<DateTime<Utc>> =
+                        a.unlogged().when_prepared.clone().map(Into::into);
+                    let b: Option<DateTime<Utc>> =
+                        b.unlogged().when_prepared.clone().map(Into::into);
 
                     a.cmp(&b)
                 }
@@ -154,13 +157,7 @@ pub async fn get_all(
     bundle.total = Some(result_count);
 
     for result in results.into_iter().skip(skip).take(take) {
-        let mut entry = Entry::new(result);
-        entry.url = result
-            .id
-            .as_ref()
-            .map(|id| format!("/MedicationDispense/{}", id));
-
-        bundle.entries.push(entry);
+        add_to_bundle(&mut bundle, &result);
     }
 
     if let Some(count) = query.count {
@@ -210,9 +207,10 @@ pub async fn get_one(
 
     let id = id.0;
     let kvnr = access_token.kvnr().into_req_err().err_with_type(accept)?;
-    let state = state.lock().await;
+    let agent = (&*access_token).into();
+    let mut state = state.lock().await;
     let medication_dispense = state
-        .medication_dispense_get(id, &kvnr)
+        .medication_dispense_get(id, &kvnr, agent)
         .into_req_err()
         .err_with_type(accept)?;
 
@@ -248,4 +246,17 @@ fn make_uri(query: &str, page_id: usize) -> String {
     } else {
         format!("/MedicationDispense?{}&pageId={}", query, page_id)
     }
+}
+
+fn add_to_bundle<'b, 's>(bundle: &'b mut Bundle<&'s MedicationDispense>, md: &'s MedicationDispense)
+where
+    's: 'b,
+{
+    let mut entry = Entry::new(md);
+    entry.url = md
+        .id
+        .as_ref()
+        .map(|id| format!("/MedicationDispense/{}", id));
+
+    bundle.entries.push(entry);
 }

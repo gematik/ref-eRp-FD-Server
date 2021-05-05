@@ -23,7 +23,6 @@ use openssl::{
     bn::{BigNum, BigNumContext},
     derive::Deriver,
     ec::{EcGroup, EcKey},
-    hash::MessageDigest,
     hkdf::{Hkdf, Mode},
     nid::Nid,
     pkey::PKey,
@@ -110,8 +109,10 @@ pub fn execute(opts: Opts) {
     let shared_secret = deriver
         .derive_to_vec()
         .expect("Unable to generate shared secret");
-    let aes_key = Hkdf::new(MessageDigest::sha256())
+    let aes_key = Hkdf::new()
         .expect("Unable to creaet HKDF context")
+        .set_digest("sha256")
+        .expect("Unable to set HDKF digest")
         .set_mode(Mode::ExtractAndExpand)
         .expect("Unable to set HDKF mode")
         .set_info(Some(b"ecies-vau-transport"))

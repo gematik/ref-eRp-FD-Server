@@ -20,11 +20,9 @@ use std::iter::once;
 
 use async_trait::async_trait;
 use miscellaneous::str::icase_eq;
-use resources::{
-    audit_event::{
-        Action, Agent, AuditEvent, Entity, Outcome, ParticipationRoleType, Source, SubType,
-    },
-    primitives::Id,
+use resources::audit_event::{
+    Action, Agent, AuditEvent, Entity, Language, Outcome, ParticipationRoleType, Source, SubType,
+    Text, What,
 };
 
 use crate::fhir::{
@@ -39,6 +37,7 @@ use super::{
         decode_code, decode_codeable_concept, decode_coding, decode_identifier_reference,
         decode_reference, encode_code, encode_codeable_concept, encode_coding,
         encode_identifier_reference, encode_reference, CodeEx, CodeableConceptEx, Coding, CodingEx,
+        ReferenceEx,
     },
 };
 
@@ -85,7 +84,7 @@ impl Decode for AuditEvent {
             let div = div.strip_prefix("<div>").unwrap_or(&div);
             let div = div.strip_suffix("</div>").unwrap_or(&div);
 
-            Some(div.to_owned())
+            Some(Text::Other(div.to_owned()))
         } else {
             None
         };
@@ -190,18 +189,11 @@ impl Decode for Entity {
 
         stream.element().await?;
 
-        let what = stream
-            .decode::<String, _>(&mut fields, decode_reference)
-            .await?;
+        let what = stream.decode(&mut fields, decode_reference).await?;
         let name = stream.decode(&mut fields, decode_any).await?;
         let description = stream.decode(&mut fields, decode_any).await?;
 
         stream.end().await?;
-
-        let what = parse_task_id(&what).map_err(|_| DecodeError::Custom {
-            message: format!("Invalid task id: {}", &what),
-            path: stream.path().into(),
-        })?;
 
         Ok(Entity {
             what,
@@ -211,17 +203,17 @@ impl Decode for Entity {
     }
 }
 
-fn parse_task_id(id: &str) -> Result<Id, ()> {
-    let mut it = id.split('/');
-    it.next();
-    it.next().ok_or(())?.try_into().map_err(|_| ())
-}
-
 /* Encode */
 
-impl EncodeBundleResource for &AuditEvent {}
+#[derive(Debug, Clone)]
+pub struct AuditEventContainer<'a> {
+    pub audit_event: &'a AuditEvent,
+    pub lang: Language,
+}
 
-impl Encode for &AuditEvent {
+impl EncodeBundleResource for AuditEventContainer<'_> {}
+
+impl Encode for AuditEventContainer<'_> {
     fn encode<S>(self, stream: &mut EncodeStream<S>) -> Result<(), EncodeError<S::Error>>
     where
         S: DataStorage,
@@ -231,12 +223,120 @@ impl Encode for &AuditEvent {
             ..Default::default()
         };
 
+        let Self { audit_event, lang } = self;
+
         stream
             .root("AuditEvent")?
-            .encode("id", &self.id, encode_any)?
+            .encode("id", &audit_event.id, encode_any)?
             .encode("meta", meta, encode_any)?;
 
-        if let Some(text) = &self.text {
+        let id = match &audit_event.entity.what {
+            What::Task(id) => id.to_string(),
+            What::MedicationDispense(id) => id.to_string(),
+            What::Other(s) => s.clone(),
+            What::Unknown => "<unkown>".into(),
+        };
+
+        let agent = &audit_event.agent.name;
+
+        if let Some(text) = &audit_event.text {
+            let text = match (text, lang) {
+                /* misc */
+                (Text::Unknown, _) => "<unkown>".into(),
+                (Text::Other(s), _) => s.to_owned(),
+
+                /* english */
+                (Text::TaskGetPatient, Language::En) => {
+                    format!("You have accessed an E-prescription {}.", id)
+                }
+                (Text::TaskGetRepresentative, Language::En) => {
+                    format!("{} has accessed an E-prescription {}.", agent, id)
+                }
+                (Text::TaskGetPharmacy, Language::En) => {
+                    format!("{} has accessed an E-prescription {}.", agent, id)
+                }
+                (Text::TaskActivate, Language::En) => {
+                    format!("{} has created an E-prescription {}.", agent, id)
+                }
+                (Text::TaskAccept, Language::En) => {
+                    format!("{} has accepted an E-prescription {}.", agent, id)
+                }
+                (Text::TaskReject, Language::En) => {
+                    format!("{} has rejected an E-prescription {}.", agent, id)
+                }
+                (Text::TaskClose, Language::En) => {
+                    format!("{} has closed an E-prescription {}.", agent, id)
+                }
+                (Text::TaskAbortDoctor, Language::En) => {
+                    format!("{} has aborted an E-prescription {}.", agent, id)
+                }
+                (Text::TaskAbortPatient, Language::En) => {
+                    format!("You have aborted an E-prescription {}.", id)
+                }
+                (Text::TaskAbortPharmacy, Language::En) => {
+                    format!("{} has aborted an E-prescription {}.", agent, id)
+                }
+                (Text::TaskAbortRepresentative, Language::En) => {
+                    format!("{} has aborted an E-prescription {}.", agent, id)
+                }
+                (Text::TaskDelete, Language::En) => {
+                    "A old E-prescription was deleted automatically.".to_owned()
+                }
+                (Text::MedicationDispenseGetPatient, Language::En) => format!(
+                    "You have accessed the medication dispense for an E-prescription {}.",
+                    id
+                ),
+                (Text::MedicationDispenseGetRepresentative, Language::En) => format!(
+                    "{} has accessed the medication dispense for an E-prescription {}.",
+                    agent, id
+                ),
+
+                /* german */
+                (Text::TaskGetPatient, Language::De) => {
+                    format!("Sie haben ein E-Rezept {} aufgerufen.", id)
+                }
+                (Text::TaskGetRepresentative, Language::De) => {
+                    format!("{} hat ein E-Rezept {} aufgerufen.", agent, id)
+                }
+                (Text::TaskGetPharmacy, Language::De) => {
+                    format!("{} hat ein E-Rezept {} aufgerufen.", agent, id)
+                }
+                (Text::TaskActivate, Language::De) => {
+                    format!("{} hat ein E-Rezept {} eingestellt.", agent, id)
+                }
+                (Text::TaskAccept, Language::De) => {
+                    format!("{} hat ein E-Rezept {} angenommen.", agent, id)
+                }
+                (Text::TaskReject, Language::De) => {
+                    format!("{} hat ein E-Rezept {} zurückgewiesen.", agent, id)
+                }
+                (Text::TaskClose, Language::De) => {
+                    format!("{} hat ein E-Rezept {} beliefert.", agent, id)
+                }
+                (Text::TaskAbortDoctor, Language::De) => {
+                    format!("{} hat ein E-Rezept {} gelöscht.", agent, id)
+                }
+                (Text::TaskAbortPatient, Language::De) => {
+                    format!("Sie haben ein E-Rezept {} gelöscht.", id)
+                }
+                (Text::TaskAbortPharmacy, Language::De) => {
+                    format!("{} hat ein E-Rezept {} gelöscht.", agent, id)
+                }
+                (Text::TaskAbortRepresentative, Language::De) => {
+                    format!("{} hat ein E-Rezept {} gelöscht.", agent, id)
+                }
+                (Text::TaskDelete, Language::De) => {
+                    "Veraltete E-Rezepte wurden vom Fachdienst automatisch gelöscht.".to_owned()
+                }
+                (Text::MedicationDispenseGetPatient, Language::De) => {
+                    format!("Sie haben die Quittungen für E-Rezept {} aufgerufen.", id)
+                }
+                (Text::MedicationDispenseGetRepresentative, Language::De) => format!(
+                    "{} hat die Quittungen für E-Rezept {} aufgerufen.",
+                    agent, id
+                ),
+            };
+
             stream
                 .field_name("text")?
                 .element()?
@@ -251,14 +351,18 @@ impl Encode for &AuditEvent {
             .encode("system", SYSTEM_TYPE, encode_any)?
             .encode("code", "rest", encode_any)?
             .end()?
-            .encode_vec("subtype", once(&self.sub_type), encode_coding)?
-            .encode("action", &self.action, encode_code)?
-            .encode("recorded", &self.recorded, encode_any)?
-            .encode("outcome", &self.outcome, encode_code)?
-            .encode_opt("outcomeDescription", &self.outcome_description, encode_any)?
-            .encode_vec("agent", once(&self.agent), encode_any)?
-            .encode("source", &self.source, encode_any)?
-            .encode_vec("entity", once(&self.entity), encode_any)?
+            .encode_vec("subtype", once(&audit_event.sub_type), encode_coding)?
+            .encode("action", &audit_event.action, encode_code)?
+            .encode("recorded", &audit_event.recorded, encode_any)?
+            .encode("outcome", &audit_event.outcome, encode_code)?
+            .encode_opt(
+                "outcomeDescription",
+                &audit_event.outcome_description,
+                encode_any,
+            )?
+            .encode_vec("agent", once(&audit_event.agent), encode_any)?
+            .encode("source", &audit_event.source, encode_any)?
+            .encode_vec("entity", once(&audit_event.entity), encode_any)?
             .end()?;
 
         Ok(())
@@ -302,11 +406,9 @@ impl Encode for &Entity {
     where
         S: DataStorage,
     {
-        let what = format!("Task/{}", &self.what);
-
         stream
             .element()?
-            .encode("what", &what, encode_reference)?
+            .encode("what", &self.what, encode_reference)?
             .encode("name", &self.name, encode_any)?
             .encode("description", &self.description, encode_any)?;
 
@@ -542,6 +644,33 @@ impl CodeEx for ParticipationRoleType {
     }
 }
 
+impl ReferenceEx for What {
+    fn from_parts(reference: String) -> Result<Self, String> {
+        if let Some(s) = reference.strip_prefix("Task/") {
+            if let Ok(id) = s.try_into() {
+                return Ok(What::Task(id));
+            }
+        } else if let Some(s) = reference.strip_prefix("MedicationDispense/") {
+            if let Ok(id) = s.try_into() {
+                return Ok(What::MedicationDispense(id));
+            }
+        } else {
+            return Ok(What::Other(reference));
+        }
+
+        Err(reference)
+    }
+
+    fn reference(&self) -> String {
+        match self {
+            Self::Task(id) => format!("Task/{}", id),
+            Self::MedicationDispense(id) => format!("MedicationDispense/{}", id),
+            Self::Other(s) => s.to_owned(),
+            Self::Unknown => "<unknown>".into(),
+        }
+    }
+}
+
 pub const PROFILE: &str = "https://gematik.de/fhir/StructureDefinition/ErxAuditEvent";
 
 const SYSTEM_DCM: &str = "http://dicom.nema.org/resources/ontology/DCM";
@@ -591,8 +720,12 @@ pub mod tests {
     #[tokio::test]
     async fn test_encode_json() {
         let value = test_audit_event();
+        let value = AuditEventContainer {
+            audit_event: &value,
+            lang: Language::De,
+        };
 
-        let actual = (&value).json().unwrap();
+        let actual = value.json().unwrap();
         let actual = from_utf8(&actual).unwrap();
         let expected = read_to_string("./examples/audit_event.json").unwrap();
 
@@ -602,8 +735,12 @@ pub mod tests {
     #[tokio::test]
     async fn test_encode_xml() {
         let value = test_audit_event();
+        let value = AuditEventContainer {
+            audit_event: &value,
+            lang: Language::De,
+        };
 
-        let actual = (&value).xml().unwrap();
+        let actual = value.xml().unwrap();
         let actual = from_utf8(&actual).unwrap();
         let expected = read_to_string("./examples/audit_event.xml").unwrap();
 
@@ -613,7 +750,7 @@ pub mod tests {
     pub fn test_audit_event() -> AuditEvent {
         AuditEvent {
             id: "5fe6e06c-8725-46d5-aecd-e65e041ca3af".try_into().unwrap(),
-            text: Some("Example Text".into()),
+            text: Some(Text::Other("Example Text".into())),
             sub_type: SubType::Read,
             action: Action::Create,
             recorded: "2020-02-27T08:04:27.434+00:00".try_into().unwrap(),
@@ -629,7 +766,7 @@ pub mod tests {
                 observer: "Device/eRx-Fachdienst".into(),
             },
             entity: Entity {
-                what: "4711".try_into().unwrap(),
+                what: What::Task("4711".try_into().unwrap()),
                 name: Kvnr::new("X123456789").unwrap(),
                 description: "160.123.456.789.123.58".parse().unwrap(),
             },

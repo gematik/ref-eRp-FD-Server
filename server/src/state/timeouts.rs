@@ -23,9 +23,7 @@ use tokio::{
     time::{delay_for, Duration as TokioDuration},
 };
 
-use resources::{
-    primitives::Id, task::Status, AuditEvent, Communication, MedicationDispense, Task,
-};
+use resources::{primitives::Id, task::Status, AuditEvent, MedicationDispense, Task};
 
 use super::{Inner, State};
 
@@ -33,7 +31,6 @@ use super::{Inner, State};
 pub enum ResourceId {
     Task(Id),
     AuditEvent(Id),
-    Communication(Id),
     MedicationDispense(Id),
 }
 
@@ -132,18 +129,6 @@ impl Inner {
 
                     self.audit_event_delete_by_id(&id);
                 }
-                ResourceId::Communication(id) => {
-                    let communication = match self.communications.get_by_id(&id) {
-                        Some(communication) => communication,
-                        None => continue,
-                    };
-
-                    if communication.timeout() > now {
-                        continue;
-                    }
-
-                    self.communication_delete_by_id(&id);
-                }
                 ResourceId::MedicationDispense(id) => {
                     let md = match self.medication_dispenses.get_by_id(&id) {
                         Some(md) => md,
@@ -158,24 +143,6 @@ impl Inner {
                 }
             }
         }
-    }
-}
-
-impl TimeoutResource for Communication {
-    fn id(&self) -> ResourceId {
-        let id = self
-            .id()
-            .as_ref()
-            .expect("Communication without Id!")
-            .clone();
-
-        ResourceId::Communication(id)
-    }
-
-    fn timeout(&self) -> DateTime<Utc> {
-        let date: DateTime<Utc> = self.sent().as_ref().unwrap().clone().into();
-
-        date + Duration::days(100)
     }
 }
 
@@ -205,7 +172,7 @@ impl TimeoutResource for AuditEvent {
     }
 
     fn timeout(&self) -> DateTime<Utc> {
-        *self.recorded
+        *self.recorded + Duration::days(3 * 365)
     }
 }
 

@@ -18,13 +18,14 @@
 use std::convert::TryInto;
 
 use resources::{
+    audit_event::Language,
     primitives::{Id, Instant},
     AuditEvent, ErxBundle, KbvBinary, KbvBundle, Task,
 };
 
 use crate::{
     fhir::{
-        definitions::{AsTask, EncodeBundleResource, TaskContainer},
+        definitions::{AsTask, AuditEventContainer, EncodeBundleResource, TaskContainer},
         encode::{DataStorage, Encode, EncodeError, EncodeStream},
     },
     state::Version,
@@ -37,7 +38,7 @@ pub enum Resource<'a> {
     KbvBinary(&'a KbvBinary),
     KbvBundle(&'a KbvBundle),
     ErxBundle(&'a ErxBundle),
-    AuditEvent(&'a AuditEvent),
+    AuditEvent(&'a AuditEvent, Language),
 }
 
 impl AsTask for Version<Task> {
@@ -67,7 +68,9 @@ impl Encode for Resource<'_> {
             Self::KbvBinary(v) => v.encode(stream),
             Self::KbvBundle(v) => v.encode(stream),
             Self::ErxBundle(v) => v.encode(stream),
-            Self::AuditEvent(v) => v.encode(stream),
+            Self::AuditEvent(audit_event, lang) => {
+                AuditEventContainer { audit_event, lang }.encode(stream)
+            }
         }
     }
 }

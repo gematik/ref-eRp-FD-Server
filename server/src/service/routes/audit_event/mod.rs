@@ -29,7 +29,7 @@ use resources::capability_statement::{Interaction, SearchParamType, Type};
 
 use crate::fhir::definitions::RESOURCE_PROFILE_AUDIT_EVENT;
 
-pub use state::AuditEvents;
+pub use state::{AuditEvents, Builder as AuditEventBuilder, Loggable, LoggedIter, LoggedRef};
 
 #[derive(Default)]
 pub struct AutidEventRoutes;

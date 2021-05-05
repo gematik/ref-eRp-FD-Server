@@ -42,7 +42,7 @@ mod task_activate_parameters;
 mod task_create_parameters;
 mod types;
 
-pub use audit_event::PROFILE as RESOURCE_PROFILE_AUDIT_EVENT;
+pub use audit_event::{AuditEventContainer, PROFILE as RESOURCE_PROFILE_AUDIT_EVENT};
 pub use bundle::{DecodeBundleResource, EncodeBundleResource};
 pub use communication::{
     PROFILE_BASE as RESOURCE_PROFILE_COMMUNICATION,

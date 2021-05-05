@@ -186,11 +186,33 @@ pub mod tests {
         let state = State::new(sig_key, sig_cert, 10, 500, "999 Throttling active".into());
         let mut state = state.lock().await;
 
-        let content = read_to_string("./examples/state_001.json").unwrap();
+        let content = read_to_string("./examples/state_load_001.json").unwrap();
         let content = trim_json_str(&content);
         state.load(content.as_bytes()).unwrap();
 
-        let expected = read_to_string("./examples/state_current.json").unwrap();
+        let expected = read_to_string("./examples/state_save_001.json").unwrap();
+        let expected = trim_json_str(&expected);
+
+        let mut actual = Vec::new();
+        state.save(&mut actual).unwrap();
+
+        let actual = from_utf8(&actual).unwrap();
+        assert_eq!(actual, expected);
+    }
+
+    #[tokio::test]
+    pub async fn load_save_002() {
+        let sig_key = PKey::generate_ed448().unwrap();
+        let sig_cert = X509::builder().unwrap().build();
+
+        let state = State::new(sig_key, sig_cert, 10, 500, "999 Throttling active".into());
+        let mut state = state.lock().await;
+
+        let content = read_to_string("./examples/state_load_002.json").unwrap();
+        let content = trim_json_str(&content);
+        state.load(content.as_bytes()).unwrap();
+
+        let expected = read_to_string("./examples/state_save_002.json").unwrap();
         let expected = trim_json_str(&expected);
 
         let mut actual = Vec::new();

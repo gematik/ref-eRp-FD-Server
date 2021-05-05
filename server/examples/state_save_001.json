@@ -493,7 +493,7 @@
     "audit_events":[
         {
             "id":"159d0c20-1dd2-11b2-802c-eb7de13489ec",
-            "text":"/Task/$activate Operation",
+            "text":"Unknown",
             "sub_type":"Operation",
             "action":"Create",
             "recorded":1612522241814180800,
@@ -511,14 +511,14 @@
                 "observer":"E-Rezept Fachdienst Referenzimplementierung 0.11.0+15 dirty 7bf6f221c5b676841a20a36c06be1cbd3906248e"
             },
             "entity":{
-                "what":"/Task/13814006-1dd2-11b2-802a-eb7de13489ec",
+                "what":"Unknown",
                 "name":"X234567890",
                 "description":"160.000.306.303.800.18"
             }
         },
         {
             "id":"17a30e20-1dd2-11b2-802d-eb7de13489ec",
-            "text":"/Task/$accept Operation",
+            "text":"Unknown",
             "sub_type":"Operation",
             "action":"Update",
             "recorded":1612522245209000600,
@@ -536,14 +536,14 @@
                 "observer":"E-Rezept Fachdienst Referenzimplementierung 0.11.0+15 dirty 7bf6f221c5b676841a20a36c06be1cbd3906248e"
             },
             "entity":{
-                "what":"/Task/13814006-1dd2-11b2-802a-eb7de13489ec",
+                "what":"Unknown",
                 "name":"X234567890",
                 "description":"160.000.306.303.800.18"
             }
         },
         {
             "id":"453ce54a-1dd2-11b2-8030-eb7de13489ec",
-            "text":"/Task/$close Operation",
+            "text":"Unknown",
             "sub_type":"Operation",
             "action":"Update",
             "recorded":1612522321714677400,
@@ -561,7 +561,7 @@
                 "observer":"E-Rezept Fachdienst Referenzimplementierung 0.11.0+15 dirty 7bf6f221c5b676841a20a36c06be1cbd3906248e"
             },
             "entity":{
-                "what":"/Task/13814006-1dd2-11b2-802a-eb7de13489ec",
+                "what":"Unknown",
                 "name":"X234567890",
                 "description":"160.000.306.303.800.18"
             }
@@ -586,7 +586,7 @@
                 "observer":"E-Rezept Fachdienst Referenzimplementierung 0.11.0+15 dirty 7bf6f221c5b676841a20a36c06be1cbd3906248e"
             },
             "entity":{
-                "what":"/Task/3",
+                "what":"Unknown",
                 "name":"X234567890",
                 "description":"160.000.306.303.800.18"
             }

@@ -20,7 +20,6 @@ use openssl::{
     bn::BigNumContext,
     derive::Deriver,
     ec::{EcGroup, EcKey, EcPoint},
-    hash::MessageDigest,
     hkdf::{Hkdf, Mode},
     nid::Nid,
     pkey::{PKey, Private},
@@ -74,9 +73,10 @@ impl Decrypter {
         deriver.set_peer(&client_public_key)?;
 
         let shared_secret = deriver.derive_to_vec()?;
-        let aes_key = Hkdf::new(MessageDigest::sha256())?
+        let aes_key = Hkdf::new()?
             .set_mode(Mode::ExtractAndExpand)?
             .set_info(Some(b"ecies-vau-transport"))?
+            .set_digest("sha256")?
             .set_secret(&shared_secret)?
             .derive(LEN_TAG)?;
 

@@ -18,11 +18,15 @@
 use std::cell::RefCell;
 use std::collections::{hash_map::Entry, HashMap, HashSet};
 use std::fmt::Display;
+use std::ops::Deref;
 use std::rc::Rc;
 
 use chrono::Utc;
 use resources::{
-    audit_event::{Action, Agent, AuditEvent, Entity, Outcome, Source, SubType},
+    audit_event::{
+        Action, Agent, AuditEvent, Entity, Outcome, ParticipationRoleType, Source, SubType, Text,
+        What,
+    },
     misc::{Kvnr, PrescriptionId},
     primitives::Id,
 };
@@ -45,7 +49,11 @@ impl AuditEvents {
     pub fn insert(&mut self, audit_event: AuditEvent) {
         let id = audit_event.id.clone();
         let kvnr = audit_event.entity.name.clone();
-        let task_id = audit_event.entity.what.clone();
+        let task_id = match &audit_event.entity.what {
+            What::Task(task_id) => Some(task_id.clone()),
+            What::MedicationDispense(_) => None,
+            _ => None,
+        };
 
         match self.by_id.entry(id.clone()) {
             Entry::Occupied(_) => {
@@ -57,7 +65,10 @@ impl AuditEvents {
         }
 
         self.by_kvnr.entry(kvnr).or_default().insert(id.clone());
-        self.by_task.entry(task_id).or_default().insert(id);
+
+        if let Some(task_id) = task_id {
+            self.by_task.entry(task_id).or_default().insert(id);
+        }
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &AuditEvent> {
@@ -136,17 +147,26 @@ impl Inner {
 
         let audit_event = audit_events.by_id.get(id).unwrap();
         let kvnr = &audit_event.entity.name;
-        let task_id = &audit_event.entity.what;
 
         if let Some(ids) = audit_events.by_kvnr.get_mut(&kvnr) {
             ids.remove(id);
         }
 
-        if let Some(ids) = audit_events.by_task.get_mut(&task_id) {
+        let ids = match &audit_event.entity.what {
+            What::Task(task_id) => audit_events.by_task.get_mut(&task_id),
+            What::MedicationDispense(_) => None,
+            _ => None,
+        };
+
+        if let Some(ids) = ids {
             ids.remove(id);
         }
 
         audit_events.by_id.remove(id);
+    }
+
+    pub fn agent() -> &'static Agent {
+        &AGENT
     }
 
     pub fn logged<F, T, E>(
@@ -180,10 +200,10 @@ pub struct Builder {
     sub_type: Option<SubType>,
     action: Option<Action>,
     agent: Option<Agent>,
-    what: Option<Id>,
+    what: Option<What>,
     patient: Option<Kvnr>,
     description: Option<PrescriptionId>,
-    text: Option<String>,
+    text: Option<Text>,
 }
 
 #[allow(dead_code)]
@@ -273,11 +293,8 @@ impl Builder {
         self
     }
 
-    pub fn what<T>(&mut self, value: T) -> &mut Self
-    where
-        T: Into<Id>,
-    {
-        self.what = Some(value.into());
+    pub fn what(&mut self, value: What) -> &mut Self {
+        self.what = Some(value);
 
         self
     }
@@ -310,12 +327,114 @@ impl Builder {
         self
     }
 
-    pub fn text<T>(&mut self, value: T) -> &mut Self
-    where
-        T: Into<String>,
-    {
-        self.text = Some(value.into());
+    pub fn text(&mut self, value: Text) -> &mut Self {
+        self.text = Some(value);
 
         self
     }
+}
+
+pub trait Loggable {
+    type Item;
+
+    fn unlogged(&self) -> &Self::Item;
+    fn logged(&self, builder: &mut Builder) -> &Self::Item;
+}
+
+pub struct LoggedIter<'a, T> {
+    iter: T,
+    agent: Rc<Agent>,
+    timeouts: Rc<RefCell<&'a mut Timeouts>>,
+    audit_events: Rc<RefCell<&'a mut AuditEvents>>,
+}
+
+impl<'a, T> LoggedIter<'a, T>
+where
+    T: Iterator,
+{
+    pub fn new(
+        audit_events: &'a mut AuditEvents,
+        timeouts: &'a mut Timeouts,
+        agent: Agent,
+        iter: T,
+    ) -> Self {
+        let agent = Rc::new(agent);
+        let timeouts = Rc::new(RefCell::new(timeouts));
+        let audit_events = Rc::new(RefCell::new(audit_events));
+
+        Self {
+            iter,
+            agent,
+            timeouts,
+            audit_events,
+        }
+    }
+}
+
+impl<'a, T> Iterator for LoggedIter<'a, T>
+where
+    T: Iterator,
+    T::Item: Loggable,
+{
+    type Item = LoggedRef<'a, T::Item>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let item = self.iter.next()?;
+
+        Some(LoggedRef {
+            item,
+            agent: self.agent.clone(),
+            timeouts: self.timeouts.clone(),
+            audit_events: self.audit_events.clone(),
+        })
+    }
+}
+
+pub struct LoggedRef<'a, T> {
+    item: T,
+    agent: Rc<Agent>,
+    timeouts: Rc<RefCell<&'a mut Timeouts>>,
+    audit_events: Rc<RefCell<&'a mut AuditEvents>>,
+}
+
+impl<'a, T> LoggedRef<'a, T>
+where
+    T: Loggable,
+{
+    pub fn unlogged(&self) -> &T::Item {
+        self.item.unlogged()
+    }
+}
+
+impl<'a, T> Deref for LoggedRef<'a, T>
+where
+    T: Loggable,
+{
+    type Target = T::Item;
+
+    fn deref(&self) -> &Self::Target {
+        let agent = self.agent.deref().clone();
+        let mut timeouts = self.timeouts.borrow_mut();
+        let mut audit_events = self.audit_events.borrow_mut();
+
+        let mut builder = Inner::audit_event_builder();
+        builder.agent(agent);
+        builder.action(Action::Read);
+        builder.sub_type(SubType::Read);
+
+        let item = self.item.logged(&mut builder);
+
+        builder.build(&mut audit_events, &mut timeouts, None);
+
+        item
+    }
+}
+
+lazy_static! {
+    static ref AGENT: Agent = Agent {
+        type_: ParticipationRoleType::HumanUser,
+        who: None,
+        name: DEVICE.device_name.name.clone(),
+        requestor: false,
+    };
 }

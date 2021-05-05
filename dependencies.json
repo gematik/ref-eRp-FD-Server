@@ -136,7 +136,7 @@
   },
   {
     "name": "aho-corasick",
-    "version": "0.7.15",
+    "version": "0.7.18",
     "authors": "Andrew Gallant <jamslam@gmail.com>",
     "repository": "https://github.com/BurntSushi/aho-corasick",
     "license": "MIT OR Unlicense",
@@ -982,7 +982,7 @@
   },
   {
     "name": "lock_api",
-    "version": "0.4.3",
+    "version": "0.4.4",
     "authors": "Amanieu d'Antras <amanieu@gmail.com>",
     "repository": "https://github.com/Amanieu/parking_lot",
     "license": "Apache-2.0 OR MIT",
@@ -1045,7 +1045,7 @@
   },
   {
     "name": "memchr",
-    "version": "2.3.4",
+    "version": "2.4.0",
     "authors": "Andrew Gallant <jamslam@gmail.com>|bluss",
     "repository": "https://github.com/BurntSushi/rust-memchr",
     "license": "MIT OR Unlicense",
@@ -1450,7 +1450,7 @@
   },
   {
     "name": "redox_syscall",
-    "version": "0.2.7",
+    "version": "0.2.8",
     "authors": "Jeremy Soller <jackpot51@gmail.com>",
     "repository": "https://gitlab.redox-os.org/redox-os/syscall",
     "license": "MIT",
@@ -1468,7 +1468,7 @@
   },
   {
     "name": "regex",
-    "version": "1.4.6",
+    "version": "1.5.3",
     "authors": "The Rust Project Developers",
     "repository": "https://github.com/rust-lang/regex",
     "license": "Apache-2.0 OR MIT",
@@ -1477,7 +1477,7 @@
   },
   {
     "name": "regex-syntax",
-    "version": "0.6.23",
+    "version": "0.6.25",
     "authors": "The Rust Project Developers",
     "repository": "https://github.com/rust-lang/regex",
     "license": "Apache-2.0 OR MIT",
@@ -1801,7 +1801,7 @@
   },
   {
     "name": "syn",
-    "version": "1.0.71",
+    "version": "1.0.72",
     "authors": "David Tolnay <dtolnay@gmail.com>",
     "repository": "https://github.com/dtolnay/syn",
     "license": "Apache-2.0 OR MIT",
@@ -1963,7 +1963,7 @@
   },
   {
     "name": "tracing",
-    "version": "0.1.25",
+    "version": "0.1.26",
     "authors": "Eliza Weisman <eliza@buoyant.io>|Tokio Contributors <team@tokio.rs>",
     "repository": "https://github.com/tokio-rs/tracing",
     "license": "MIT",
@@ -1972,7 +1972,7 @@
   },
   {
     "name": "tracing-core",
-    "version": "0.1.17",
+    "version": "0.1.18",
     "authors": "Tokio Contributors <team@tokio.rs>",
     "repository": "https://github.com/tokio-rs/tracing",
     "license": "MIT",
@@ -2089,8 +2089,8 @@
   },
   {
     "name": "unicode-xid",
-    "version": "0.2.1",
-    "authors": "erick.tryzelaar <erick.tryzelaar@gmail.com>|kwantam <kwantam@gmail.com>",
+    "version": "0.2.2",
+    "authors": "erick.tryzelaar <erick.tryzelaar@gmail.com>|kwantam <kwantam@gmail.com>|Manish Goregaokar <manishsmail@gmail.com>",
     "repository": "https://github.com/unicode-rs/unicode-xid",
     "license": "Apache-2.0 OR MIT",
     "license_file": null,

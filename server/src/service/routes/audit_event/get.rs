@@ -29,8 +29,9 @@ use resources::{
 };
 
 use crate::{
+    fhir::definitions::AuditEventContainer,
     service::{
-        header::{Accept, Authorization},
+        header::{Accept, AcceptLanguage, Authorization},
         misc::{create_response, DataType, FromQuery, Profession, Query, QueryValue, Search, Sort},
         IntoReqErrResult, TypedRequestError, TypedRequestResult,
     },
@@ -90,6 +91,7 @@ pub async fn get_all(
     request: HttpRequest,
     accept: Accept,
     access_token: Authorization,
+    accept_language: AcceptLanguage,
     query: Query<QueryArgs>,
 ) -> Result<HttpResponse, TypedRequestError> {
     let mut query = query.0;
@@ -156,9 +158,11 @@ pub async fn get_all(
     let mut bundle = Bundle::new(Type::Searchset);
     bundle.total = Some(result_count);
 
-    for result in events.into_iter().skip(skip).take(take) {
-        let mut entry = Entry::new(result);
-        entry.url = Some(format!("/AuditEvent/{}", &result.id));
+    let lang = accept_language.into();
+    for audit_event in events.into_iter().skip(skip).take(take) {
+        let cntr = AuditEventContainer { audit_event, lang };
+        let mut entry = Entry::new(cntr);
+        entry.url = Some(format!("/AuditEvent/{}", &audit_event.id));
 
         bundle.entries.push(entry);
     }
@@ -196,6 +200,7 @@ pub async fn get_one(
     id: Path<Id>,
     accept: Accept,
     access_token: Authorization,
+    accept_language: AcceptLanguage,
 ) -> Result<HttpResponse, TypedRequestError> {
     let accept = DataType::from_accept(&accept)
         .and_then(DataType::ignore_any)
@@ -212,12 +217,16 @@ pub async fn get_one(
     let kvnr = access_token.kvnr().into_req_err().err_with_type(accept)?;
 
     let state = state.lock().await;
-    let event = state
+    let audit_event = state
         .audit_event_get(id, &kvnr)
         .into_req_err()
         .err_with_type(accept)?;
+    let cntr = AuditEventContainer {
+        audit_event,
+        lang: accept_language.into(),
+    };
 
-    create_response(event, accept)
+    create_response(cntr, accept)
 }
 
 fn check_query(query: &QueryArgs, event: &AuditEvent) -> bool {

@@ -33,6 +33,7 @@ use futures::{
 };
 use log::info;
 use rand::random;
+use tokio::task::spawn_local;
 
 pub struct ReqResLogging;
 
@@ -101,32 +102,68 @@ where
             .unwrap();
 
         Box::pin(self.service.call(req).map(move |res| {
-            Ok(res?.map_body(|head, body| {
-                info!(target: "req_res_log", "RES{} - {:?} {}", &tag, &head.version, &head.status);
-                for (key, value) in head.headers.iter() {
-                    info!(target: "req_res_log", "REQ{} - {}: {}", &tag, &key, value.to_str().unwrap());
-                }
+            match res {
+                Ok(res) => Ok(res.map_body(|head, body| {
+                    info!(target: "req_res_log", "RES{} - {:?} {}", &tag, &head.version, &head.status);
+                    for (key, value) in head.headers.iter() {
+                        info!(target: "req_res_log", "RES{} - {}: {}", &tag, &key, value.to_str().unwrap());
+                    }
 
-                match body {
-                    ResponseBody::Body(b) => ResponseBody::Other(Body::Message(Box::new(ResBody {
-                        tag,
-                        body: Box::pin(b),
-                    }))),
-                    ResponseBody::Other(Body::None) => ResponseBody::Other(Body::None),
-                    ResponseBody::Other(Body::Empty) => ResponseBody::Other(Body::Empty),
-                    ResponseBody::Other(Body::Bytes(data)) => {
-                        if let Ok(data) = from_utf8(&data) {
-                            info!(target: "req_res_log", "RES{} - {}", &tag, &data);
-                        }
+                    match body {
+                        ResponseBody::Body(b) => ResponseBody::Other(Body::Message(Box::new(ResBody {
+                            tag,
+                            body: Box::pin(b),
+                        }))),
+                        ResponseBody::Other(Body::None) => ResponseBody::Other(Body::None),
+                        ResponseBody::Other(Body::Empty) => ResponseBody::Other(Body::Empty),
+                        ResponseBody::Other(Body::Bytes(data)) => {
+                            if let Ok(data) = from_utf8(&data) {
+                                info!(target: "req_res_log", "RES{} - {}", &tag, &data);
+                            }
 
-                        ResponseBody::Other(Body::Bytes(data))
-                    },
-                    ResponseBody::Other(Body::Message(body)) => ResponseBody::Other(Body::Message(Box::new(ResBody {
-                        tag,
-                        body:  unsafe { Pin::new_unchecked(body) },
-                    }))),
+                            ResponseBody::Other(Body::Bytes(data))
+                        },
+                        ResponseBody::Other(Body::Message(body)) => ResponseBody::Other(Body::Message(Box::new(ResBody {
+                            tag,
+                            body:  unsafe { Pin::new_unchecked(body) },
+                        }))),
+                    }
+                })),
+                Err(err) => {
+                    let res = err.as_response_error().error_response();
+                    let head = res.head();
+
+                    info!(target: "req_res_log", "RES{} - {:?} {}", &tag, &head.version, &head.status);
+                    for (key, value) in head.headers.iter() {
+                        info!(target: "req_res_log", "RES{} - {}: {}", &tag, &key, value.to_str().unwrap());
+                    }
+
+                    let (_, body) = res.into_parts();
+                    match body {
+                        ResponseBody::Other(Body::None) => (),
+                        ResponseBody::Other(Body::Empty) => (),
+                        ResponseBody::Other(Body::Bytes(data)) => {
+                            if let Ok(data) = from_utf8(&data) {
+                                info!(target: "req_res_log", "RES{} - {}", &tag, &data);
+                            }
+                        },
+                        ResponseBody::Body(b) => {
+                            spawn_local(ResBody {
+                                tag,
+                                body: Box::pin(b),
+                            });
+                        },
+                        ResponseBody::Other(Body::Message(body)) => {
+                            spawn_local(ResBody {
+                                tag,
+                                body:  unsafe { Pin::new_unchecked(body) },
+                            });
+                        },
+                    }
+
+                    Err(err)
                 }
-            }))
+            }
         }))
     }
 }
@@ -184,6 +221,30 @@ impl MessageBody for ResBody {
             }
             Poll::Ready(Some(Err(err))) => Poll::Ready(Some(Err(err))),
             Poll::Ready(None) => Poll::Ready(None),
+        }
+    }
+}
+
+impl Future for ResBody {
+    type Output = ();
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = self.get_mut();
+        loop {
+            match this.body.as_mut().poll_next(cx) {
+                Poll::Pending => return Poll::Pending,
+                Poll::Ready(Some(Ok(data))) => {
+                    if let Ok(data) = from_utf8(&data) {
+                        info!(target: "req_res_log", "RES{} - {}", &this.tag, &data);
+                    }
+                }
+                Poll::Ready(Some(Err(err))) => {
+                    info!(target: "req_res_log", "RES{} - Error in body: {}", &this.tag, &err);
+
+                    return Poll::Ready(());
+                }
+                Poll::Ready(None) => return Poll::Ready(()),
+            }
         }
     }
 }

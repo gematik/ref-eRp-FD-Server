@@ -25,6 +25,9 @@ compile_error!(
 #[macro_use]
 extern crate lazy_static;
 
+#[macro_use]
+extern crate language_tags;
+
 pub mod error;
 pub mod fhir;
 pub mod logging;

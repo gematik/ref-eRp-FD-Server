@@ -15,15 +15,21 @@
  *
  */
 
+use std::cell::RefCell;
 use std::collections::{hash_map::Entry, HashMap, HashSet};
+use std::rc::Rc;
 
 use resources::{
+    audit_event::{Action, Agent, SubType, Text, What},
     misc::{Kvnr, PrescriptionId},
     primitives::Id,
     MedicationDispense,
 };
 
-use crate::state::Inner;
+use crate::{
+    service::{AuditEventBuilder, Loggable, LoggedIter, LoggedRef},
+    state::Inner,
+};
 
 use super::Error;
 
@@ -76,32 +82,54 @@ impl MedicationDispenses {
 
 impl Inner {
     pub fn medication_dispense_get(
-        &self,
+        &mut self,
         id: Id,
         kvnr: &Kvnr,
+        agent: Agent,
     ) -> Result<&MedicationDispense, Error> {
-        let md = match self.medication_dispenses.by_id.get(&id) {
-            Some(items) => items,
-            None => return Err(Error::NotFound(id)),
-        };
+        let Self {
+            ref medication_dispenses,
+            ref mut timeouts,
+            ref mut audit_events,
+            ..
+        } = self;
 
-        if &md.subject != kvnr {
-            return Err(Error::Forbidden(id));
-        }
+        let timeouts = Rc::new(RefCell::new(timeouts));
+        Self::logged(audit_events, timeouts.clone(), move |event_builder| {
+            let md = match medication_dispenses.by_id.get(&id) {
+                Some(md) => md,
+                None => return Err(Error::NotFound(id)),
+            };
 
-        Ok(md)
+            event_builder.agent(agent);
+            event_builder.action(Action::Read);
+            event_builder.sub_type(SubType::Read);
+            event_builder.what(What::MedicationDispense(md.id.clone().unwrap()));
+            event_builder.patient(kvnr.clone());
+            event_builder.description(md.prescription_id.clone());
+            event_builder.text(Text::MedicationDispenseGetPatient);
+
+            if &md.subject != kvnr {
+                return Err(Error::Forbidden(id));
+            }
+
+            Ok(md)
+        })
     }
 
     pub fn medication_dispense_iter<'a, F>(
-        &'a self,
+        &'a mut self,
         kvnr: &'a Kvnr,
+        agent: Agent,
         f: F,
-    ) -> impl Iterator<Item = &'a MedicationDispense>
+    ) -> impl Iterator<Item = LoggedRef<&'a MedicationDispense>>
     where
         F: Fn(&MedicationDispense) -> bool,
     {
         let Self {
             ref medication_dispenses,
+            ref mut timeouts,
+            ref mut audit_events,
             ..
         } = self;
 
@@ -114,7 +142,7 @@ impl Inner {
             None => &EMPTY,
         };
 
-        items.iter().filter_map(move |id| {
+        let iter = items.iter().filter_map(move |id| {
             let v = medication_dispenses.by_id.get(&id).unwrap();
 
             if f(v) {
@@ -122,7 +150,9 @@ impl Inner {
             } else {
                 None
             }
-        })
+        });
+
+        LoggedIter::new(audit_events, timeouts, agent, iter)
     }
 
     pub fn medication_dispense_delete_by_id(&mut self, id: &Id) {
@@ -144,5 +174,22 @@ impl Inner {
         }
 
         medication_dispenses.by_id.remove(id);
+    }
+}
+
+impl<'a> Loggable for &'a MedicationDispense {
+    type Item = &'a MedicationDispense;
+
+    fn unlogged(&self) -> &Self::Item {
+        self
+    }
+
+    fn logged(&self, builder: &mut AuditEventBuilder) -> &Self::Item {
+        builder.what(What::MedicationDispense(self.id.clone().unwrap()));
+        builder.patient(self.subject.clone());
+        builder.description(self.prescription_id.clone());
+        builder.text(Text::MedicationDispenseGetPatient);
+
+        self
     }
 }

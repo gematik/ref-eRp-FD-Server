@@ -27,7 +27,7 @@ use super::{
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct AuditEvent {
     pub id: Id,
-    pub text: Option<String>,
+    pub text: Option<Text>,
     pub sub_type: SubType,
     pub action: Action,
     pub recorded: Instant,
@@ -53,9 +53,48 @@ pub struct Source {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Entity {
-    pub what: Id,
+    pub what: What,
     pub name: Kvnr,
     pub description: PrescriptionId,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum Text {
+    TaskGetPatient,
+    TaskGetRepresentative,
+    TaskGetPharmacy,
+    TaskActivate,
+    TaskAccept,
+    TaskReject,
+    TaskClose,
+    TaskAbortDoctor,
+    TaskAbortPatient,
+    TaskAbortPharmacy,
+    TaskAbortRepresentative,
+    TaskDelete,
+    MedicationDispenseGetPatient,
+    MedicationDispenseGetRepresentative,
+
+    Other(String),
+
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum What {
+    Task(Id),
+    MedicationDispense(Id),
+    Other(String),
+
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub enum Language {
+    De,
+    En,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

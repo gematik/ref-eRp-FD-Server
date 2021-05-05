@@ -1,3 +1,12 @@
+# Release 0.17.1
+Implemented features:
+- AuditEvent.text narrative with language selection
+
+Bugfixes / Improvements:
+- VAU always responds with 400
+- new AuditEvents are deleted after one minute
+
+
 # Release 0.17.0
 Implemented features:
 - Implemented throttling in case of invalid QES
