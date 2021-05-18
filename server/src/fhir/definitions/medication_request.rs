@@ -194,9 +194,9 @@ impl Decode for Extension {
             })?;
 
         Ok(Extension {
-            co_payment,
             emergency_service_fee,
             bvg,
+            co_payment,
             accident_information,
             multi_prescription,
         })
@@ -249,8 +249,8 @@ impl Decode for AccidentInformation {
 
         Ok(AccidentInformation {
             cause,
-            business,
             date,
+            business,
         })
     }
 }

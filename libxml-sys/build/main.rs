@@ -62,7 +62,7 @@ fn main() {
 
 fn determine_mode(target: &str, lib_dir: &Path, libs: &[&str]) -> LinkMode {
     let kind = env("LIBXML_STATIC");
-    let kind = kind.as_ref().and_then(|s| s.to_str()).map(|s| &s[..]);
+    let kind = kind.as_ref().and_then(|s| s.to_str());
     match kind {
         Some("0") => return LinkMode::Dynamic,
         Some(_) => return LinkMode::Static,

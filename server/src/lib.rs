@@ -28,6 +28,9 @@ extern crate lazy_static;
 #[macro_use]
 extern crate language_tags;
 
+#[macro_use]
+mod macros;
+
 pub mod error;
 pub mod fhir;
 pub mod logging;

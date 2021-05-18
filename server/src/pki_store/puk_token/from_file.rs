@@ -28,11 +28,16 @@ pub fn from_file(store: &PkiStore, url: Url) -> Result<(), Error> {
         None => url.path().into(),
     };
 
-    let cert = read(filepath)?;
-    let cert = X509::from_pem(&cert)?;
-    let public_key = cert.public_key()?;
+    let dd_cert = None;
+    let token_cert = read(filepath)?;
+    let token_cert = X509::from_pem(&token_cert)?;
+    let token_key = token_cert.public_key()?;
 
-    let puk_token = PukToken { cert, public_key };
+    let puk_token = PukToken {
+        dd_cert,
+        token_cert,
+        token_key,
+    };
 
     store.store_puk_token(puk_token);
 

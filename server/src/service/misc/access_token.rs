@@ -64,12 +64,6 @@ pub enum Profession {
     #[serde(rename = "1.2.276.0.76.4.49")]
     Versicherter,
 
-    #[serde(rename = "1.2.276.0.76.4.30")]
-    Arzt,
-
-    #[serde(rename = "1.2.276.0.76.4.31")]
-    Zahnarzt,
-
     #[serde(rename = "1.2.276.0.76.4.50")]
     PraxisArzt,
 
@@ -195,27 +189,27 @@ impl AccessToken {
     }
 }
 
-impl Into<Agent> for &AccessToken {
-    fn into(self) -> Agent {
+impl From<&AccessToken> for Agent {
+    fn from(v: &AccessToken) -> Self {
         let mut name = String::default();
 
-        if let Some(v) = &self.given_name {
+        if let Some(v) = &v.given_name {
             name = format!("{}{} ", name, v);
         }
 
-        if let Some(v) = &self.family_name {
+        if let Some(v) = &v.family_name {
             name = format!("{}{} ", name, v);
         }
 
-        if let Some(v) = &self.organization_name {
+        if let Some(v) = &v.organization_name {
             name = format!("{}{} ", name, v);
         }
 
         name = name.trim_end().to_owned();
 
-        Agent {
+        Self {
             type_: ParticipationRoleType::HumanUser,
-            who: self.id().ok(),
+            who: v.id().ok(),
             name,
             requestor: false,
         }

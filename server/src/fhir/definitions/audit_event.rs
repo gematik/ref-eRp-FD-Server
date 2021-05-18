@@ -28,6 +28,7 @@ use resources::audit_event::{
 use crate::fhir::{
     decode::{decode_any, DataStream, Decode, DecodeError, DecodeStream, Fields},
     encode::{encode_any, DataStorage, Encode, EncodeError, EncodeStream},
+    Format,
 };
 
 use super::{
@@ -60,7 +61,7 @@ impl Decode for AuditEvent {
             "action",
             "recorded",
             "outcome",
-            "outcomeDescription",
+            "outcomeDesc",
             "agent",
             "source",
             "entity",
@@ -82,6 +83,9 @@ impl Decode for AuditEvent {
             stream.end_substream().await?;
 
             let div = div.strip_prefix("<div>").unwrap_or(&div);
+            let div = div
+                .strip_prefix("<div xmlns=\"http://www.w3.org/1999/xhtml\">")
+                .unwrap_or(&div);
             let div = div.strip_suffix("</div>").unwrap_or(&div);
 
             Some(Text::Other(div.to_owned()))
@@ -340,9 +344,28 @@ impl Encode for AuditEventContainer<'_> {
             stream
                 .field_name("text")?
                 .element()?
-                .encode("status", "additional", encode_any)?
-                .encode("div", format!("<div>{}</div>", text), encode_any)?
-                .end()?;
+                .encode("status", "additional", encode_any)?;
+
+            match stream.format() {
+                Some(Format::Xml) => {
+                    stream
+                        .field_name("div")?
+                        .element()?
+                        .attrib("xmlns", "http://www.w3.org/1999/xhtml", encode_any)?
+                        .inline(text, encode_any)?
+                        .end()?;
+                }
+                Some(Format::Json) => {
+                    stream.encode(
+                        "div",
+                        format!("<div xmlns=\"http://www.w3.org/1999/xhtml\">{}</div>", text),
+                        encode_any,
+                    )?;
+                }
+                None => (),
+            }
+
+            stream.end()?;
         }
 
         stream
@@ -355,11 +378,7 @@ impl Encode for AuditEventContainer<'_> {
             .encode("action", &audit_event.action, encode_code)?
             .encode("recorded", &audit_event.recorded, encode_any)?
             .encode("outcome", &audit_event.outcome, encode_code)?
-            .encode_opt(
-                "outcomeDescription",
-                &audit_event.outcome_description,
-                encode_any,
-            )?
+            .encode_opt("outcomeDesc", &audit_event.outcome_description, encode_any)?
             .encode_vec("agent", once(&audit_event.agent), encode_any)?
             .encode("source", &audit_event.source, encode_any)?
             .encode_vec("entity", once(&audit_event.entity), encode_any)?

@@ -38,6 +38,8 @@ use futures::{
 };
 use vau::{decode, encode, Decrypter, Encrypter, Error as VauError, UserPseudonymGenerator};
 
+use crate::service::misc::logging::{log_err, log_req, log_res, RequestTag};
+
 use crate::{
     pki_store::PkiStore,
     service::{
@@ -118,10 +120,15 @@ where
     }
 
     async fn handle_request(self, req: ServiceRequest) -> Result<S::Response, ActixError> {
+        let tag = RequestTag::default();
+        req.extensions_mut().insert(tag);
+
+        let req = log_req("Received Request", req, tag);
+
         let head = req.head();
         let mut parts = head.uri.path().split('/').filter(|s| !s.is_empty());
 
-        match parts.next() {
+        let res = match parts.next() {
             Some("VAU") => match parts.next() {
                 Some(np) => {
                     let np = {
@@ -153,6 +160,14 @@ where
                 self.handle_vau_ocsp_request(req).await
             }
             _ => self.handle_normal_request(req).await,
+        };
+
+        match res {
+            Ok(res) => {
+                Ok(res
+                    .map_body(|head, body| log_res("Sending Response (Success)", head, body, tag)))
+            }
+            Err(err) => Err(log_err("Sending Response (Error)", err, tag)),
         }
     }
 
@@ -165,6 +180,7 @@ where
             return Ok(method_not_allowed(outer_service_req));
         }
 
+        let request_tag = *outer_service_req.extensions().get::<RequestTag>().unwrap();
         let (outer_http_req, payload) = outer_service_req.into_parts();
         let content_type = outer_http_req.content_type();
         if content_type != "application/octet-stream" {
@@ -184,27 +200,58 @@ where
         }
 
         let decrypter = this.decrypter.as_mut().unwrap();
-        let outer_payload = into_bytes(payload).await?;
-        let outer_payload = decrypter.decrypt(outer_payload)?;
 
-        let (decoded, inner_service_req, outer_http_req) = decode(outer_http_req, &outer_payload)?;
+        let outer_payload = log_err!(
+            into_bytes(payload).await,
+            "Error while reading VAU payload: {:?}"
+        )?;
 
-        let inner_http_res = if let Err(err) =
-            extract_access_token(&inner_service_req, Some(&decoded.access_token))
-        {
+        let outer_payload = log_err!(
+            decrypter.decrypt(outer_payload),
+            "Error while decrypting VAU payload: {:?}"
+        )?;
+
+        let (decoded, inner_service_req, outer_http_req) = log_err!(
+            decode(outer_http_req, &outer_payload),
+            "Error while decoding VAU payload: {:?}"
+        )?;
+
+        inner_service_req.extensions_mut().insert(request_tag);
+        let inner_service_req = log_req("VAU Inner Request", inner_service_req, request_tag);
+
+        let access_token = log_err!(
+            extract_access_token(&inner_service_req, Some(&decoded.access_token)),
+            "Error while extracting ACCESS_TOKEN: {:?}"
+        );
+
+        let inner_http_res = if let Err(err) = access_token {
+            let err = RequestError::AccessTokenError(err);
             let err: ActixError = err.with_type_from(&inner_service_req).into();
 
             err.as_response_error().error_response()
         } else {
-            match this.service.call(inner_service_req).await {
+            let res = log_err!(
+                this.service.call(inner_service_req).await,
+                "Error while handling inner request: {:?}"
+            );
+            match res {
                 Ok(res) => res.into(),
                 Err(err) => err.as_response_error().error_response(),
             }
         };
 
-        let inner_res = encode(decoded.request_id, inner_http_res).await?;
+        let inner_http_res = inner_http_res
+            .map_body(|head, body| log_res("VAU Inner Response", head, body, request_tag));
 
-        let body = this.encrypter.encrypt(&decoded.response_key, inner_res)?;
+        let inner_res = log_err!(
+            encode(decoded.request_id, inner_http_res).await,
+            "Error while encoding VAU payload: {:?}"
+        )?;
+
+        let body = log_err!(
+            this.encrypter.encrypt(&decoded.response_key, inner_res),
+            "Error while encrypting VAU payload: {:?}"
+        )?;
 
         let res = HttpResponse::Ok()
             .content_type(ContentType::octet_stream().try_into()?)
@@ -268,13 +315,19 @@ where
 
     #[cfg(feature = "vau-compat")]
     async fn handle_normal_request(self, req: ServiceRequest) -> Result<S::Response, ActixError> {
-        match extract_access_token(&req, None) {
+        let access_token = extract_access_token(&req, None);
+
+        match access_token {
             Ok(()) => (),
             Err(err) => {
                 let uri = req.head().uri.path();
 
                 if !URI_WHITELIST.contains(&uri) {
-                    return Err(err.with_type_from(&req).into());
+                    log_err!(only_err, &err, "Error while extracting ACCESS_TOKEN: {:?}");
+
+                    return Err(RequestError::AccessTokenError(err)
+                        .with_type_from(&req)
+                        .into());
                 }
             }
         }
@@ -300,16 +353,16 @@ impl<S> Clone for Handle<S> {
     }
 }
 
-async fn into_bytes(payload: Payload) -> Result<BytesMut, ActixError> {
+async fn into_bytes(payload: Payload) -> Result<BytesMut, PayloadError> {
     match payload {
-        Payload::None => Err(VauError::NoPayload.into()),
+        Payload::None => Err(PayloadError::Incomplete(None)),
         Payload::H1(s) => stream_into_bytes(s).await,
         Payload::H2(s) => stream_into_bytes(s).await,
         Payload::Stream(s) => stream_into_bytes(s).await,
     }
 }
 
-async fn stream_into_bytes<S>(mut s: S) -> Result<BytesMut, ActixError>
+async fn stream_into_bytes<S>(mut s: S) -> Result<BytesMut, PayloadError>
 where
     S: Stream<Item = Result<Bytes, PayloadError>> + Unpin,
 {
@@ -339,7 +392,7 @@ fn method_not_allowed(req: ServiceRequest) -> ServiceResponse {
 fn extract_access_token(
     req: &ServiceRequest,
     expected_access_token: Option<&str>,
-) -> Result<(), RequestError> {
+) -> Result<(), AccessTokenError> {
     let pki_store = req
         .app_data::<Data<PkiStore>>()
         .expect("Shared data 'PkiStore' is missing!");
@@ -348,7 +401,7 @@ fn extract_access_token(
         .puk_token()
         .as_ref()
         .ok_or(AccessTokenError::NoPukToken)?
-        .public_key
+        .token_key
         .clone();
 
     let access_token = req
@@ -358,15 +411,14 @@ fn extract_access_token(
         .to_str()
         .map_err(|_| AccessTokenError::InvalidValue)?;
 
-    if !access_token.starts_with("Bearer ") {
-        return Err(AccessTokenError::InvalidValue.into());
-    }
-
-    let access_token = &access_token[7..];
+    let access_token = match access_token.strip_prefix("Bearer") {
+        Some(access_token) => access_token.trim(),
+        None => return Err(AccessTokenError::InvalidValue),
+    };
 
     if let Some(expected_access_token) = expected_access_token {
         if access_token != expected_access_token {
-            return Err(RequestError::AccessTokenError(AccessTokenError::Mismatch));
+            return Err(AccessTokenError::Mismatch);
         }
     }
 

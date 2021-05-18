@@ -61,9 +61,9 @@ impl IntoHeaderValue for ContentType {
     }
 }
 
-impl Into<Mime> for ContentType {
-    fn into(self) -> Mime {
-        self.0
+impl From<ContentType> for Mime {
+    fn from(v: ContentType) -> Self {
+        v.0
     }
 }
 

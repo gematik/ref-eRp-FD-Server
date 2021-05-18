@@ -46,8 +46,8 @@ impl Decode for Name {
         stream.end().await?;
 
         Ok(Name {
-            family,
             given,
+            family,
             prefix,
         })
     }

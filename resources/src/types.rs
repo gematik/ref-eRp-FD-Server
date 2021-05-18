@@ -45,32 +45,32 @@ pub enum DocumentType {
     Receipt,
 }
 
-impl Into<usize> for FlowType {
-    fn into(self) -> usize {
-        match self {
-            Self::ApothekenpflichtigeArzneimittel => 160,
-            Self::Sanitaetsbedarf => 161,
-            Self::Heilmittel => 162,
-            Self::Hilfsmittel => 163,
-            Self::Sprechstundenbedarf => 164,
-            Self::Betaeubungsmittel => 165,
-            Self::TRezepte => 166,
-            Self::DirekteZuweisung => 169,
+impl From<FlowType> for usize {
+    fn from(v: FlowType) -> Self {
+        match v {
+            FlowType::ApothekenpflichtigeArzneimittel => 160,
+            FlowType::Sanitaetsbedarf => 161,
+            FlowType::Heilmittel => 162,
+            FlowType::Hilfsmittel => 163,
+            FlowType::Sprechstundenbedarf => 164,
+            FlowType::Betaeubungsmittel => 165,
+            FlowType::TRezepte => 166,
+            FlowType::DirekteZuweisung => 169,
         }
     }
 }
 
-impl Into<u64> for FlowType {
-    fn into(self) -> u64 {
-        match self {
-            Self::ApothekenpflichtigeArzneimittel => 160,
-            Self::Sanitaetsbedarf => 161,
-            Self::Heilmittel => 162,
-            Self::Hilfsmittel => 163,
-            Self::Sprechstundenbedarf => 164,
-            Self::Betaeubungsmittel => 165,
-            Self::TRezepte => 166,
-            Self::DirekteZuweisung => 169,
+impl From<FlowType> for u64 {
+    fn from(v: FlowType) -> Self {
+        match v {
+            FlowType::ApothekenpflichtigeArzneimittel => 160,
+            FlowType::Sanitaetsbedarf => 161,
+            FlowType::Heilmittel => 162,
+            FlowType::Hilfsmittel => 163,
+            FlowType::Sprechstundenbedarf => 164,
+            FlowType::Betaeubungsmittel => 165,
+            FlowType::TRezepte => 166,
+            FlowType::DirekteZuweisung => 169,
         }
     }
 }

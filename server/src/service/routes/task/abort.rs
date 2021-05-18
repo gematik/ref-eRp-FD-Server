@@ -53,8 +53,6 @@ pub async fn abort(
     access_token
         .check_profession(|p| {
             p == Profession::Versicherter
-                || p == Profession::Arzt
-                || p == Profession::Zahnarzt
                 || p == Profession::PraxisArzt
                 || p == Profession::ZahnarztPraxis
                 || p == Profession::PraxisPsychotherapeut
@@ -66,15 +64,13 @@ pub async fn abort(
         .err_with_type(accept)?;
 
     let id = id.into_inner();
-    let kvnr = access_token.kvnr().ok();
-    let is_pharmacy = access_token.is_pharmacy();
     let secret = query.into_inner().secret;
     let agent = (&*access_token).into();
 
     state
         .lock()
         .await
-        .task_abort(id, kvnr, access_code, is_pharmacy, secret, agent)
+        .task_abort(id, &access_token, access_code, secret, agent)
         .into_req_err()
         .err_with_type(accept)?;
 

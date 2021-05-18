@@ -18,6 +18,7 @@
 pub mod access_token;
 pub mod data_type;
 pub mod from_query;
+pub mod logging;
 pub mod search;
 pub mod sort;
 

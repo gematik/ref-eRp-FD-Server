@@ -35,6 +35,7 @@ pub struct Telecom {
     pub mail: Option<String>,
 }
 
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Identifier {
     IK(String),

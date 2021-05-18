@@ -28,7 +28,7 @@ pub fn configure_routes(cfg: &mut ServiceConfig) {
 }
 
 async fn get_ocsp_list(pki_store: Data<PkiStore>) -> Result<HttpResponse, ActixError> {
-    let cert_list = pki_store.ocsp_list().data().await;
+    let ocsp_list = pki_store.ocsp_list().data().await;
 
-    Ok(HttpResponse::Ok().json2(&*cert_list))
+    Ok(HttpResponse::Ok().json2(&*ocsp_list))
 }

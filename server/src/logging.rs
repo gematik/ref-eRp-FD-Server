@@ -21,6 +21,7 @@ use log::LevelFilter;
 use log4rs::{
     append::console::ConsoleAppender,
     config::{Appender, Config, Root},
+    encode::pattern::PatternEncoder,
     file::Deserializers,
     init_config, load_config_file,
 };
@@ -37,7 +38,11 @@ pub fn init_logger(config: &Path) -> Result<(), Error> {
 }
 
 fn create_default_config() -> Result<Config, Error> {
-    let stdout = ConsoleAppender::builder().build();
+    let stdout = ConsoleAppender::builder()
+        .encoder(Box::new(PatternEncoder::new(
+            "{d(%Y-%m-%d %H:%M:%S%.6f)(utc)} {l} {t} - {m}{n}",
+        )))
+        .build();
 
     let config = Config::builder()
         .appender(Appender::builder().build("stdout", Box::new(stdout)))

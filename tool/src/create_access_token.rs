@@ -51,11 +51,29 @@ pub struct Opts {
     /// of the file is not validated, so you can encode any information in the ACCESS_TOKEN.
     #[structopt(short, long)]
     claims: Option<PathBuf>,
+
+    /// File path of the header to encode within the ACCESS_TOKEN.
+    ///
+    /// The header that are encoded within the ACCESS_TOKEN can be any valid JSON file. The content
+    /// of the file is not validated, so you can encode any header information in the ACCESS_TOKEN.
+    ///
+    /// If no header is passed, a default header is created.
+    #[structopt(short, long)]
+    header: Option<PathBuf>,
 }
 
+#[allow(clippy::let_and_return)]
 pub fn execute(opts: Opts) {
     let key = read(opts.key).expect("Unable to read private key!");
     let key = PKey::private_key_from_pem(&key).expect("Unable to interpret private key!");
+
+    let header = opts.header.map(|header| {
+        let header = read(&header).expect("Unable to read header file!");
+        let header = from_utf8(&header).expect("Unable to convert header file!");
+        let header = from_str::<Value>(&header).expect("Unable to convert header file!");
+
+        header
+    });
 
     let claims = read_input(&opts.claims);
     let claims = from_utf8(&claims).expect("Unable to interpret claims: Invalid UTF-8 string!");
@@ -69,8 +87,8 @@ pub fn execute(opts: Opts) {
         X509::from_pem(&cert).expect("Unable to load certificate!")
     });
 
-    let access_token =
-        sign(key, cert.as_ref(), claims.as_bytes(), false).expect("Unable to crate ACCESS_TOKEN");
+    let access_token = sign(key, cert.as_ref(), header, claims.as_bytes(), false)
+        .expect("Unable to crate ACCESS_TOKEN");
 
     println!("{}", access_token);
 }

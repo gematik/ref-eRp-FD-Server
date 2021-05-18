@@ -21,6 +21,7 @@ use base64::encode;
 use chrono::{DateTime, Duration as ChronoDuration, Utc};
 use log::{error, info, warn};
 use openssl::{hash::MessageDigest, ocsp::OcspResponse, x509::X509Ref};
+use serde::Serialize;
 use tokio::{
     select, spawn,
     sync::{
@@ -34,8 +35,14 @@ use super::{misc::Client, Error, PkiStore, Tsl};
 
 pub struct OcspList {
     items: RwLock<HashMap<String, Item>>,
-    data: RwLock<Vec<String>>,
+    data: RwLock<Data>,
     notify: Sender<()>,
+}
+
+#[derive(Default, Serialize)]
+pub struct Data {
+    #[serde(rename = "OCSP Responses")]
+    ocsp_responses: Vec<String>,
 }
 
 pub struct Item {
@@ -67,7 +74,7 @@ impl OcspList {
         }
     }
 
-    pub async fn data(&self) -> RwLockReadGuard<'_, Vec<String>> {
+    pub async fn data(&self) -> RwLockReadGuard<'_, Data> {
         self.data.read().await
     }
 
@@ -142,10 +149,13 @@ async fn update_task(store: PkiStore, mut notify: Receiver<()>) {
         }
 
         // create list of certs to get OCSP response for
-        let mut certs = Vec::new();
-        certs.push(store.enc_cert().to_owned());
-        if let Some(cert) = store.puk_token().as_ref().map(|p| &p.cert) {
-            certs.push(cert.to_owned());
+        let mut certs = vec![store.enc_cert().to_owned()];
+        if let Some(puk_token) = store.puk_token().as_ref() {
+            certs.push(puk_token.token_cert.to_owned());
+
+            if let Some(dd_cert) = &puk_token.dd_cert {
+                certs.push(dd_cert.to_owned());
+            }
         }
 
         // update items
@@ -195,10 +205,10 @@ async fn update_task(store: PkiStore, mut notify: Receiver<()>) {
 
         // convert OCSP responses to base64 DER
         let mut data = store.ocsp_list().data.write().await;
-        data.clear();
+        data.ocsp_responses.clear();
         for item in items.values() {
             match item.response.to_der() {
-                Ok(res) => data.push(encode(&res)),
+                Ok(res) => data.ocsp_responses.push(encode(&res)),
                 Err(err) => warn!("Unable to convert OCSP response to base64 DER: {0}", err),
             }
         }

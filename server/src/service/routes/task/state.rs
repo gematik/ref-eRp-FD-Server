@@ -37,7 +37,8 @@ use resources::{
 
 use crate::{
     service::{
-        header::XAccessCode, misc::DEVICE, AuditEventBuilder, Loggable, LoggedIter, LoggedRef,
+        header::XAccessCode, misc::AccessToken, misc::DEVICE, AuditEventBuilder, Loggable,
+        LoggedIter, LoggedRef,
     },
     state::{History, Inner, Version},
 };
@@ -472,9 +473,8 @@ impl Inner {
     pub fn task_abort(
         &mut self,
         id: Id,
-        kvnr: Option<Kvnr>,
-        access_code: Option<XAccessCode>,
-        is_pharmacy: bool,
+        access_token: &AccessToken,
+        mut access_code: Option<XAccessCode>,
         secret: Option<String>,
         agent: Agent,
     ) -> Result<(), Error> {
@@ -496,6 +496,10 @@ impl Inner {
                 None => return Err(Error::NotFound(id)),
             };
 
+            let kvnr = access_token.kvnr().ok();
+            let is_patient = access_token.is_patient();
+            let is_pharmacy = access_token.is_pharmacy();
+
             let task = task_meta.history.get_current();
             event_builder.agent(agent);
             event_builder.action(Action::Delete);
@@ -513,11 +517,19 @@ impl Inner {
                 Text::TaskAbortPatient
             });
 
+            if is_patient {
+                access_code = None;
+            }
+
             let is_secret_ok = secret.is_some() && task.identifier.secret == secret;
             let is_access_ok = Self::task_matches(&task, &kvnr, &access_code, &None);
             let is_in_progress = task.status == Status::InProgress;
 
-            if (is_pharmacy && !is_secret_ok) || (!is_pharmacy && !is_access_ok) {
+            if is_pharmacy && !is_secret_ok {
+                return Err(Error::Forbidden(id));
+            }
+
+            if !is_pharmacy && !is_access_ok {
                 return Err(Error::Forbidden(id));
             }
 

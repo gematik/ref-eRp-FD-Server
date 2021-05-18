@@ -34,7 +34,7 @@ pub use error::{
     AsAuditEventOutcome, IntoReqErr, IntoReqErrResult, RequestError, TypedRequestError,
     TypedRequestResult,
 };
-use middleware::{HeaderCheck, Logging, ReqResLogging, Vau};
+use middleware::{AccessLog, HeaderCheck, Vau};
 use routes::configure_routes;
 pub use routes::{
     audit_event::{AuditEventBuilder, AuditEvents, Loggable, LoggedIter, LoggedRef},
@@ -80,9 +80,8 @@ impl Service {
         let mut server = HttpServer::new(move || {
             App::new()
                 .wrap(Vau)
+                .wrap(AccessLog)
                 .wrap(HeaderCheck)
-                .wrap(Logging)
-                .wrap(ReqResLogging)
                 .data(state.clone())
                 .data(pki_store.clone())
                 .configure(configure_routes)

@@ -64,8 +64,8 @@ impl Decode for Organization {
 
         Ok(Organization {
             id,
-            identifier,
             name,
+            identifier,
             telecom,
             address,
         })

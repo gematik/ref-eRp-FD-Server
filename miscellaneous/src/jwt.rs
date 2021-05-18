@@ -41,9 +41,10 @@ enum Algorithm {
     BP256R1,
 }
 
-pub fn sign(
+pub fn sign<H: ToBase64>(
     key: PKey<Private>,
     cert: Option<&X509>,
+    header: Option<H>,
     data: &[u8],
     detached: bool,
 ) -> Result<String, Error> {
@@ -52,7 +53,7 @@ pub fn sign(
         key,
     };
 
-    let header = Header {
+    let default_header = Header {
         alg: Algorithm::BP256R1,
         x5c: cert
             .into_iter()
@@ -60,7 +61,11 @@ pub fn sign(
             .collect::<Result<Vec<_>, _>>()?,
     };
 
-    let header = header.to_base64()?;
+    let header = header
+        .as_ref()
+        .map(|h| h.to_base64())
+        .unwrap_or_else(|| default_header.to_base64())?;
+
     let claims = encode_config(&data, URL_SAFE_NO_PAD);
     let signature = key.sign(&header, &claims)?;
 

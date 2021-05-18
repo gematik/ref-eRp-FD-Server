@@ -90,7 +90,8 @@ enum State {
     ExpectRoot,
     ExpectValue,
     ExpectAttrib,
-    Element,
+    ExpectEnd,
+    Element { empty: bool },
     Array,
     ResourceArray,
     ValueExtended { value: Value },
@@ -118,14 +119,14 @@ where
     {
         match self.state.pop() {
             Some(State::ExpectRoot) => {
-                self.state.push(State::Element);
+                self.state.push(State::Element { empty: true });
 
                 self.add_item(Item::Root { name: name.into() })?;
 
                 Ok(self)
             }
             Some(State::ExpectValue) => {
-                self.state.push(State::Element);
+                self.state.push(State::Element { empty: true });
 
                 self.add_item(Item::Element)?;
 
@@ -133,7 +134,7 @@ where
             }
             Some(State::ResourceArray) => {
                 self.state.push(State::ResourceArray);
-                self.state.push(State::Element);
+                self.state.push(State::Element { empty: true });
 
                 self.add_item(Item::Root { name: name.into() })?;
 
@@ -146,7 +147,7 @@ where
     pub fn element(&mut self) -> Result<&mut Self, EncodeError<S::Error>> {
         match self.state.pop() {
             Some(State::ExpectValue) => {
-                self.state.push(State::Element);
+                self.state.push(State::Element { empty: true });
 
                 self.add_item(Item::Element)?;
 
@@ -154,7 +155,7 @@ where
             }
             Some(State::Array) => {
                 self.state.push(State::Array);
-                self.state.push(State::Element);
+                self.state.push(State::Element { empty: true });
 
                 self.add_item(Item::Element)?;
 
@@ -186,7 +187,17 @@ where
 
     pub fn end(&mut self) -> Result<&mut Self, EncodeError<S::Error>> {
         match self.state.pop() {
-            Some(State::Element) | Some(State::Array) | Some(State::ResourceArray) => {
+            Some(State::Element { .. }) | Some(State::Array) | Some(State::ResourceArray) => {
+                self.add_item(Item::End)?;
+
+                Ok(self)
+            }
+            Some(State::ExpectEnd) => {
+                match self.state.pop() {
+                    Some(State::Element { .. }) => (),
+                    _ => return Err(EncodeError::UnexpectedEnd),
+                }
+
                 self.add_item(Item::End)?;
 
                 Ok(self)
@@ -207,8 +218,8 @@ where
         N: Into<String>,
     {
         match self.state.pop() {
-            Some(State::Element) => {
-                self.state.push(State::Element);
+            Some(State::Element { empty: true }) => {
+                self.state.push(State::Element { empty: true });
                 self.state.push(State::ExpectAttrib);
 
                 self.add_item(Item::Attrib { name: name.into() })?;
@@ -224,8 +235,8 @@ where
         N: Into<String>,
     {
         match self.state.pop() {
-            Some(State::Element) => {
-                self.state.push(State::Element);
+            Some(State::Element { .. }) => {
+                self.state.push(State::Element { empty: false });
                 self.state.push(State::ExpectRoot);
 
                 self.add_item(Item::Field { name: name.into() })?;
@@ -241,8 +252,8 @@ where
         N: Into<String>,
     {
         match self.state.pop() {
-            Some(State::Element) => {
-                self.state.push(State::Element);
+            Some(State::Element { .. }) => {
+                self.state.push(State::Element { empty: false });
                 self.state.push(State::ExpectValue);
 
                 self.add_item(Item::Field { name: name.into() })?;
@@ -266,6 +277,17 @@ where
         T: Into<Value>,
     {
         match self.state.pop() {
+            Some(State::Element { empty: true }) => {
+                self.state.push(State::Element { empty: false });
+                self.state.push(State::ExpectEnd);
+
+                self.add_item(Item::Value {
+                    value: value.into(),
+                    extension: Vec::new(),
+                })?;
+
+                Ok(self)
+            }
             Some(State::ExpectAttrib) | Some(State::ExpectValue) => {
                 self.add_item(Item::Value {
                     value: value.into(),

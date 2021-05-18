@@ -145,15 +145,14 @@ impl Encode for &ErxBundle {
             ..Default::default()
         };
 
-        let signature = self
-            .signature
-            .iter()
-            .find(|s| match (s.format.as_ref(), stream.format()) {
-                (Some(SignatureFormat::Xml), Some(Format::Xml)) => true,
-                (Some(SignatureFormat::Json), Some(Format::Json)) => true,
-                (_, _) => false,
-            })
-            .ok_or_else(|| EncodeError::Other("ErxBundle is missing a signature!".into()))?;
+        let signature =
+            self.signature
+                .iter()
+                .find(|s| match (s.format.as_ref(), stream.format()) {
+                    (Some(SignatureFormat::Xml), Some(Format::Xml)) => true,
+                    (Some(SignatureFormat::Xml), Some(Format::Json)) => true,
+                    (_, _) => false,
+                });
 
         stream
             .root("Bundle")?
@@ -167,7 +166,7 @@ impl Encode for &ErxBundle {
             .inline_opt(self.entry.composition.as_ref().map(EntryPair), encode_any)?
             .inline_opt(self.entry.device.as_ref().map(EntryPair), encode_any)?
             .end()?
-            .encode("signature", signature, encode_any)?
+            .encode_opt("signature", signature, encode_any)?
             .end()?;
 
         Ok(())
@@ -280,7 +279,7 @@ pub mod tests {
                 when: "2020-03-20T07:31:34.328+00:00".try_into().unwrap(),
                 who: "https://prescriptionserver.telematik/Device/ErxService".into(),
                 data: "FakeData".into(),
-                format: Some(SignatureFormat::Json),
+                format: Some(SignatureFormat::Xml),
             }],
         }
     }

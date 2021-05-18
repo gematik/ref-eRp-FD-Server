@@ -84,8 +84,8 @@ pub enum Status {
 #[allow(dead_code)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Format {
-    XML,
-    JSON,
+    Xml,
+    Json,
 }
 
 #[allow(dead_code)]

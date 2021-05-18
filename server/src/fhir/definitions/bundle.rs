@@ -70,10 +70,10 @@ where
             id,
             meta,
             identifier,
-            type_,
             timestamp,
             total,
             link,
+            type_,
             entries,
         })
     }

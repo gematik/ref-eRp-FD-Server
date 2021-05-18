@@ -52,9 +52,9 @@ where
     }
 }
 
-impl Into<ChronoDateTime<Utc>> for DateTime {
-    fn into(self) -> ChronoDateTime<Utc> {
-        self.0.parse::<Parts>().unwrap().into()
+impl From<DateTime> for ChronoDateTime<Utc> {
+    fn from(v: DateTime) -> Self {
+        v.0.parse::<Parts>().unwrap().into()
     }
 }
 
@@ -149,19 +149,18 @@ impl FromStr for Parts {
     }
 }
 
-impl Into<ChronoDateTime<Utc>> for Parts {
-    fn into(self) -> ChronoDateTime<Utc> {
-        let t = NaiveDate::from_ymd(self.year, self.month.unwrap_or(1), self.day.unwrap_or(1))
-            .and_hms_nano(
-                self.hour.unwrap_or_default(),
-                self.min.unwrap_or_default(),
-                self.sec.unwrap_or_default(),
-                self.nano
-                    .map(|(x, exp)| x * 10u32.pow(exp))
-                    .unwrap_or_default(),
-            );
+impl From<Parts> for ChronoDateTime<Utc> {
+    fn from(v: Parts) -> Self {
+        let t = NaiveDate::from_ymd(v.year, v.month.unwrap_or(1), v.day.unwrap_or(1)).and_hms_nano(
+            v.hour.unwrap_or_default(),
+            v.min.unwrap_or_default(),
+            v.sec.unwrap_or_default(),
+            v.nano
+                .map(|(x, exp)| x * 10u32.pow(exp))
+                .unwrap_or_default(),
+        );
 
-        ChronoDateTime::from_utc(t, Utc)
+        Self::from_utc(t, Utc)
     }
 }
 

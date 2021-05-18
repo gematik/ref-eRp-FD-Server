@@ -3,6 +3,8 @@ refresh_rate: 30 seconds
 appenders:
   stdout:
     kind: console
+    encoder:
+      pattern: "{d(%Y-%m-%d %H:%M:%S%.6f)(utc)} {l} {t} - {m}{n}"
 
   service:
     kind: rolling_file
@@ -38,12 +40,12 @@ appenders:
         count: 5
         base: 1
 
-  req_res:
+  dump:
     kind: rolling_file
-    path: "log/req_res.log"
+    path: "log/dump.log"
     append: true
     encoder:
-      pattern: "{d}: {m}{n}"
+      pattern: "{d(%Y-%m-%d %H:%M:%S%.6f)(utc)}: {m}{n}"
     policy:
       kind: compound
       trigger:
@@ -51,7 +53,7 @@ appenders:
         limit: 5 mb
       roller:
         kind: fixed_window
-        pattern: log/req_res.{}.log
+        pattern: log/dump.{}.log
         count: 5
         base: 1
 
@@ -68,7 +70,7 @@ loggers:
   req_res_log:
     level: info
     appenders:
-      - req_res
+      - dump
   ref_erx_fd_server:
     level: debug
     appenders:

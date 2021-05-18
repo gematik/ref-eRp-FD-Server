@@ -109,6 +109,7 @@ pub struct Ingredient {
     pub amount_free_text: Option<String>,
 }
 
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum Category {
     Medicine,
@@ -116,6 +117,7 @@ pub enum Category {
     AMVV,
 }
 
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum StandardSize {
     N1,

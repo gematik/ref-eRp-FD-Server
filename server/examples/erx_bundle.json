@@ -48,12 +48,12 @@
                     }
                 ],
                 "title":"Quittung",
-                "event":{
+                "event":[{
                     "period":{
                         "start":"2020-03-20T07:23:34.328+00:00",
                         "end":"2020-03-20T07:31:34.328+00:00"
                     }
-                }
+                }]
             }
         },
         {
@@ -91,8 +91,8 @@
         "who":{
             "reference":"https://prescriptionserver.telematik/Device/ErxService"
         },
-        "targetFormat":"application/fhir+json",
-        "sigFormat":"application/jose",
+        "targetFormat":"application/fhir+xml",
+        "sigFormat":"application/pkcs7-mime",
         "data":"FakeData"
     }
 }

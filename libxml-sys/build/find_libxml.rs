@@ -105,5 +105,5 @@ pkg-config installed.
         );
     }
 
-    panic!(msg);
+    panic!("{}", msg);
 }

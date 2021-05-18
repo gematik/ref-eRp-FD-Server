@@ -29,11 +29,11 @@ pub enum HashMethod {
     Sha256,
 }
 
-impl Into<MessageDigest> for HashMethod {
-    fn into(self) -> MessageDigest {
-        match self {
-            HashMethod::Sha1 => MessageDigest::sha1(),
-            HashMethod::Sha256 => MessageDigest::sha256(),
+impl From<HashMethod> for MessageDigest {
+    fn from(v: HashMethod) -> Self {
+        match v {
+            HashMethod::Sha1 => Self::sha1(),
+            HashMethod::Sha256 => Self::sha256(),
         }
     }
 }

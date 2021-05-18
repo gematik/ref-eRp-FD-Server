@@ -63,6 +63,7 @@ pub enum LegalBasis {
     SubstituteRegulationWithTss,
 }
 
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum PKV {
     Standard,

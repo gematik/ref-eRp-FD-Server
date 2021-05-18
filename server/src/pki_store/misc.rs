@@ -24,12 +24,15 @@ use openssl::{
     asn1::{Asn1Time, Asn1TimeRef},
     hash::MessageDigest,
     ocsp::{OcspCertId, OcspFlag, OcspRequest, OcspResponse, OcspResponseStatus},
+    stack::Stack,
     x509::X509Ref,
 };
 use reqwest::{
     header::CONTENT_TYPE, Body, Client as HttpClient, Error as ReqwestError, IntoUrl, Proxy,
     RequestBuilder, Url,
 };
+use rustls::ClientConfig;
+use rustls_native_certs::load_native_certs;
 
 use super::{Error, TimeCheck, Tsl};
 
@@ -40,7 +43,7 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn new() -> Result<Self, ReqwestError> {
+    pub fn new() -> Result<Self, Error> {
         let no_proxy = if let Ok(no_proxy) = var("no_proxy") {
             no_proxy
                 .split(',')
@@ -58,7 +61,15 @@ impl Client {
             Vec::new()
         };
 
-        let mut http = HttpClient::builder().user_agent("ref-erx-fd-server");
+        let mut tls_config = ClientConfig::new();
+        tls_config.root_store = load_native_certs().map_err(|(_, err)| err)?;
+        tls_config
+            .root_store
+            .add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
+
+        let mut http = HttpClient::builder()
+            .use_preconfigured_tls(tls_config)
+            .user_agent("ref-erx-fd-server");
 
         if let Ok(http_proxy) = var("http_proxy") {
             http = http.proxy(Proxy::http(&http_proxy)?);
@@ -159,11 +170,32 @@ impl Client {
             return Err(Error::InvalidOcspStatus(status));
         }
 
-        res.basic()?.verify(
+        let basic = res.basic()?;
+        let ret = basic.verify(
             &tsl.stack,
             &tsl.store,
             OcspFlag::NO_INTERN | OcspFlag::NO_CHAIN | OcspFlag::TRUST_OTHER,
-        )?;
+        );
+
+        if let Err(err) = ret {
+            if let Some(contained) = basic.certs() {
+                let mut certs = Stack::new()?;
+
+                for cert in contained {
+                    if tsl.verify_cert(cert, TimeCheck::Now).is_ok() {
+                        certs.push(cert.to_owned())?;
+                    }
+                }
+
+                basic.verify(
+                    &certs,
+                    &tsl.store,
+                    OcspFlag::NO_INTERN | OcspFlag::NO_CHAIN | OcspFlag::TRUST_OTHER,
+                )?;
+            } else {
+                return Err(err.into());
+            }
+        }
 
         Ok(res)
     }

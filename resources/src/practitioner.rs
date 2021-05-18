@@ -36,6 +36,7 @@ pub struct Qualification {
     pub job_title: String,
 }
 
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Identifier {
     ANR(String),

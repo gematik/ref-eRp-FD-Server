@@ -33,9 +33,9 @@ impl TelematikId {
     }
 }
 
-impl Into<String> for TelematikId {
-    fn into(self) -> String {
-        self.0
+impl From<TelematikId> for String {
+    fn from(v: TelematikId) -> Self {
+        v.0
     }
 }
 

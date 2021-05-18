@@ -34,7 +34,7 @@ function create_task() {
         --silent \
         --data-binary "@$EXAMPLES_DIR/task_create_parameters.json" \
         --header "Content-Type: application/fhir+json" \
-        --header "Authorization: Bearer $ACCESS_TOKEN_ARTZ" \
+        --header "Authorization: Bearer $ACCESS_TOKEN_ARZT" \
         "$SERVER_URI/Task/\$create")
     local TASK_ID=$(echo "$OUTPUT" \
         | grep -Po '"id":\K.*?[^\\]",' \
@@ -91,7 +91,7 @@ function activate_task() {
         --data-binary @- \
         --output /dev/null \
         --header "Content-Type: application/fhir+json" \
-        --header "Authorization: Bearer $ACCESS_TOKEN_ARTZ" \
+        --header "Authorization: Bearer $ACCESS_TOKEN_ARZT" \
         --header "X-AccessCode: $ACCESS_CODE" \
         "http://localhost:3000/Task/$TASK_ID/\$activate"
 
@@ -105,7 +105,7 @@ function new_task() {
     activate_task "${task[0]}" "${task[1]}" "${KVNR}"
 }
 
-ACCESS_TOKEN_ARTZ=$(cat "$EXAMPLES_DIR/claims_arzt.json" | create_access_token)
+ACCESS_TOKEN_ARZT=$(cat "$EXAMPLES_DIR/claims_arzt.json" | create_access_token)
 
 new_task "X234567890"
 new_task "X234567890"

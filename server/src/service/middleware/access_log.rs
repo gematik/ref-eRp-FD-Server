@@ -24,13 +24,13 @@ use actix_web::{
 use futures::future::{ok, Ready};
 use log::info;
 
-pub struct Logging;
+pub struct AccessLog;
 
-pub struct LoggingMiddleware<S> {
+pub struct AccessLogMiddleware<S> {
     service: S,
 }
 
-impl<S, B> Transform<S> for Logging
+impl<S, B> Transform<S> for AccessLog
 where
     S: Service<Request = ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
     B: MessageBody,
@@ -39,15 +39,15 @@ where
     type Response = ServiceResponse<B>;
     type Error = Error;
     type InitError = ();
-    type Transform = LoggingMiddleware<S>;
+    type Transform = AccessLogMiddleware<S>;
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
-        ok(LoggingMiddleware { service })
+        ok(AccessLogMiddleware { service })
     }
 }
 
-impl<S, B> Service for LoggingMiddleware<S>
+impl<S, B> Service for AccessLogMiddleware<S>
 where
     S: Service<Request = ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
     B: MessageBody,

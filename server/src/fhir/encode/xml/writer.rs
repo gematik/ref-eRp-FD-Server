@@ -205,6 +205,17 @@ impl Writer {
 
                     self.state.push(State::Array { name });
                 }
+                State::Pending { name: tag } => {
+                    self.buffer.extend_from_slice(b">");
+
+                    self.state.push(State::Tag {
+                        name: tag,
+                        is_resource: false,
+                    });
+
+                    let value = encode_value(value);
+                    self.buffer.extend_from_slice(value.as_bytes());
+                }
                 _ => return Err(Error::UnexpectedItem(Item::Value { value, extension })),
             },
         }

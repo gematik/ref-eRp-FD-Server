@@ -47,9 +47,7 @@ pub async fn create(
 
     access_token
         .check_profession(|p| {
-            p == Profession::Arzt
-                || p == Profession::Zahnarzt
-                || p == Profession::PraxisArzt
+            p == Profession::PraxisArzt
                 || p == Profession::ZahnarztPraxis
                 || p == Profession::PraxisPsychotherapeut
                 || p == Profession::Krankenhaus

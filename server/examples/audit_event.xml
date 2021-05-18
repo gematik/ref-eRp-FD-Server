@@ -5,7 +5,7 @@
     </meta>
     <text>
         <status value="additional"/>
-        <div value="&lt;div&gt;Example Text&lt;/div&gt;"/>
+        <div xmlns="http://www.w3.org/1999/xhtml">Example Text</div>
     </text>
     <type>
         <system value="http://terminology.hl7.org/CodeSystem/audit-event-type"/>

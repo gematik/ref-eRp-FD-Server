@@ -151,8 +151,8 @@ impl Decode for Format {
         let value = stream.value(Search::Any).await?.unwrap();
 
         match value.as_str() {
-            "xml" => Ok(Self::XML),
-            "json" => Ok(Self::JSON),
+            "xml" => Ok(Self::Xml),
+            "json" => Ok(Self::Json),
             _ => Err(DecodeError::InvalidValue {
                 value,
                 path: stream.path().into(),
@@ -230,8 +230,8 @@ impl Decode for Resource {
             profile,
             supported_profiles,
             search_param,
-            interaction,
             operation,
+            interaction,
         })
     }
 }
@@ -395,8 +395,8 @@ impl Encode for &Format {
         S: DataStorage,
     {
         let value = match self {
-            Format::XML => "xml",
-            Format::JSON => "json",
+            Format::Xml => "xml",
+            Format::Json => "json",
         };
 
         stream.value(value)?;
@@ -668,8 +668,8 @@ pub mod tests {
             },
             fhir_version: FhirVersion::V4_0_0,
             format: vec![
-                Format::XML,
-                Format::JSON,
+                Format::Xml,
+                Format::Json,
             ],
             rest: vec![
                 Rest {

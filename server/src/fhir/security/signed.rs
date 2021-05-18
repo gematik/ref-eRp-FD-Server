@@ -15,6 +15,7 @@
  *
  */
 
+use std::fmt::{Debug, Formatter, Result as FmtResult};
 use std::ops::Deref;
 use std::str::{from_utf8_unchecked, Utf8Error};
 
@@ -36,6 +37,15 @@ use crate::fhir::encode::{Encode, EncodeError, JsonEncode, JsonError, XmlEncode,
 use super::canonize_json;
 
 pub struct Signed<T>(T);
+
+impl<T> Debug for Signed<T>
+where
+    T: Debug,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        f.debug_tuple("Signed").field(&self.0).finish()
+    }
+}
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -88,7 +98,7 @@ where
         let json = unsafe { from_utf8_unchecked(&json) };
         canonize_json(json, &mut buf)?;
 
-        let data = sign(sig_key.clone(), Some(sig_cert), &buf, true)?;
+        let data = sign::<()>(sig_key.clone(), Some(sig_cert), None, &buf, true)?;
         let signatures = self.0.signatures_mut();
         signatures.retain(|sig| sig.type_ != type_ && sig.format != Some(SignatureFormat::Json));
         signatures.push(Signature {

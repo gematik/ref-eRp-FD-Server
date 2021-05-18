@@ -40,7 +40,12 @@ where
 
             for id in &info.identity.id {
                 if let Some(cert) = &id.cert {
-                    let cert = cert.trim();
+                    let cert = cert
+                        .trim()
+                        .replace(" ", "")
+                        .replace("\t", "")
+                        .replace("\n", "")
+                        .replace("\r", "");
                     let cert = decode(&cert)?;
                     let cert = X509::from_der(&cert)?;
 

@@ -70,9 +70,9 @@ pub fn create() -> CapabilityStatement {
         fhir_version: FhirVersion::V4_0_0,
         format: vec![
             #[cfg(feature = "support-xml")]
-            Format::XML,
+            Format::Xml,
             #[cfg(feature = "support-json")]
-            Format::JSON,
+            Format::Json,
         ],
         rest: vec![Rest {
             mode: Mode::Server,

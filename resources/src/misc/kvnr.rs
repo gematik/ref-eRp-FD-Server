@@ -39,9 +39,9 @@ impl Kvnr {
     }
 }
 
-impl Into<String> for Kvnr {
-    fn into(self) -> String {
-        self.0
+impl From<Kvnr> for String {
+    fn from(v: Kvnr) -> Self {
+        v.0
     }
 }
 

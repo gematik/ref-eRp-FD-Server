@@ -77,8 +77,8 @@ impl Decode for Signature {
             type_,
             when,
             who,
-            format,
             data,
+            format,
         })
     }
 }

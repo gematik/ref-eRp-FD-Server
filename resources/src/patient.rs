@@ -33,6 +33,7 @@ pub struct Patient {
     pub address: Address,
 }
 
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Identifier {
     GKV {

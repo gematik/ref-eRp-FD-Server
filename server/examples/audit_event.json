@@ -8,7 +8,7 @@
     },
     "text":{
         "status":"additional",
-        "div":"<div>Example Text</div>"
+        "div":"<div xmlns=\"http://www.w3.org/1999/xhtml\">Example Text</div>"
     },
     "type":{
         "system":"http://terminology.hl7.org/CodeSystem/audit-event-type",

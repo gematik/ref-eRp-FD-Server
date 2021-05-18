@@ -54,6 +54,10 @@ enum State {
         is_empty_tag: bool,
         attribs: IntoIter<(String, String)>,
     },
+    Text {
+        name: String,
+        text: String,
+    },
 }
 
 type InnerFuture<'a, S, T, E> = LocalBoxFuture<'a, Result<(S, T), Error<E>>>;
@@ -113,7 +117,7 @@ where
                             let has_xmlns = match attribs.get("xmlns") {
                                 None => false,
                                 Some("http://hl7.org/fhir") if attribs.0.len() == 1 => true,
-                                _ => return Err(Error::InvalidXmlns),
+                                _ => true,
                             };
 
                             if attribs.0.len() == 1 && attribs.0[0].0 == "value" {
@@ -153,19 +157,23 @@ where
                                     value,
                                     extension,
                                 }
-                            } else {
+                            } else if !attribs.0.is_empty() && !has_xmlns {
+                                let attribs = attribs.0.into_iter();
+
                                 self.state.push(State::Element { is_barrier: false });
-
-                                if !attribs.0.is_empty() && !has_xmlns {
-                                    let attribs = attribs.0.into_iter();
-
-                                    self.state.push(State::Attribs {
-                                        attribs,
-                                        is_empty_tag: false,
-                                    });
-                                }
+                                self.state.push(State::Attribs {
+                                    attribs,
+                                    is_empty_tag: false,
+                                });
 
                                 Item::BeginElement { name }
+                            } else {
+                                self.state.push(State::Text {
+                                    name,
+                                    text: String::new(),
+                                });
+
+                                continue;
                             }
                         }
                         Element::Empty { name, attribs } => {
@@ -201,6 +209,31 @@ where
                             }
                         }
                         element => return Err(Error::UnexpectedElement(element)),
+                    },
+                    Some(State::Text {
+                        name: element_name,
+                        text,
+                    }) => match element {
+                        Element::Text { value } => {
+                            self.state.push(State::Text {
+                                name: element_name,
+                                text: text + &value,
+                            });
+
+                            continue;
+                        }
+                        Element::End => Item::Field {
+                            name: element_name,
+                            value: text,
+                            extension: vec![],
+                        },
+                        x => {
+                            self.reader.put_back(x);
+
+                            self.state.push(State::Element { is_barrier: false });
+
+                            Item::BeginElement { name: element_name }
+                        }
                     },
                     Some(State::Attribs {
                         is_empty_tag,

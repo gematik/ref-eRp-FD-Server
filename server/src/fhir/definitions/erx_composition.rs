@@ -165,11 +165,13 @@ impl Encode for &ErxComposition {
             .encode_vec("author", once(&self.author), encode_reference)?
             .encode("title", "Quittung", encode_any)?
             .field_name("event")?
+            .array()?
             .element()?
             .field_name("period")?
             .element()?
             .encode("start", &self.event_start, encode_any)?
             .encode("end", &self.event_end, encode_any)?
+            .end()?
             .end()?
             .end()?
             .end()?;

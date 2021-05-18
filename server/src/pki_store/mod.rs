@@ -15,6 +15,7 @@
  *
  */
 
+mod admission;
 mod cert_list;
 mod error;
 mod misc;
@@ -28,6 +29,7 @@ use std::sync::Arc;
 use arc_swap::{ArcSwapOption, Guard as ArcSwapGuard};
 use chrono::{DateTime, Utc};
 use openssl::{
+    asn1::Asn1Object,
     cms::{CMSOptions, CmsContentInfo},
     ec::EcKey,
     ocsp::OcspResponse,
@@ -35,7 +37,7 @@ use openssl::{
     stack::Stack,
     x509::{
         store::{X509Store, X509StoreBuilder},
-        X509Ref, X509,
+        X509ExtensionRef, X509Ref, X509,
     },
 };
 use tokio::sync::watch::channel;
@@ -45,6 +47,7 @@ pub use error::Error;
 pub use puk_token::PukToken;
 pub use tsl::{TimeCheck, Tsl};
 
+use admission::{Admission, Profession};
 use cert_list::CertList;
 use misc::asn1_to_chrono;
 use ocsp_list::OcspList;
@@ -135,7 +138,11 @@ impl PkiStore {
         &self.0.ocsp_list
     }
 
-    pub fn verify_cms(&self, pem: &str) -> Result<(Vec<u8>, DateTime<Utc>), Error> {
+    pub fn verify_cms(
+        &self,
+        pem: &str,
+        check_profession: bool,
+    ) -> Result<(Vec<u8>, DateTime<Utc>), Error> {
         /* check and prepare the pem data */
         let cms = if pem.starts_with("-----BEGIN PKCS7-----") {
             CmsContentInfo::from_pem(pem.as_bytes())?
@@ -164,6 +171,11 @@ impl PkiStore {
             CMSOptions::NOVERIFY,
         )?;
 
+        lazy_static! {
+            static ref OID_EXT_ADMISSION: Asn1Object =
+                Asn1Object::from_str("1.3.36.8.3.3").unwrap();
+        }
+
         /* get verified signers */
         let mut signing_time = None;
         let signer_infos = cms.signer_infos()?;
@@ -184,6 +196,21 @@ impl PkiStore {
                 .is_err()
             {
                 continue;
+            }
+
+            if check_profession {
+                match signer_cert
+                    .get_extension(&OID_EXT_ADMISSION)?
+                    .and_then(X509ExtensionRef::get_data)
+                    .map(Admission::parse)
+                {
+                    Some(Ok(admission))
+                        if admission
+                            .professions
+                            .iter()
+                            .any(|p| matches!(p, Profession::Arzt | Profession::Zahnarzt)) => {}
+                    _ => continue,
+                }
             }
 
             signing_time = match signing_time {
@@ -257,7 +284,7 @@ pub mod tests {
         let store = create_store();
         load_bnetza(&store);
 
-        let (actual_data, actual_signing_time) = store.verify_cms(&cms).unwrap();
+        let (actual_data, actual_signing_time) = store.verify_cms(&cms, false).unwrap();
 
         assert_eq!(actual_data, expected_data);
         assert_eq!(actual_signing_time, expected_signing_time);

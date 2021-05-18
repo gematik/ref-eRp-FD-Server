@@ -15,17 +15,31 @@
  *
  */
 
-use serde::{Deserialize, Serialize};
+macro_rules! log_err {
+    ($r:expr) => {
+        match $r {
+            Ok(val) => Ok(val),
+            Err(err) => {
+                log::info!("{:?}", &err);
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum InsuranceId {
-    Iknr(String),
-}
-
-impl From<InsuranceId> for String {
-    fn from(v: InsuranceId) -> Self {
-        match v {
-            InsuranceId::Iknr(s) => s,
+                Err(err)
+            }
         }
-    }
+    };
+    ($r:expr, $msg:tt) => {
+        match $r {
+            Ok(val) => Ok(val),
+            Err(err) => {
+                log::info!($msg, &err);
+
+                Err(err)
+            }
+        }
+    };
+    (only_err, $err:expr) => {
+        log::info!("{:?}", $err);
+    };
+    (only_err, $err:expr, $msg:tt) => {
+        log::info!($msg, $err);
+    };
 }

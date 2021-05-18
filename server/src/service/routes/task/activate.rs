@@ -55,9 +55,7 @@ pub async fn activate(
 
     access_token
         .check_profession(|p| {
-            p == Profession::Arzt
-                || p == Profession::Zahnarzt
-                || p == Profession::PraxisArzt
+            p == Profession::PraxisArzt
                 || p == Profession::ZahnarztPraxis
                 || p == Profession::PraxisPsychotherapeut
                 || p == Profession::Krankenhaus
@@ -73,7 +71,7 @@ pub async fn activate(
         id: Id::generate().unwrap(),
         data: args.data,
     };
-    let (kbv_bundle, signing_time) = match pki_store.verify_cms(&kbv_binary.data) {
+    let (kbv_bundle, signing_time) = match pki_store.verify_cms(&kbv_binary.data, true) {
         Ok((kbv_bundle, signing_time)) => (kbv_bundle, signing_time),
         Err(err) => {
             let warning = state.throttle().await;

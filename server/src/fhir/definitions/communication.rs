@@ -239,8 +239,8 @@ where
         };
 
         Ok(Payload {
-            extensions,
             content,
+            extensions,
         })
     }
 }

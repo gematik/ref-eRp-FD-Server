@@ -111,16 +111,16 @@ impl FromRequest for AcceptLanguage {
     }
 }
 
-impl Into<Language> for AcceptLanguage {
-    fn into(self) -> Language {
+impl From<AcceptLanguage> for Language {
+    fn from(v: AcceptLanguage) -> Self {
         let tag_en = langtag!(en);
 
-        for lang in self.0 {
+        for lang in v.0 {
             if lang.item.matches(&tag_en) {
-                return Language::En;
+                return Self::En;
             }
         }
 
-        Language::De
+        Self::De
     }
 }

@@ -33,8 +33,9 @@ use from_web::from_web;
 
 #[derive(Clone)]
 pub struct PukToken {
-    pub cert: X509,
-    pub public_key: PKey<Public>,
+    pub dd_cert: Option<X509>,
+    pub token_cert: X509,
+    pub token_key: PKey<Public>,
 }
 
 impl PkiStore {

@@ -87,9 +87,16 @@ async fn update_task(store: PkiStore, mut notify: Receiver<()>) {
         }
 
         if let Some(puk_token) = store.0.puk_token.load().as_ref() {
-            add_to_list(&mut data.ee_certs, &puk_token.cert);
-            if let Some(cert) = find_ca_cert(tsl, &puk_token.cert) {
+            add_to_list(&mut data.ee_certs, &puk_token.token_cert);
+            if let Some(cert) = find_ca_cert(tsl, &puk_token.token_cert) {
                 add_to_list(&mut data.ca_certs, cert);
+            }
+
+            if let Some(dd_cert) = &puk_token.dd_cert {
+                add_to_list(&mut data.ee_certs, &dd_cert);
+                if let Some(cert) = find_ca_cert(tsl, &dd_cert) {
+                    add_to_list(&mut data.ca_certs, cert);
+                }
             }
         }
     }

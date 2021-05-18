@@ -129,22 +129,27 @@ async fn update_task(store: PkiStore, url: Url) {
                 &discovery_document.uri_puk_idp_sig
             );
 
-            let cert = ok!(
+            let dd_cert = Some(dd_cert);
+            let token_cert = ok!(
                 fetch_cert(&client, uri_token).await,
                 "Unable to fetch PUK_TOKEN_KEY: {}"
             );
 
             ok!(
-                tsl.verify_cert(&cert, TimeCheck::Now),
+                tsl.verify_cert(&token_cert, TimeCheck::Now),
                 "Unable to verify PUK_TOKEN_KEY: {}"
             );
 
-            let public_key = ok!(
-                cert.public_key(),
+            let token_key = ok!(
+                token_cert.public_key(),
                 "Unable to extract public key from PUK_TOKEN_KEY: {}"
             );
 
-            break PukToken { cert, public_key };
+            break PukToken {
+                dd_cert,
+                token_cert,
+                token_key,
+            };
         };
 
         store.store_puk_token(next);

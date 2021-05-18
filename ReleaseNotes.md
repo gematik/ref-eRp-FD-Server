@@ -1,3 +1,14 @@
+# Release 0.18.0
+Bugfixes / Improvements:
+- Renamed 'AuditEvent.outcomeDescription' to 'AuditEvent.outcomeDesc' to match the profile
+- ErxBundle now contains a signature in GET /Task/{id} as patient
+- Fixed internal server error in /Task/$close operation
+- Check the profession embedded in the QES cert
+- Improved logging of request and responses
+- Added namespace to AuditEvent.text.div
+- Encode ErxComposition.event as array
+
+
 # Release 0.17.1
 Implemented features:
 - AuditEvent.text narrative with language selection

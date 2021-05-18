@@ -15,12 +15,10 @@
  *
  */
 
+mod access_log;
 mod header_check;
-mod logging;
-mod req_res_log;
 mod vau;
 
 pub use self::vau::Vau;
+pub use access_log::AccessLog;
 pub use header_check::HeaderCheck;
-pub use logging::Logging;
-pub use req_res_log::ReqResLogging;
