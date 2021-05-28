@@ -24,7 +24,7 @@ use serde_json::Error as JsonError;
 use thiserror::Error;
 use vau::Error as VauError;
 
-use crate::{pki_store::Error as PkiError, state::HistoryError};
+use crate::pki_store::Error as PkiError;
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -48,9 +48,6 @@ pub enum Error {
 
     #[error("Unable to setup log4rs: {0}")]
     Log4RsError(Log4RsError),
-
-    #[error("History Error: {0}")]
-    HistoryError(HistoryError),
 
     #[error("PkiError: {0}")]
     PkiError(PkiError),
@@ -95,12 +92,6 @@ impl From<SetLoggerError> for Error {
 impl From<Log4RsError> for Error {
     fn from(v: Log4RsError) -> Self {
         Self::Log4RsError(v)
-    }
-}
-
-impl From<HistoryError> for Error {
-    fn from(v: HistoryError) -> Self {
-        Self::HistoryError(v)
     }
 }
 

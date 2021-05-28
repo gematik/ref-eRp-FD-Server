@@ -1,133 +1,36 @@
 {
+    "version":"V3",
     "tasks":[
         {
-            "history":[
-                {
-                    "version_id":0,
-                    "timestamp":1612522238276981200,
-                    "resource":{
-                        "id":"13814006-1dd2-11b2-802a-eb7de13489ec",
-                        "extension":{
-                            "flow_type":"PharmaceuticalDrugs",
-                            "accept_date":null,
-                            "expiry_date":null
-                        },
-                        "identifier":{
-                            "prescription_id":"160.000.306.303.800.18",
-                            "access_code":"309dcfad47b1469c31849a31ada37b5cb7a90f78e8be528d123a6dd6958f5d4c",
-                            "secret":null
-                        },
-                        "status":"Draft",
-                        "for_":null,
-                        "authored_on":"2021-02-05T10:50:38.276680100+00:00",
-                        "last_modified":"2021-02-05T10:50:38.276941200+00:00",
-                        "performer_type":[
-                            "PublicPharmacy"
-                        ],
-                        "input":{
-                            "e_prescription":null,
-                            "patient_receipt":null
-                        },
-                        "output":{
-                            "receipt":null
-                        }
-                    }
+            "task":{
+                "id":"13814006-1dd2-11b2-802a-eb7de13489ec",
+                "extension":{
+                    "flow_type":"ApothekenpflichtigeArzneimittel",
+                    "accept_date":"2021-03-03",
+                    "expiry_date":"2021-05-04"
                 },
-                {
-                    "version_id":1,
-                    "timestamp":1612522241814129500,
-                    "resource":{
-                        "id":"13814006-1dd2-11b2-802a-eb7de13489ec",
-                        "extension":{
-                            "flow_type":"PharmaceuticalDrugs",
-                            "accept_date":"2021-03-03",
-                            "expiry_date":"2021-05-04"
-                        },
-                        "identifier":{
-                            "prescription_id":"160.000.306.303.800.18",
-                            "access_code":"309dcfad47b1469c31849a31ada37b5cb7a90f78e8be528d123a6dd6958f5d4c",
-                            "secret":null
-                        },
-                        "status":"Ready",
-                        "for_":"X234567890",
-                        "authored_on":"2021-02-05T10:50:38.276680100+00:00",
-                        "last_modified":"2021-02-05T10:50:38.276941200+00:00",
-                        "performer_type":[
-                            "PublicPharmacy"
-                        ],
-                        "input":{
-                            "e_prescription":"281a985c-f25b-4aae-91a6-41ad744080b0",
-                            "patient_receipt":"159c80ba-1dd2-11b2-802b-eb7de13489ec"
-                        },
-                        "output":{
-                            "receipt":null
-                        }
-                    }
+                "identifier":{
+                    "prescription_id":"160.000.306.303.800.18",
+                    "access_code":"309dcfad47b1469c31849a31ada37b5cb7a90f78e8be528d123a6dd6958f5d4c",
+                    "secret":"00bb03647aa8737d28e42eda1cb9d09739a0eee452e4a604632010b93ed051fb"
                 },
-                {
-                    "version_id":2,
-                    "timestamp":1612522245208902300,
-                    "resource":{
-                        "id":"13814006-1dd2-11b2-802a-eb7de13489ec",
-                        "extension":{
-                            "flow_type":"PharmaceuticalDrugs",
-                            "accept_date":"2021-03-03",
-                            "expiry_date":"2021-05-04"
-                        },
-                        "identifier":{
-                            "prescription_id":"160.000.306.303.800.18",
-                            "access_code":"309dcfad47b1469c31849a31ada37b5cb7a90f78e8be528d123a6dd6958f5d4c",
-                            "secret":"00bb03647aa8737d28e42eda1cb9d09739a0eee452e4a604632010b93ed051fb"
-                        },
-                        "status":"InProgress",
-                        "for_":"X234567890",
-                        "authored_on":"2021-02-05T10:50:38.276680100+00:00",
-                        "last_modified":"2021-02-05T10:50:38.276941200+00:00",
-                        "performer_type":[
-                            "PublicPharmacy"
-                        ],
-                        "input":{
-                            "e_prescription":"281a985c-f25b-4aae-91a6-41ad744080b0",
-                            "patient_receipt":"159c80ba-1dd2-11b2-802b-eb7de13489ec"
-                        },
-                        "output":{
-                            "receipt":null
-                        }
-                    }
+                "status":"Completed",
+                "for_":"X234567890",
+                "authored_on":"2021-02-05T10:50:38.276680100+00:00",
+                "last_modified":"2021-02-05T10:50:38.276941200+00:00",
+                "performer_type":[
+                    "PublicPharmacy"
+                ],
+                "input":{
+                    "e_prescription":"281a985c-f25b-4aae-91a6-41ad744080b0",
+                    "patient_receipt":"159c80ba-1dd2-11b2-802b-eb7de13489ec"
                 },
-                {
-                    "version_id":3,
-                    "timestamp":1612522321714663400,
-                    "resource":{
-                        "id":"13814006-1dd2-11b2-802a-eb7de13489ec",
-                        "extension":{
-                            "flow_type":"PharmaceuticalDrugs",
-                            "accept_date":"2021-03-03",
-                            "expiry_date":"2021-05-04"
-                        },
-                        "identifier":{
-                            "prescription_id":"160.000.306.303.800.18",
-                            "access_code":"309dcfad47b1469c31849a31ada37b5cb7a90f78e8be528d123a6dd6958f5d4c",
-                            "secret":"00bb03647aa8737d28e42eda1cb9d09739a0eee452e4a604632010b93ed051fb"
-                        },
-                        "status":"Completed",
-                        "for_":"X234567890",
-                        "authored_on":"2021-02-05T10:50:38.276680100+00:00",
-                        "last_modified":"2021-02-05T10:50:38.276941200+00:00",
-                        "performer_type":[
-                            "PublicPharmacy"
-                        ],
-                        "input":{
-                            "e_prescription":"281a985c-f25b-4aae-91a6-41ad744080b0",
-                            "patient_receipt":"159c80ba-1dd2-11b2-802b-eb7de13489ec"
-                        },
-                        "output":{
-                            "receipt":"453ce281-1dd2-11b2-802e-eb7de13489ec"
-                        }
-                    }
+                "output":{
+                    "receipt":"453ce281-1dd2-11b2-802e-eb7de13489ec"
                 }
-            ],
-            "accept_timestamp":1612522245208900800
+            },
+            "accept_timestamp":1612522245208900800,
+            "communication_count":0
         }
     ],
     "e_prescriptions":[
@@ -492,7 +395,7 @@
     "audit_events":[
         {
             "id":"159d0c20-1dd2-11b2-802c-eb7de13489ec",
-            "text":"TaskGetPatient",
+            "text":"TaskGetOnePatient",
             "sub_type":"Operation",
             "action":"Create",
             "recorded":1612522241814180800,
@@ -519,7 +422,7 @@
         },
         {
             "id":"17a30e20-1dd2-11b2-802d-eb7de13489ec",
-            "text":"TaskGetPharmacy",
+            "text":"TaskGetOnePharmacy",
             "sub_type":"Operation",
             "action":"Update",
             "recorded":1612522245209000600,
@@ -546,7 +449,7 @@
         },
         {
             "id":"453ce54a-1dd2-11b2-8030-eb7de13489ec",
-            "text":"MedicationDispenseGetPatient",
+            "text":"MedicationDispenseGetOne",
             "sub_type":"Operation",
             "action":"Update",
             "recorded":1612522321714677400,

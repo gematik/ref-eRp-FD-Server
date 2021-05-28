@@ -105,13 +105,12 @@ impl Inner {
         for id in ids {
             match id {
                 ResourceId::Task(id) => {
-                    let task = match self.tasks.get_by_id(&id) {
+                    let task_meta = match self.tasks.get_by_id(&id) {
                         Some(task) => task,
                         None => continue,
                     };
 
-                    let task = task.history.get_current();
-                    if task.timeout() > now {
+                    if task_meta.task.timeout() > now {
                         continue;
                     }
 

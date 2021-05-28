@@ -37,7 +37,7 @@ pub use error::{
 use middleware::{AccessLog, HeaderCheck, Vau};
 use routes::configure_routes;
 pub use routes::{
-    audit_event::{AuditEventBuilder, AuditEvents, Loggable, LoggedIter, LoggedRef},
+    audit_event::{AuditEventBuilder, AuditEvents},
     communication::Communications,
     medication_dispense::MedicationDispenses,
     task::{TaskMeta, Tasks},

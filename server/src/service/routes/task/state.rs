@@ -36,11 +36,8 @@ use resources::{
 };
 
 use crate::{
-    service::{
-        header::XAccessCode, misc::AccessToken, misc::DEVICE, AuditEventBuilder, Loggable,
-        LoggedIter, LoggedRef,
-    },
-    state::{History, Inner, Version},
+    service::{header::XAccessCode, misc::AccessToken, misc::DEVICE},
+    state::Inner,
 };
 
 use super::Error;
@@ -57,7 +54,7 @@ impl Tasks {
     }
 
     pub fn insert_task_meta(&mut self, task_meta: TaskMeta) {
-        let id = task_meta.history.get_current().resource.id.clone();
+        let id = task_meta.task.id.clone();
 
         match self.by_id.entry(id) {
             Entry::Occupied(e) => {
@@ -83,7 +80,7 @@ impl Tasks {
 }
 
 pub struct TaskMeta {
-    pub history: History<Task>,
+    pub task: Task,
     pub accept_timestamp: Option<DateTime<Utc>>,
     pub communication_count: usize,
 }
@@ -91,7 +88,7 @@ pub struct TaskMeta {
 impl From<Task> for TaskMeta {
     fn from(task: Task) -> Self {
         Self {
-            history: History::new(task),
+            task,
             accept_timestamp: None,
             communication_count: 0,
         }
@@ -99,7 +96,7 @@ impl From<Task> for TaskMeta {
 }
 
 impl Inner {
-    pub fn task_create(&mut self, args: TaskCreateParameters) -> Result<&Version<Task>, Error> {
+    pub fn task_create(&mut self, args: TaskCreateParameters) -> Result<&Task, Error> {
         let id = Id::generate().unwrap();
         let flow_type = args.flow_type;
         let access_code = random_id();
@@ -132,9 +129,7 @@ impl Inner {
             Entry::Vacant(e) => e.insert(task.into()),
         };
 
-        let task = task_meta.history.get_current();
-
-        Ok(task)
+        Ok(&task_meta.task)
     }
 
     pub fn task_activate(
@@ -145,7 +140,7 @@ impl Inner {
         kbv_binary: KbvBinary,
         kbv_bundle: KbvBundle,
         agent: Agent,
-    ) -> Result<&Version<Task>, Error> {
+    ) -> Result<&Task, Error> {
         let Self {
             ref mut tasks,
             ref mut audit_events,
@@ -175,12 +170,12 @@ impl Inner {
                 None => return Err(Error::NotFound(id)),
             };
 
-            let task = task_meta.history.get();
+            let task = &task_meta.task;
             event_builder.agent(agent);
             event_builder.action(Action::Create);
             event_builder.sub_type(SubType::Create);
-            event_builder.patient(kvnr.clone());
             event_builder.what(What::Task(id.clone()));
+            event_builder.patient(kvnr.clone());
             event_builder.description_opt(task.identifier.prescription_id.clone());
             event_builder.text(Text::TaskActivate);
 
@@ -209,7 +204,7 @@ impl Inner {
             let e_prescription_id = kbv_bundle.id.clone();
             e_prescriptions.insert(e_prescription_id.clone(), kbv_binary);
 
-            let mut task = task_meta.history.get_mut();
+            let mut task = &mut task_meta.task;
             task.for_ = Some(kvnr);
             task.status = Status::Ready;
             task.input.e_prescription = Some(e_prescription_id);
@@ -243,8 +238,8 @@ impl Inner {
                 task.extension.accept_date = Some(date.into());
             }
 
-            let task = task_meta.history.get_current();
-            timeouts.borrow_mut().insert(&**task);
+            let task = &*task;
+            timeouts.borrow_mut().insert(task);
 
             Ok(task)
         })
@@ -255,7 +250,7 @@ impl Inner {
         id: Id,
         access_code: XAccessCode,
         agent: Agent,
-    ) -> Result<(&Version<Task>, &KbvBinary), Error> {
+    ) -> Result<(&Task, &KbvBinary), Error> {
         let Self {
             ref mut tasks,
             ref mut audit_events,
@@ -271,7 +266,7 @@ impl Inner {
                 None => return Err(Error::NotFound(id)),
             };
 
-            let task = task_meta.history.get();
+            let task = &task_meta.task;
             event_builder.agent(agent);
             event_builder.action(Action::Update);
             event_builder.sub_type(SubType::Update);
@@ -296,7 +291,7 @@ impl Inner {
 
             task_meta.accept_timestamp = Some(Utc::now());
 
-            let mut task = task_meta.history.get_mut();
+            let mut task = &mut task_meta.task;
             task.status = Status::InProgress;
             task.identifier.secret = Some(random_id());
 
@@ -310,9 +305,8 @@ impl Inner {
                 .get_by_id(&e_prescription)
                 .ok_or(Error::EPrescriptionNotFound(e_prescription))?;
 
-            timeouts.borrow_mut().insert(&*task);
-
-            let task = task_meta.history.get_current();
+            let task = &*task;
+            timeouts.borrow_mut().insert(task);
 
             Ok((task, e_prescription))
         })
@@ -338,7 +332,7 @@ impl Inner {
                 None => return Err(Error::NotFound(id)),
             };
 
-            let task = task_meta.history.get();
+            let task = &task_meta.task;
             event_builder.agent(agent);
             event_builder.action(Action::Update);
             event_builder.sub_type(SubType::Update);
@@ -351,7 +345,7 @@ impl Inner {
                 return Err(Error::Forbidden(id));
             }
 
-            let mut task = task_meta.history.get_mut();
+            let mut task = &mut task_meta.task;
             task.status = Status::Ready;
             task.identifier.secret = None;
 
@@ -388,7 +382,7 @@ impl Inner {
                 None => return Err(Error::NotFound(id)),
             };
 
-            let task = task_meta.history.get();
+            let task = &task_meta.task;
             event_builder.agent(agent);
             event_builder.action(Action::Update);
             event_builder.sub_type(SubType::Update);
@@ -457,7 +451,7 @@ impl Inner {
 
             /* update task */
 
-            let task = task_meta.history.get_mut();
+            let task = &mut task_meta.task;
             task.status = Status::Completed;
             task.output.receipt = Some(erx_bundle.id.clone());
 
@@ -500,7 +494,7 @@ impl Inner {
             let is_patient = access_token.is_patient();
             let is_pharmacy = access_token.is_pharmacy();
 
-            let task = task_meta.history.get_current();
+            let task = &task_meta.task;
             event_builder.agent(agent);
             event_builder.action(Action::Delete);
             event_builder.sub_type(SubType::Delete);
@@ -537,7 +531,7 @@ impl Inner {
                 return Err(Error::Forbidden(id));
             }
 
-            let mut task = task_meta.history.get_mut();
+            let mut task = &mut task_meta.task;
             task.for_ = None;
             task.status = Status::Cancelled;
             task.identifier.secret = None;
@@ -566,8 +560,6 @@ impl Inner {
 
             timeouts.borrow_mut().insert(&*task);
 
-            task_meta.history.clear();
-
             Ok(())
         })
     }
@@ -575,12 +567,11 @@ impl Inner {
     pub fn task_get(
         &mut self,
         id: Id,
-        version_id: Option<usize>,
         kvnr: Option<Kvnr>,
         access_code: Option<XAccessCode>,
         secret: Option<String>,
         agent: Agent,
-    ) -> Result<(&Self, &Version<Task>), Error> {
+    ) -> Result<(&Self, &Task), Error> {
         let Self {
             ref tasks,
             ref mut timeouts,
@@ -595,36 +586,26 @@ impl Inner {
                 None => return Err(Error::NotFound(id)),
             };
 
-            let task = task_meta.history.get_current();
+            let task = &task_meta.task;
             event_builder.agent(agent);
             event_builder.action(Action::Read);
-            event_builder.sub_type(if version_id.is_some() {
-                SubType::VRead
-            } else {
-                SubType::Read
-            });
+            event_builder.sub_type(SubType::Read);
             event_builder.what(What::Task(id.clone()));
             event_builder.patient_opt(task.for_.clone());
             event_builder.description_opt(task.identifier.prescription_id.clone());
             event_builder.text(if secret.is_some() {
-                Text::TaskGetPharmacy
+                Text::TaskGetOnePharmacy
             } else if task.for_ != kvnr {
-                Text::TaskGetRepresentative
+                Text::TaskGetOneRepresentative
             } else {
-                Text::TaskGetPatient
+                Text::TaskGetOnePatient
             });
 
             if !Self::task_matches(&task, &kvnr, &access_code, &secret) {
                 return Err(Error::Forbidden(id));
             }
 
-            match version_id {
-                Some(version_id) => match task_meta.history.get_version(version_id) {
-                    Some(task) => Ok(task),
-                    None => Err(Error::Gone(id)),
-                },
-                None => Ok(task),
-            }
+            Ok(task)
         });
 
         match ret {
@@ -639,7 +620,7 @@ impl Inner {
         access_code: Option<XAccessCode>,
         agent: Agent,
         mut f: F,
-    ) -> impl Iterator<Item = LoggedRef<(&Version<Task>, Text)>>
+    ) -> impl Iterator<Item = &Task>
     where
         F: FnMut(&Task) -> bool,
     {
@@ -650,34 +631,33 @@ impl Inner {
             ..
         } = self;
 
-        let iter = tasks.by_id.iter().filter_map(move |(_, task_meta)| {
-            let task = task_meta.history.get_current();
+        let mut event_builder = Self::audit_event_builder();
+        event_builder.agent(agent);
+        event_builder.action(Action::Read);
+        event_builder.sub_type(SubType::Read);
+        event_builder.what(What::Tasks);
+        event_builder.patient_opt(kvnr.clone());
+        event_builder.text(Text::TaskGetManyPatient);
+        event_builder.build(audit_events, timeouts, None);
+
+        tasks.by_id.iter().filter_map(move |(_, task_meta)| {
+            let task = &task_meta.task;
 
             if !Self::task_matches(&task, &kvnr, &access_code, &None) {
                 return None;
             }
 
-            if !f(&task) {
-                return None;
-            }
-
-            let text = if task.for_ == kvnr {
-                Text::TaskGetPatient
+            if f(&task) {
+                Some(task)
             } else {
-                Text::TaskGetRepresentative
-            };
-
-            Some((task, text))
-        });
-
-        LoggedIter::new(audit_events, timeouts, agent, iter)
+                None
+            }
+        })
     }
 
     pub fn task_delete_by_id(&mut self, id: &Id) {
         let Self {
             ref mut tasks,
-            ref mut timeouts,
-            ref mut audit_events,
             ref mut erx_receipts,
             ref mut e_prescriptions,
             ref mut patient_receipts,
@@ -685,40 +665,26 @@ impl Inner {
             ..
         } = self;
 
-        let timeouts = Rc::new(RefCell::new(timeouts));
-        Self::logged::<_, (), String>(audit_events, timeouts.clone(), move |event_builder| {
-            let task = tasks.by_id.get(id).unwrap();
-            let task = task.history.get_current();
+        let task_meta = tasks.by_id.get(id).unwrap();
+        let task = &task_meta.task;
 
-            event_builder.agent(Self::agent().clone());
-            event_builder.action(Action::Delete);
-            event_builder.sub_type(SubType::Delete);
-            event_builder.what(What::Task(id.clone()));
-            event_builder.patient_opt(task.for_.clone());
-            event_builder.description_opt(task.identifier.prescription_id.clone());
-            event_builder.text(Text::TaskDelete);
+        if let Some(prescription_id) = &task.identifier.prescription_id {
+            medication_dispenses.remove_by_prescription_id(prescription_id);
+        }
 
-            if let Some(prescription_id) = &task.identifier.prescription_id {
-                medication_dispenses.remove_by_prescription_id(prescription_id);
-            }
+        if let Some(e_prescription) = &task.input.e_prescription {
+            e_prescriptions.remove_by_id(e_prescription);
+        }
 
-            if let Some(e_prescription) = &task.input.e_prescription {
-                e_prescriptions.remove_by_id(e_prescription);
-            }
+        if let Some(patient_receipt) = &task.input.patient_receipt {
+            patient_receipts.remove_by_id(&patient_receipt);
+        }
 
-            if let Some(patient_receipt) = &task.input.patient_receipt {
-                patient_receipts.remove_by_id(&patient_receipt);
-            }
+        if let Some(receipt) = &task.output.receipt {
+            erx_receipts.remove_by_id(&receipt);
+        }
 
-            if let Some(receipt) = &task.output.receipt {
-                erx_receipts.remove_by_id(&receipt);
-            }
-
-            tasks.by_id.remove(id);
-
-            Ok(())
-        })
-        .unwrap();
+        tasks.by_id.remove(id);
     }
 
     pub fn task_matches(
@@ -743,23 +709,6 @@ impl Inner {
         }
 
         false
-    }
-}
-
-impl<'a> Loggable for (&'a Version<Task>, Text) {
-    type Item = &'a Version<Task>;
-
-    fn unlogged(&self) -> &Self::Item {
-        &self.0
-    }
-
-    fn logged(&self, builder: &mut AuditEventBuilder) -> &Self::Item {
-        builder.what(What::Task(self.0.resource.id.clone()));
-        builder.patient_opt(self.0.for_.clone());
-        builder.description_opt(self.0.identifier.prescription_id.clone());
-        builder.text(self.1.clone());
-
-        &self.0
     }
 }
 

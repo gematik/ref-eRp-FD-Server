@@ -17,7 +17,6 @@
 
 mod e_prescriptions;
 mod erx_receipts;
-mod history;
 mod patient_receipts;
 mod persist;
 mod timeouts;
@@ -32,8 +31,6 @@ use tokio::{
     sync::{Mutex, MutexGuard},
     time::{delay_for, Duration},
 };
-
-pub use history::{Error as HistoryError, History, Version};
 
 use crate::service::{AuditEvents, Communications, MedicationDispenses, Tasks};
 

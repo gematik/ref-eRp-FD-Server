@@ -26,10 +26,7 @@ use resources::{
     MedicationDispense,
 };
 
-use crate::{
-    service::{AuditEventBuilder, Loggable, LoggedIter, LoggedRef},
-    state::Inner,
-};
+use crate::state::Inner;
 
 use super::Error;
 
@@ -107,7 +104,7 @@ impl Inner {
             event_builder.what(What::MedicationDispense(md.id.clone().unwrap()));
             event_builder.patient(kvnr.clone());
             event_builder.description(md.prescription_id.clone());
-            event_builder.text(Text::MedicationDispenseGetPatient);
+            event_builder.text(Text::MedicationDispenseGetOne);
 
             if &md.subject != kvnr {
                 return Err(Error::Forbidden(id));
@@ -122,7 +119,7 @@ impl Inner {
         kvnr: &'a Kvnr,
         agent: Agent,
         f: F,
-    ) -> impl Iterator<Item = LoggedRef<&'a MedicationDispense>>
+    ) -> impl Iterator<Item = &'a MedicationDispense>
     where
         F: Fn(&MedicationDispense) -> bool,
     {
@@ -137,12 +134,21 @@ impl Inner {
             static ref EMPTY: HashSet<Id> = HashSet::new();
         }
 
+        let mut event_builder = Self::audit_event_builder();
+        event_builder.agent(agent);
+        event_builder.action(Action::Read);
+        event_builder.sub_type(SubType::Read);
+        event_builder.what(What::MedicationDispenses);
+        event_builder.patient(kvnr.clone());
+        event_builder.text(Text::MedicationDispenseGetMany);
+        event_builder.build(audit_events, timeouts, None);
+
         let items = match medication_dispenses.by_kvnr.get(&kvnr) {
             Some(items) => items,
             None => &EMPTY,
         };
 
-        let iter = items.iter().filter_map(move |id| {
+        items.iter().filter_map(move |id| {
             let v = medication_dispenses.by_id.get(&id).unwrap();
 
             if f(v) {
@@ -150,9 +156,7 @@ impl Inner {
             } else {
                 None
             }
-        });
-
-        LoggedIter::new(audit_events, timeouts, agent, iter)
+        })
     }
 
     pub fn medication_dispense_delete_by_id(&mut self, id: &Id) {
@@ -174,22 +178,5 @@ impl Inner {
         }
 
         medication_dispenses.by_id.remove(id);
-    }
-}
-
-impl<'a> Loggable for &'a MedicationDispense {
-    type Item = &'a MedicationDispense;
-
-    fn unlogged(&self) -> &Self::Item {
-        self
-    }
-
-    fn logged(&self, builder: &mut AuditEventBuilder) -> &Self::Item {
-        builder.what(What::MedicationDispense(self.id.clone().unwrap()));
-        builder.patient(self.subject.clone());
-        builder.description(self.prescription_id.clone());
-        builder.text(Text::MedicationDispenseGetPatient);
-
-        self
     }
 }

@@ -32,7 +32,10 @@ use crate::{
     fhir::definitions::AuditEventContainer,
     service::{
         header::{Accept, AcceptLanguage, Authorization},
-        misc::{create_response, DataType, FromQuery, Profession, Query, QueryValue, Search, Sort},
+        misc::{
+            create_response, make_page_uri, DataType, FromQuery, Profession, Query, QueryValue,
+            Search, Sort,
+        },
         IntoReqErrResult, TypedRequestError, TypedRequestResult,
     },
     state::State,
@@ -171,24 +174,30 @@ pub async fn get_all(
         let query_str = request.query_string();
         let page_count = ((result_count - 1) / count) + 1;
 
+        bundle.link.push((
+            Relation::Self_,
+            make_page_uri("/AuditEvent", query_str, page_id),
+        ));
         bundle
             .link
-            .push((Relation::Self_, make_uri(query_str, page_id)));
-        bundle.link.push((Relation::First, make_uri(query_str, 0)));
-        bundle
-            .link
-            .push((Relation::Last, make_uri(query_str, page_count - 1)));
+            .push((Relation::First, make_page_uri("/AuditEvent", query_str, 0)));
+        bundle.link.push((
+            Relation::Last,
+            make_page_uri("/AuditEvent", query_str, page_count - 1),
+        ));
 
         if page_id > 0 {
-            bundle
-                .link
-                .push((Relation::Previous, make_uri(query_str, page_id - 1)));
+            bundle.link.push((
+                Relation::Previous,
+                make_page_uri("/AuditEvent", query_str, page_id - 1),
+            ));
         }
 
         if page_id + 1 < page_count {
-            bundle
-                .link
-                .push((Relation::Next, make_uri(query_str, page_id + 1)));
+            bundle.link.push((
+                Relation::Next,
+                make_page_uri("/AuditEvent", query_str, page_id + 1),
+            ));
         }
     }
 
@@ -253,14 +262,6 @@ fn check_query(query: &QueryArgs, event: &AuditEvent) -> bool {
     }
 
     true
-}
-
-fn make_uri(query: &str, page_id: usize) -> String {
-    if query.is_empty() {
-        format!("/AuditEvent?pageId={}", page_id)
-    } else {
-        format!("/AuditEvent?{}&pageId={}", query, page_id)
-    }
 }
 
 const MAX_COUNT: usize = 50;

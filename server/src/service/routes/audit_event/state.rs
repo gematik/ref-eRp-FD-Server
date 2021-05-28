@@ -18,7 +18,6 @@
 use std::cell::RefCell;
 use std::collections::{hash_map::Entry, HashMap, HashSet};
 use std::fmt::Display;
-use std::ops::Deref;
 use std::rc::Rc;
 
 use chrono::Utc;
@@ -240,7 +239,7 @@ impl Builder {
         let agent = self.agent?;
         let what = self.what?;
         let patient = self.patient?;
-        let description = self.description?;
+        let description = self.description;
         let text = self.text;
 
         let event = AuditEvent {
@@ -331,102 +330,6 @@ impl Builder {
         self.text = Some(value);
 
         self
-    }
-}
-
-pub trait Loggable {
-    type Item;
-
-    fn unlogged(&self) -> &Self::Item;
-    fn logged(&self, builder: &mut Builder) -> &Self::Item;
-}
-
-pub struct LoggedIter<'a, T> {
-    iter: T,
-    agent: Rc<Agent>,
-    timeouts: Rc<RefCell<&'a mut Timeouts>>,
-    audit_events: Rc<RefCell<&'a mut AuditEvents>>,
-}
-
-impl<'a, T> LoggedIter<'a, T>
-where
-    T: Iterator,
-{
-    pub fn new(
-        audit_events: &'a mut AuditEvents,
-        timeouts: &'a mut Timeouts,
-        agent: Agent,
-        iter: T,
-    ) -> Self {
-        let agent = Rc::new(agent);
-        let timeouts = Rc::new(RefCell::new(timeouts));
-        let audit_events = Rc::new(RefCell::new(audit_events));
-
-        Self {
-            iter,
-            agent,
-            timeouts,
-            audit_events,
-        }
-    }
-}
-
-impl<'a, T> Iterator for LoggedIter<'a, T>
-where
-    T: Iterator,
-    T::Item: Loggable,
-{
-    type Item = LoggedRef<'a, T::Item>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let item = self.iter.next()?;
-
-        Some(LoggedRef {
-            item,
-            agent: self.agent.clone(),
-            timeouts: self.timeouts.clone(),
-            audit_events: self.audit_events.clone(),
-        })
-    }
-}
-
-pub struct LoggedRef<'a, T> {
-    item: T,
-    agent: Rc<Agent>,
-    timeouts: Rc<RefCell<&'a mut Timeouts>>,
-    audit_events: Rc<RefCell<&'a mut AuditEvents>>,
-}
-
-impl<'a, T> LoggedRef<'a, T>
-where
-    T: Loggable,
-{
-    pub fn unlogged(&self) -> &T::Item {
-        self.item.unlogged()
-    }
-}
-
-impl<'a, T> Deref for LoggedRef<'a, T>
-where
-    T: Loggable,
-{
-    type Target = T::Item;
-
-    fn deref(&self) -> &Self::Target {
-        let agent = self.agent.deref().clone();
-        let mut timeouts = self.timeouts.borrow_mut();
-        let mut audit_events = self.audit_events.borrow_mut();
-
-        let mut builder = Inner::audit_event_builder();
-        builder.agent(agent);
-        builder.action(Action::Read);
-        builder.sub_type(SubType::Read);
-
-        let item = self.item.logged(&mut builder);
-
-        builder.build(&mut audit_events, &mut timeouts, None);
-
-        item
     }
 }
 

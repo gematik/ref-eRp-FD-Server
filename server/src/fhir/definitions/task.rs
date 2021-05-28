@@ -19,7 +19,6 @@ use async_trait::async_trait;
 use miscellaneous::str::icase_eq;
 use resources::{
     misc::Kvnr,
-    primitives::{Id, Instant},
     task::{Extension, Identifier, Input, Output, Status, Task},
     types::DocumentType,
 };
@@ -332,20 +331,20 @@ where
 
 /* Encode */
 
-pub struct TaskContainer<'a, T: AsTask> {
-    pub task: &'a T,
+pub struct TaskContainer<'a> {
+    pub task: &'a Task,
     pub for_supplier: bool,
 }
 
-impl<'a, T: AsTask> TaskContainer<'a, T> {
-    pub fn for_supplier(task: &'a T) -> Self {
+impl<'a> TaskContainer<'a> {
+    pub fn for_supplier(task: &'a Task) -> Self {
         Self {
             task,
             for_supplier: true,
         }
     }
 
-    pub fn for_patient(task: &'a T) -> Self {
+    pub fn for_patient(task: &'a Task) -> Self {
         Self {
             task,
             for_supplier: false,
@@ -353,29 +352,17 @@ impl<'a, T: AsTask> TaskContainer<'a, T> {
     }
 }
 
-pub trait AsTask {
-    fn task(&self) -> &Task;
-    fn version_id(&self) -> Option<Id> {
-        None
-    }
-    fn last_updated(&self) -> Option<Instant> {
-        None
-    }
-}
-
-impl<T: AsTask> Encode for TaskContainer<'_, T> {
+impl Encode for TaskContainer<'_> {
     fn encode<S>(self, stream: &mut EncodeStream<S>) -> Result<(), EncodeError<S::Error>>
     where
         S: DataStorage,
     {
         let task = self.task;
         let meta = Meta {
-            version_id: task.version_id(),
-            last_updated: task.last_updated(),
             profiles: vec![PROFILE.into()],
+            ..Default::default()
         };
 
-        let task = task.task();
         let identifier = IdentifierContainer {
             identifier: &task.identifier,
             for_supplier: self.for_supplier,
@@ -623,12 +610,6 @@ pub mod tests {
     };
 
     use super::super::super::tests::{trim_json_str, trim_xml_str};
-
-    impl AsTask for Task {
-        fn task(&self) -> &Task {
-            self
-        }
-    }
 
     #[tokio::test]
     async fn test_decode_json() {

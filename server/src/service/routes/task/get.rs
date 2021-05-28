@@ -30,18 +30,17 @@ use resources::{
     task::Status,
     Task,
 };
-use serde::Deserialize;
 
 use crate::{
     service::{
         header::{Accept, AcceptLanguage, Authorization, XAccessCode},
         misc::{
-            create_response, AccessToken, DataType, FromQuery, Profession, Query, QueryValue,
-            Search, Sort,
+            create_response, make_page_uri, AccessToken, DataType, FromQuery, Profession, Query,
+            QueryValue, Search, Sort,
         },
-        IntoReqErrResult, TypedRequestError, TypedRequestResult,
+        IntoReqErr, IntoReqErrResult, TypedRequestError, TypedRequestResult,
     },
-    state::{Inner as StateInner, State, Version},
+    state::{Inner as StateInner, State},
 };
 
 use super::{misc::Resource, Error};
@@ -67,12 +66,6 @@ pub struct IncludeArgs {
     source: String,
     path: String,
     target: Option<String>,
-}
-
-#[derive(Deserialize)]
-pub struct PathArgs {
-    id: Id,
-    version: usize,
 }
 
 impl FromQuery for GetOneQueryArgs {
@@ -116,7 +109,7 @@ impl FromQuery for GetAllQueryArgs {
             }
             "_sort" => self.sort = Some(value.ok()?.parse()?),
             "_count" => self.count = Some(value.ok()?.parse::<usize>().map_err(|e| e.to_string())?),
-            "pageId" | "page-id" => {
+            "pageId" | "page-id" | "pageid" => {
                 self.page_id = Some(value.ok()?.parse::<usize>().map_err(|e| e.to_string())?)
             }
             _ => (),
@@ -146,24 +139,33 @@ impl FromStr for SortArgs {
 enum TaskReference {
     All(GetAllQueryArgs),
     One(Id, GetOneQueryArgs),
-    Version(Id, usize, GetOneQueryArgs),
 }
 
 pub async fn get_all(
     state: Data<State>,
     accept: Accept,
     accept_language: AcceptLanguage,
-    id_token: Authorization,
+    access_token: Authorization,
     access_code: Option<XAccessCode>,
     query: Query<GetAllQueryArgs>,
     request: HttpRequest,
 ) -> Result<HttpResponse, TypedRequestError> {
+    if let Err(err) = access_token.check_profession(|p| p == Profession::Versicherter) {
+        let accept = DataType::from_accept(&accept)
+            .and_then(DataType::ignore_any)
+            .unwrap_or_default()
+            .check_supported()
+            .err_with_type_default()?;
+
+        return Err(err.into_req_err().with_type(accept));
+    }
+
     get(
         &state,
         TaskReference::All(query.0),
         accept,
         accept_language,
-        id_token,
+        access_token,
         access_code,
         request.query_string(),
     )
@@ -175,7 +177,7 @@ pub async fn get_one(
     id: Path<Id>,
     accept: Accept,
     accept_language: AcceptLanguage,
-    id_token: Authorization,
+    access_token: Authorization,
     access_code: Option<XAccessCode>,
     query: Query<GetOneQueryArgs>,
 ) -> Result<HttpResponse, TypedRequestError> {
@@ -184,30 +186,7 @@ pub async fn get_one(
         TaskReference::One(id.into_inner(), query.0),
         accept,
         accept_language,
-        id_token,
-        access_code,
-        "",
-    )
-    .await
-}
-
-pub async fn get_version(
-    state: Data<State>,
-    args: Path<PathArgs>,
-    accept: Accept,
-    accept_language: AcceptLanguage,
-    id_token: Authorization,
-    access_code: Option<XAccessCode>,
-    query: Query<GetOneQueryArgs>,
-) -> Result<HttpResponse, TypedRequestError> {
-    let PathArgs { id, version } = args.into_inner();
-
-    get(
-        &state,
-        TaskReference::Version(id, version, query.0),
-        accept,
-        accept_language,
-        id_token,
+        access_token,
         access_code,
         "",
     )
@@ -255,11 +234,11 @@ async fn get(
     match reference {
         TaskReference::One(id, query) => {
             let (state, task) = state
-                .task_get(id.clone(), None, kvnr, access_code, query.secret, agent)
+                .task_get(id.clone(), kvnr, access_code, query.secret, agent)
                 .into_req_err()
                 .err_with_type(accept)?;
 
-            let mut bundle = Bundle::new(Type::Searchset);
+            let mut bundle = Bundle::new(Type::Collection);
             add_to_bundle(&mut bundle, &task, &access_token, Some(&state))
                 .into_req_err()
                 .err_with_type(accept)?;
@@ -288,19 +267,6 @@ async fn get(
 
             create_response(&bundle, accept)
         }
-        TaskReference::Version(id, version_id, query) => {
-            let (_, task) = state
-                .task_get(id, Some(version_id), kvnr, access_code, query.secret, agent)
-                .into_req_err()
-                .err_with_type(accept)?;
-
-            let mut bundle = Bundle::new(Type::Searchset);
-            add_to_bundle(&mut bundle, &task, &access_token, None)
-                .into_req_err()
-                .err_with_type(accept)?;
-
-            create_response(&bundle, accept)
-        }
         TaskReference::All(query) => {
             let mut tasks = state
                 .task_iter(kvnr, access_code, agent, |t| check_query(&query, t))
@@ -309,23 +275,16 @@ async fn get(
             // Sort the result
             if let Some(sort) = &query.sort {
                 tasks.sort_by(|a, b| {
-                    let a = a.unlogged();
-                    let b = b.unlogged();
-
                     sort.cmp(|arg| match arg {
                         SortArgs::AuthoredOn => {
-                            let a: Option<DateTime<Utc>> =
-                                a.resource.authored_on.clone().map(Into::into);
-                            let b: Option<DateTime<Utc>> =
-                                b.resource.authored_on.clone().map(Into::into);
+                            let a: Option<DateTime<Utc>> = a.authored_on.clone().map(Into::into);
+                            let b: Option<DateTime<Utc>> = b.authored_on.clone().map(Into::into);
 
                             a.cmp(&b)
                         }
                         SortArgs::LastModified => {
-                            let a: Option<DateTime<Utc>> =
-                                a.resource.last_modified.clone().map(Into::into);
-                            let b: Option<DateTime<Utc>> =
-                                b.resource.last_modified.clone().map(Into::into);
+                            let a: Option<DateTime<Utc>> = a.last_modified.clone().map(Into::into);
+                            let b: Option<DateTime<Utc>> = b.last_modified.clone().map(Into::into);
 
                             a.cmp(&b)
                         }
@@ -355,22 +314,27 @@ async fn get(
 
                 bundle
                     .link
-                    .push((Relation::Self_, make_uri(query_str, page_id)));
-                bundle.link.push((Relation::First, make_uri(query_str, 0)));
+                    .push((Relation::Self_, make_page_uri("/Task", query_str, page_id)));
                 bundle
                     .link
-                    .push((Relation::Last, make_uri(query_str, page_count - 1)));
+                    .push((Relation::First, make_page_uri("/Task", query_str, 0)));
+                bundle.link.push((
+                    Relation::Last,
+                    make_page_uri("/Task", query_str, page_count - 1),
+                ));
 
                 if page_id > 0 {
-                    bundle
-                        .link
-                        .push((Relation::Previous, make_uri(query_str, page_id - 1)));
+                    bundle.link.push((
+                        Relation::Previous,
+                        make_page_uri("/Task", query_str, page_id - 1),
+                    ));
                 }
 
                 if page_id + 1 < page_count {
-                    bundle
-                        .link
-                        .push((Relation::Next, make_uri(query_str, page_id + 1)));
+                    bundle.link.push((
+                        Relation::Next,
+                        make_page_uri("/Task", query_str, page_id + 1),
+                    ));
                 }
             }
 
@@ -405,17 +369,9 @@ fn check_query(query: &GetAllQueryArgs, task: &Task) -> bool {
     true
 }
 
-fn make_uri(query: &str, page_id: usize) -> String {
-    if query.is_empty() {
-        format!("/Task?pageId={}", page_id)
-    } else {
-        format!("/Task?{}&pageId={}", query, page_id)
-    }
-}
-
 fn add_to_bundle<'b, 's>(
     bundle: &'b mut Bundle<Resource<'s>>,
-    task: &'s Version<Task>,
+    task: &'s Task,
     access_token: &AccessToken,
     state: Option<&'s StateInner>,
 ) -> Result<(), Error>
@@ -448,7 +404,7 @@ where
     #[cfg(feature = "interface-supplier")]
     {
         if access_token.is_pharmacy() {
-            if let Some(id) = task.resource.output.receipt.as_ref() {
+            if let Some(id) = task.output.receipt.as_ref() {
                 let receipt = state
                     .erx_receipts
                     .get_by_id(id)
@@ -464,7 +420,7 @@ where
     #[cfg(feature = "interface-patient")]
     {
         if access_token.is_patient() {
-            if let Some(id) = task.resource.input.patient_receipt.as_ref() {
+            if let Some(id) = task.input.patient_receipt.as_ref() {
                 let patient_receipt = state
                     .patient_receipts
                     .get_by_id(id)
@@ -473,17 +429,6 @@ where
                 bundle
                     .entries
                     .push(Entry::new(Resource::KbvBundle(patient_receipt)));
-            }
-
-            if let Some(id) = task.resource.output.receipt.as_ref() {
-                let receipt = state
-                    .erx_receipts
-                    .get_by_id(id)
-                    .ok_or_else(|| Error::ErxReceiptNotFound(id.clone()))?;
-
-                bundle
-                    .entries
-                    .push(Entry::new(Resource::ErxBundle(receipt)));
             }
         }
     }

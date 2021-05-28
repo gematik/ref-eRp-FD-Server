@@ -51,7 +51,7 @@ use activate::activate;
 use close::close;
 #[cfg(feature = "interface-supplier")]
 use create::create;
-use get::{get_all, get_one, get_version};
+use get::{get_all, get_one};
 #[cfg(feature = "interface-supplier")]
 use reject::reject;
 
@@ -77,7 +77,6 @@ impl TaskRoutes {
     }
 
     #[interaction(Interaction::Read)]
-    #[interaction(Interaction::Vread)]
     #[search_param(name="status", type=SearchParamType::Token)]
     #[search_param(name="authored-on", type=SearchParamType::Date)]
     #[search_param(name="modified", type=SearchParamType::Date)]
@@ -86,9 +85,5 @@ impl TaskRoutes {
         cfg.service(resource("/Task").route(get().to(get_all)));
         cfg.service(resource("/Task/{id:[A-Za-z0-9-]+}").route(get().to(get_one)));
         cfg.service(resource("/Task/{id:[A-Za-z0-9-]+}/$abort").route(post().to(abort)));
-        cfg.service(
-            resource("/Task/{id:[A-Za-z0-9-]+}/_history/{version:[0-9]+}")
-                .route(get().to(get_version)),
-        );
     }
 }

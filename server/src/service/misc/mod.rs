@@ -31,6 +31,7 @@ pub use sort::Sort;
 use std::convert::TryInto;
 
 use actix_web::{dev::HttpResponseBuilder, http::StatusCode, web::Payload, HttpResponse};
+use regex::{Captures, Regex};
 use resources::device::{Device, DeviceName, Status, Type};
 
 use crate::fhir::{decode::Decode, encode::Encode};
@@ -161,5 +162,52 @@ where
         }
 
         DataType::Any | DataType::Unknown => panic!("Data type of response was not specified"),
+    }
+}
+
+pub fn make_page_uri(uri: &str, query: &str, page_id: usize) -> String {
+    lazy_static! {
+        static ref RX: Regex = Regex::new("(&?)(pageId|pageid|page-id)=[^&]").unwrap();
+    }
+
+    let mut done = false;
+    let query = RX.replace(query, |c: &Captures| {
+        done = true;
+
+        format!("{}pageId={}", &c[1], page_id)
+    });
+
+    if done {
+        format!("{}?{}", uri, query)
+    } else if query.is_empty() {
+        format!("{}?pageId={}", uri, page_id)
+    } else {
+        format!("{}?{}&pageId={}", uri, query, page_id)
+    }
+}
+
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+
+    #[test]
+    fn make_page_uri_test() {
+        assert_eq!("/Task?pageId=6", make_page_uri("/Task", "", 6));
+        assert_eq!(
+            "/Task?fuu=bar&pageId=7",
+            make_page_uri("/Task", "fuu=bar", 7)
+        );
+        assert_eq!(
+            "/Task?pageId=8&bar=2&baz=3",
+            make_page_uri("/Task", "pageId=1&bar=2&baz=3", 8)
+        );
+        assert_eq!(
+            "/Task?bar=2&pageId=9&baz=3",
+            make_page_uri("/Task", "bar=2&pageid=1&baz=3", 9)
+        );
+        assert_eq!(
+            "/Task?bar=2&baz=3&pageId=10",
+            make_page_uri("/Task", "bar=2&baz=3&page-id=1", 10)
+        );
     }
 }

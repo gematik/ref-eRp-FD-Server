@@ -32,7 +32,10 @@ use resources::{
 use crate::{
     service::{
         header::{Accept, Authorization},
-        misc::{create_response, DataType, FromQuery, Profession, Query, QueryValue, Search, Sort},
+        misc::{
+            create_response, make_page_uri, DataType, FromQuery, Profession, Query, QueryValue,
+            Search, Sort,
+        },
         IntoReqErrResult, TypedRequestError, TypedRequestResult,
     },
     state::State,
@@ -121,16 +124,14 @@ pub async fn get_all(
         results.sort_by(|a, b| {
             sort.cmp(|arg| match arg {
                 SortArgs::WhenHandedOver => {
-                    let a: DateTime<Utc> = a.unlogged().when_handed_over.clone().into();
-                    let b: DateTime<Utc> = b.unlogged().when_handed_over.clone().into();
+                    let a: DateTime<Utc> = a.when_handed_over.clone().into();
+                    let b: DateTime<Utc> = b.when_handed_over.clone().into();
 
                     a.cmp(&b)
                 }
                 SortArgs::WhenPrepared => {
-                    let a: Option<DateTime<Utc>> =
-                        a.unlogged().when_prepared.clone().map(Into::into);
-                    let b: Option<DateTime<Utc>> =
-                        b.unlogged().when_prepared.clone().map(Into::into);
+                    let a: Option<DateTime<Utc>> = a.when_prepared.clone().map(Into::into);
+                    let b: Option<DateTime<Utc>> = b.when_prepared.clone().map(Into::into);
 
                     a.cmp(&b)
                 }
@@ -164,24 +165,31 @@ pub async fn get_all(
         let query_str = request.query_string();
         let page_count = ((result_count - 1) / count) + 1;
 
-        bundle
-            .link
-            .push((Relation::Self_, make_uri(query_str, page_id)));
-        bundle.link.push((Relation::First, make_uri(query_str, 0)));
-        bundle
-            .link
-            .push((Relation::Last, make_uri(query_str, page_count - 1)));
+        bundle.link.push((
+            Relation::Self_,
+            make_page_uri("/MedicationDispense", query_str, page_id),
+        ));
+        bundle.link.push((
+            Relation::First,
+            make_page_uri("/MedicationDispense", query_str, 0),
+        ));
+        bundle.link.push((
+            Relation::Last,
+            make_page_uri("/MedicationDispense", query_str, page_count - 1),
+        ));
 
         if page_id > 0 {
-            bundle
-                .link
-                .push((Relation::Previous, make_uri(query_str, page_id - 1)));
+            bundle.link.push((
+                Relation::Previous,
+                make_page_uri("/MedicationDispense", query_str, page_id - 1),
+            ));
         }
 
         if page_id + 1 < page_count {
-            bundle
-                .link
-                .push((Relation::Next, make_uri(query_str, page_id + 1)));
+            bundle.link.push((
+                Relation::Next,
+                make_page_uri("/MedicationDispense", query_str, page_id + 1),
+            ));
         }
     }
 
@@ -227,6 +235,7 @@ fn check_query(query: &QueryArgs, value: &MedicationDispense) -> bool {
     for expected in &query.when_prepared {
         match &value.when_prepared {
             Some(actual) if !expected.matches(&actual.clone().into()) => return false,
+            None => return false,
             _ => (),
         }
     }
@@ -238,14 +247,6 @@ fn check_query(query: &QueryArgs, value: &MedicationDispense) -> bool {
     }
 
     true
-}
-
-fn make_uri(query: &str, page_id: usize) -> String {
-    if query.is_empty() {
-        format!("/MedicationDispense?pageId={}", page_id)
-    } else {
-        format!("/MedicationDispense?{}&pageId={}", query, page_id)
-    }
 }
 
 fn add_to_bundle<'b, 's>(bundle: &'b mut Bundle<&'s MedicationDispense>, md: &'s MedicationDispense)

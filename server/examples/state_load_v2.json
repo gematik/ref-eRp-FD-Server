@@ -1,4 +1,5 @@
 {
+    "version":"old",
     "tasks":[
         {
             "history":[
@@ -8,7 +9,7 @@
                     "resource":{
                         "id":"13814006-1dd2-11b2-802a-eb7de13489ec",
                         "extension":{
-                            "flow_type":"ApothekenpflichtigeArzneimittel",
+                            "flow_type":"PharmaceuticalDrugs",
                             "accept_date":null,
                             "expiry_date":null
                         },
@@ -39,7 +40,7 @@
                     "resource":{
                         "id":"13814006-1dd2-11b2-802a-eb7de13489ec",
                         "extension":{
-                            "flow_type":"ApothekenpflichtigeArzneimittel",
+                            "flow_type":"PharmaceuticalDrugs",
                             "accept_date":"2021-03-03",
                             "expiry_date":"2021-05-04"
                         },
@@ -70,7 +71,7 @@
                     "resource":{
                         "id":"13814006-1dd2-11b2-802a-eb7de13489ec",
                         "extension":{
-                            "flow_type":"ApothekenpflichtigeArzneimittel",
+                            "flow_type":"PharmaceuticalDrugs",
                             "accept_date":"2021-03-03",
                             "expiry_date":"2021-05-04"
                         },
@@ -101,7 +102,7 @@
                     "resource":{
                         "id":"13814006-1dd2-11b2-802a-eb7de13489ec",
                         "extension":{
-                            "flow_type":"ApothekenpflichtigeArzneimittel",
+                            "flow_type":"PharmaceuticalDrugs",
                             "accept_date":"2021-03-03",
                             "expiry_date":"2021-05-04"
                         },
@@ -127,8 +128,7 @@
                     }
                 }
             ],
-            "accept_timestamp":1612522245208900800,
-            "communication_count":0
+            "accept_timestamp":1612522245208900800
         }
     ],
     "e_prescriptions":[
@@ -493,7 +493,7 @@
     "audit_events":[
         {
             "id":"159d0c20-1dd2-11b2-802c-eb7de13489ec",
-            "text":"Unknown",
+            "text":"TaskGetPatient",
             "sub_type":"Operation",
             "action":"Create",
             "recorded":1612522241814180800,
@@ -511,14 +511,16 @@
                 "observer":"E-Rezept Fachdienst Referenzimplementierung 0.11.0+15 dirty 7bf6f221c5b676841a20a36c06be1cbd3906248e"
             },
             "entity":{
-                "what":"Unknown",
+                "what":{
+                    "Task":"13814006-1dd2-11b2-802a-eb7de13489ec"
+                },
                 "name":"X234567890",
                 "description":"160.000.306.303.800.18"
             }
         },
         {
             "id":"17a30e20-1dd2-11b2-802d-eb7de13489ec",
-            "text":"Unknown",
+            "text":"TaskGetPharmacy",
             "sub_type":"Operation",
             "action":"Update",
             "recorded":1612522245209000600,
@@ -536,14 +538,16 @@
                 "observer":"E-Rezept Fachdienst Referenzimplementierung 0.11.0+15 dirty 7bf6f221c5b676841a20a36c06be1cbd3906248e"
             },
             "entity":{
-                "what":"Unknown",
+                "what":{
+                    "Task":"13814006-1dd2-11b2-802a-eb7de13489ec"
+                },
                 "name":"X234567890",
                 "description":"160.000.306.303.800.18"
             }
         },
         {
             "id":"453ce54a-1dd2-11b2-8030-eb7de13489ec",
-            "text":"Unknown",
+            "text":"MedicationDispenseGetPatient",
             "sub_type":"Operation",
             "action":"Update",
             "recorded":1612522321714677400,
@@ -561,7 +565,9 @@
                 "observer":"E-Rezept Fachdienst Referenzimplementierung 0.11.0+15 dirty 7bf6f221c5b676841a20a36c06be1cbd3906248e"
             },
             "entity":{
-                "what":"Unknown",
+                "what":{
+                    "MedicationDispense":"13814006-1dd2-11b2-802a-eb7de13489ec"
+                },
                 "name":"X234567890",
                 "description":"160.000.306.303.800.18"
             }
@@ -586,7 +592,9 @@
                 "observer":"E-Rezept Fachdienst Referenzimplementierung 0.11.0+15 dirty 7bf6f221c5b676841a20a36c06be1cbd3906248e"
             },
             "entity":{
-                "what":"Unknown",
+                "what":{
+                    "Task":"3"
+                },
                 "name":"X234567890",
                 "description":"160.000.306.303.800.18"
             }

@@ -55,14 +55,18 @@ pub struct Source {
 pub struct Entity {
     pub what: What,
     pub name: Kvnr,
-    pub description: PrescriptionId,
+    pub description: Option<PrescriptionId>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Text {
-    TaskGetPatient,
-    TaskGetRepresentative,
-    TaskGetPharmacy,
+    TaskGetManyPatient,
+    #[serde(alias = "TaskGetPatient")]
+    TaskGetOnePatient,
+    #[serde(alias = "TaskGetRepresentative")]
+    TaskGetOneRepresentative,
+    #[serde(alias = "TaskGetPharmacy")]
+    TaskGetOnePharmacy,
     TaskActivate,
     TaskAccept,
     TaskReject,
@@ -71,9 +75,9 @@ pub enum Text {
     TaskAbortPatient,
     TaskAbortPharmacy,
     TaskAbortRepresentative,
-    TaskDelete,
-    MedicationDispenseGetPatient,
-    MedicationDispenseGetRepresentative,
+    #[serde(alias = "MedicationDispenseGetPatient")]
+    MedicationDispenseGetOne,
+    MedicationDispenseGetMany,
 
     Other(String),
 
@@ -83,8 +87,12 @@ pub enum Text {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum What {
+    Tasks,
     Task(Id),
+
+    MedicationDispenses,
     MedicationDispense(Id),
+
     Other(String),
 
     #[serde(other)]

@@ -152,7 +152,7 @@ impl Inner {
             None => return Err(Error::UnknownTask(task_id)),
         };
 
-        let task = task_meta.history.get();
+        let task = &task_meta.task;
 
         if kvnr.is_some() {
             // If the KVNR is set we operate as patient.

@@ -334,7 +334,7 @@
   },
   {
     "name": "cc",
-    "version": "1.0.67",
+    "version": "1.0.68",
     "authors": "Alex Crichton <alex@alexcrichton.com>",
     "repository": "https://github.com/alexcrichton/cc-rs",
     "license": "Apache-2.0 OR MIT",
@@ -388,7 +388,7 @@
   },
   {
     "name": "const_fn",
-    "version": "0.4.7",
+    "version": "0.4.8",
     "authors": "Taiki Endo <te316e89@gmail.com>",
     "repository": "https://github.com/taiki-e/const_fn",
     "license": "Apache-2.0 OR MIT",
@@ -964,7 +964,7 @@
   },
   {
     "name": "libc",
-    "version": "0.2.94",
+    "version": "0.2.95",
     "authors": "The Rust Project Developers",
     "repository": "https://github.com/rust-lang/libc",
     "license": "Apache-2.0 OR MIT",
@@ -1396,7 +1396,7 @@
   },
   {
     "name": "proc-macro2",
-    "version": "1.0.26",
+    "version": "1.0.27",
     "authors": "Alex Crichton <alex@alexcrichton.com>|David Tolnay <dtolnay@gmail.com>",
     "repository": "https://github.com/alexcrichton/proc-macro2",
     "license": "Apache-2.0 OR MIT",
@@ -1882,7 +1882,7 @@
   },
   {
     "name": "thiserror",
-    "version": "1.0.24",
+    "version": "1.0.25",
     "authors": "David Tolnay <dtolnay@gmail.com>",
     "repository": "https://github.com/dtolnay/thiserror",
     "license": "Apache-2.0 OR MIT",
@@ -1891,7 +1891,7 @@
   },
   {
     "name": "thiserror-impl",
-    "version": "1.0.24",
+    "version": "1.0.25",
     "authors": "David Tolnay <dtolnay@gmail.com>",
     "repository": "https://github.com/dtolnay/thiserror",
     "license": "Apache-2.0 OR MIT",
@@ -2206,7 +2206,7 @@
   },
   {
     "name": "vcpkg",
-    "version": "0.2.12",
+    "version": "0.2.13",
     "authors": "Jim McGrath <jimmc2@gmail.com>",
     "repository": "https://github.com/mcgoo/vcpkg-rs",
     "license": "Apache-2.0 OR MIT",

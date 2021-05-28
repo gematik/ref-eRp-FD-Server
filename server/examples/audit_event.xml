@@ -43,7 +43,7 @@
     </source>
     <entity>
         <what>
-            <reference value="Task/4711"/>
+            <reference value="/Task/4711"/>
         </what>
         <name value="X123456789"/>
         <description value="160.123.456.789.123.58"/>

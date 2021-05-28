@@ -195,9 +195,18 @@ impl Decode for Entity {
 
         let what = stream.decode(&mut fields, decode_reference).await?;
         let name = stream.decode(&mut fields, decode_any).await?;
-        let description = stream.decode(&mut fields, decode_any).await?;
+        let description = stream.decode::<String, _>(&mut fields, decode_any).await?;
 
         stream.end().await?;
+
+        let description = if description == "+" {
+            None
+        } else {
+            Some(description.parse().map_err(|_| DecodeError::InvalidValue {
+                value: description,
+                path: stream.path().into(),
+            })?)
+        };
 
         Ok(Entity {
             what,
@@ -238,7 +247,7 @@ impl Encode for AuditEventContainer<'_> {
             What::Task(id) => id.to_string(),
             What::MedicationDispense(id) => id.to_string(),
             What::Other(s) => s.clone(),
-            What::Unknown => "<unkown>".into(),
+            _ => "<unkown>".into(),
         };
 
         let agent = &audit_event.agent.name;
@@ -250,93 +259,93 @@ impl Encode for AuditEventContainer<'_> {
                 (Text::Other(s), _) => s.to_owned(),
 
                 /* english */
-                (Text::TaskGetPatient, Language::En) => {
-                    format!("You have accessed an E-prescription {}.", id)
+                (Text::TaskGetManyPatient, Language::En) => {
+                    format!("{} retrieved a list of e-prescriptions.", agent)
                 }
-                (Text::TaskGetRepresentative, Language::En) => {
-                    format!("{} has accessed an E-prescription {}.", agent, id)
+                (Text::TaskGetOnePatient, Language::En) => {
+                    format!("{} downloaded e-prescription {}.", agent, id)
                 }
-                (Text::TaskGetPharmacy, Language::En) => {
-                    format!("{} has accessed an E-prescription {}.", agent, id)
+                (Text::TaskGetOneRepresentative, Language::En) => {
+                    format!("{} downloaded e-prescription {}.", agent, id)
+                }
+                (Text::TaskGetOnePharmacy, Language::En) => {
+                    format!("{} downloaded e-prescription {}.", agent, id)
                 }
                 (Text::TaskActivate, Language::En) => {
-                    format!("{} has created an E-prescription {}.", agent, id)
+                    format!("{} activated e-prescription {}.", agent, id)
                 }
                 (Text::TaskAccept, Language::En) => {
-                    format!("{} has accepted an E-prescription {}.", agent, id)
+                    format!("{} accepted e-prescription {}.", agent, id)
                 }
                 (Text::TaskReject, Language::En) => {
-                    format!("{} has rejected an E-prescription {}.", agent, id)
+                    format!("{} rejected e-prescription {}.", agent, id)
                 }
                 (Text::TaskClose, Language::En) => {
-                    format!("{} has closed an E-prescription {}.", agent, id)
+                    format!("{} closed e-prescription {}.", agent, id)
                 }
                 (Text::TaskAbortDoctor, Language::En) => {
-                    format!("{} has aborted an E-prescription {}.", agent, id)
+                    format!("{} deleted e-prescription {}.", agent, id)
                 }
                 (Text::TaskAbortPatient, Language::En) => {
-                    format!("You have aborted an E-prescription {}.", id)
+                    format!("{} deleted e-prescription {}.", agent, id)
                 }
                 (Text::TaskAbortPharmacy, Language::En) => {
-                    format!("{} has aborted an E-prescription {}.", agent, id)
+                    format!("{} deleted e-prescription {}.", agent, id)
                 }
                 (Text::TaskAbortRepresentative, Language::En) => {
-                    format!("{} has aborted an E-prescription {}.", agent, id)
+                    format!("{} deleted e-prescription {}.", agent, id)
                 }
-                (Text::TaskDelete, Language::En) => {
-                    "A old E-prescription was deleted automatically.".to_owned()
+                (Text::MedicationDispenseGetOne, Language::En) => {
+                    format!("{} downloaded a medication dispense list.", agent)
                 }
-                (Text::MedicationDispenseGetPatient, Language::En) => format!(
-                    "You have accessed the medication dispense for an E-prescription {}.",
-                    id
-                ),
-                (Text::MedicationDispenseGetRepresentative, Language::En) => format!(
-                    "{} has accessed the medication dispense for an E-prescription {}.",
+                (Text::MedicationDispenseGetMany, Language::En) => format!(
+                    "{} downloaded medication dispense for e-prescription {}.",
                     agent, id
                 ),
 
                 /* german */
-                (Text::TaskGetPatient, Language::De) => {
-                    format!("Sie haben ein E-Rezept {} aufgerufen.", id)
+                (Text::TaskGetManyPatient, Language::De) => {
+                    format!("{} hat eine Liste von E-Rezepten heruntergeladen.", agent)
                 }
-                (Text::TaskGetRepresentative, Language::De) => {
-                    format!("{} hat ein E-Rezept {} aufgerufen.", agent, id)
+                (Text::TaskGetOnePatient, Language::De) => {
+                    format!("{} hat das E-Rezept {} heruntergeladen.", agent, id)
                 }
-                (Text::TaskGetPharmacy, Language::De) => {
-                    format!("{} hat ein E-Rezept {} aufgerufen.", agent, id)
+                (Text::TaskGetOneRepresentative, Language::De) => {
+                    format!("{} hat das E-Rezept {} heruntergeladen.", agent, id)
+                }
+                (Text::TaskGetOnePharmacy, Language::De) => {
+                    format!("{} hat das E-Rezept {} heruntergeladen.", agent, id)
                 }
                 (Text::TaskActivate, Language::De) => {
-                    format!("{} hat ein E-Rezept {} eingestellt.", agent, id)
+                    format!("{} hat das E-Rezept {} eingestellt.", agent, id)
                 }
                 (Text::TaskAccept, Language::De) => {
-                    format!("{} hat ein E-Rezept {} angenommen.", agent, id)
+                    format!("{} hat das E-Rezept {} angenommen.", agent, id)
                 }
                 (Text::TaskReject, Language::De) => {
-                    format!("{} hat ein E-Rezept {} zurückgewiesen.", agent, id)
+                    format!("{} hat das E-Rezept {} zurückgegeben.", agent, id)
                 }
                 (Text::TaskClose, Language::De) => {
-                    format!("{} hat ein E-Rezept {} beliefert.", agent, id)
+                    format!("{} hat das E-Rezept {} beliefert.", agent, id)
                 }
                 (Text::TaskAbortDoctor, Language::De) => {
-                    format!("{} hat ein E-Rezept {} gelöscht.", agent, id)
+                    format!("{} hat das E-Rezept {} gelöscht.", agent, id)
                 }
                 (Text::TaskAbortPatient, Language::De) => {
-                    format!("Sie haben ein E-Rezept {} gelöscht.", id)
+                    format!("{} hat das E-Rezept {} gelöscht.", agent, id)
                 }
                 (Text::TaskAbortPharmacy, Language::De) => {
-                    format!("{} hat ein E-Rezept {} gelöscht.", agent, id)
+                    format!("{} hat das E-Rezept {} gelöscht.", agent, id)
                 }
                 (Text::TaskAbortRepresentative, Language::De) => {
-                    format!("{} hat ein E-Rezept {} gelöscht.", agent, id)
+                    format!("{} hat das E-Rezept {} gelöscht.", agent, id)
                 }
-                (Text::TaskDelete, Language::De) => {
-                    "Veraltete E-Rezepte wurden vom Fachdienst automatisch gelöscht.".to_owned()
-                }
-                (Text::MedicationDispenseGetPatient, Language::De) => {
-                    format!("Sie haben die Quittungen für E-Rezept {} aufgerufen.", id)
-                }
-                (Text::MedicationDispenseGetRepresentative, Language::De) => format!(
-                    "{} hat die Quittungen für E-Rezept {} aufgerufen.",
+                (Text::MedicationDispenseGetOne, Language::De) => format!(
+                    "{} hat eine Liste von Medikament-Informationen heruntergeladen.",
+                    agent
+                ),
+                (Text::MedicationDispenseGetMany, Language::De) => format!(
+                    "{} hat Medikament-Informationen zum E-Rezept {} heruntergeladen.",
                     agent, id
                 ),
             };
@@ -425,11 +434,16 @@ impl Encode for &Entity {
     where
         S: DataStorage,
     {
+        let description = match &self.description {
+            Some(id) => id.to_string(),
+            None => "+".into(),
+        };
+
         stream
             .element()?
             .encode("what", &self.what, encode_reference)?
             .encode("name", &self.name, encode_any)?
-            .encode("description", &self.description, encode_any)?;
+            .encode("description", description, encode_any)?;
 
         stream.end()?;
 
@@ -665,11 +679,21 @@ impl CodeEx for ParticipationRoleType {
 
 impl ReferenceEx for What {
     fn from_parts(reference: String) -> Result<Self, String> {
-        if let Some(s) = reference.strip_prefix("Task/") {
+        if reference == "/Task" {
+            return Ok(What::Tasks);
+        } else if reference == "/MedicationDispense" {
+            return Ok(What::MedicationDispenses);
+        } else if let Some(s) = reference
+            .strip_prefix("/Task/")
+            .or_else(|| reference.strip_prefix("Task/"))
+        {
             if let Ok(id) = s.try_into() {
                 return Ok(What::Task(id));
             }
-        } else if let Some(s) = reference.strip_prefix("MedicationDispense/") {
+        } else if let Some(s) = reference
+            .strip_prefix("/MedicationDispense/")
+            .or_else(|| reference.strip_prefix("MedicationDispense/"))
+        {
             if let Ok(id) = s.try_into() {
                 return Ok(What::MedicationDispense(id));
             }
@@ -682,8 +706,10 @@ impl ReferenceEx for What {
 
     fn reference(&self) -> String {
         match self {
-            Self::Task(id) => format!("Task/{}", id),
-            Self::MedicationDispense(id) => format!("MedicationDispense/{}", id),
+            Self::Tasks => "/Task".to_owned(),
+            Self::Task(id) => format!("/Task/{}", id),
+            Self::MedicationDispenses => "/MedicationDispense".to_owned(),
+            Self::MedicationDispense(id) => format!("/MedicationDispense/{}", id),
             Self::Other(s) => s.to_owned(),
             Self::Unknown => "<unknown>".into(),
         }
@@ -787,7 +813,7 @@ pub mod tests {
             entity: Entity {
                 what: What::Task("4711".try_into().unwrap()),
                 name: Kvnr::new("X123456789").unwrap(),
-                description: "160.123.456.789.123.58".parse().unwrap(),
+                description: Some("160.123.456.789.123.58".parse().unwrap()),
             },
         }
     }

@@ -15,44 +15,21 @@
  *
  */
 
-use std::convert::TryInto;
+use resources::{audit_event::Language, AuditEvent, ErxBundle, KbvBinary, KbvBundle, Task};
 
-use resources::{
-    audit_event::Language,
-    primitives::{Id, Instant},
-    AuditEvent, ErxBundle, KbvBinary, KbvBundle, Task,
-};
-
-use crate::{
-    fhir::{
-        definitions::{AsTask, AuditEventContainer, EncodeBundleResource, TaskContainer},
-        encode::{DataStorage, Encode, EncodeError, EncodeStream},
-    },
-    state::Version,
+use crate::fhir::{
+    definitions::{AuditEventContainer, EncodeBundleResource, TaskContainer},
+    encode::{DataStorage, Encode, EncodeError, EncodeStream},
 };
 
 #[derive(Clone)]
 pub enum Resource<'a> {
-    TaskForSupplier(&'a Version<Task>),
-    TaskForPatient(&'a Version<Task>),
+    TaskForSupplier(&'a Task),
+    TaskForPatient(&'a Task),
     KbvBinary(&'a KbvBinary),
     KbvBundle(&'a KbvBundle),
     ErxBundle(&'a ErxBundle),
     AuditEvent(&'a AuditEvent, Language),
-}
-
-impl AsTask for Version<Task> {
-    fn task(&self) -> &Task {
-        &self.resource
-    }
-
-    fn version_id(&self) -> Option<Id> {
-        Some(self.id.to_string().try_into().unwrap())
-    }
-
-    fn last_updated(&self) -> Option<Instant> {
-        Some(self.timestamp.into())
-    }
 }
 
 impl EncodeBundleResource for Resource<'_> {}

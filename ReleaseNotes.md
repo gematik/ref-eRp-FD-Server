@@ -1,3 +1,16 @@
+# Release 0.19.0
+Bugfixes / Improvements:
+- Adapted AuditEvents to be spec conform
+- Removed Task History
+- Fixed error in task paging
+- Patient will not receive the ErxBundle
+
+Developer Hint:
+- You have to add the field 'version="old"' to your state.json
+  to be able to load states stored with an old version of the service.
+  In the future the version field is written automatically by the service.
+
+
 # Release 0.18.0
 Bugfixes / Improvements:
 - Renamed 'AuditEvent.outcomeDescription' to 'AuditEvent.outcomeDesc' to match the profile

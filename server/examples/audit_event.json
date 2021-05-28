@@ -51,7 +51,7 @@
     "entity":[
         {
             "what":{
-                "reference":"Task/4711"
+                "reference":"/Task/4711"
             },
             "name":"X123456789",
             "description":"160.123.456.789.123.58"
