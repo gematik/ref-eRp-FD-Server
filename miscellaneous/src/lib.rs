@@ -15,5 +15,9 @@
  *
  */
 
+#[macro_use]
+extern crate lazy_static;
+
+pub mod admission;
 pub mod jwt;
 pub mod str;

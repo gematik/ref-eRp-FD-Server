@@ -1,3 +1,11 @@
+# Release 0.19.1
+Bugfixes / Improvements:
+- Add tool to create X509 certs with admission extension
+- Fixed AuditEvent.text to not contain '<unknown>' in xhtml text
+- Do not return access code for suppliers on GET /Task
+- Added environment variables to change the default log level
+
+
 # Release 0.19.0
 Bugfixes / Improvements:
 - Adapted AuditEvents to be spec conform

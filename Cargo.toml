@@ -19,8 +19,8 @@ actix-web = { git = "https://github.com/Gematik-Entwicklung/actix-web.git", rev 
 libxml = { path = "./libxml" }
 libxml-sys = { path = "./libxml-sys" }
 miscellaneous = { path = "./miscellaneous" }
-openssl = { git = "https://github.com/Gematik-Entwicklung/rust-openssl.git", rev = "5962a62edc1ee3b606a5761ba6b89d415cdb6952" }
-openssl-sys = { git = "https://github.com/Gematik-Entwicklung/rust-openssl.git", rev = "5962a62edc1ee3b606a5761ba6b89d415cdb6952" }
+openssl = { git = "https://github.com/Gematik-Entwicklung/rust-openssl.git", rev = "5e02c5f204e77c0421f18a6dee8352a088cc5e3f" }
+openssl-sys = { git = "https://github.com/Gematik-Entwicklung/rust-openssl.git", rev = "5e02c5f204e77c0421f18a6dee8352a088cc5e3f" }
 proc-macros = { path = "./proc-macros" }
 resources = { path = "./resources" }
 vau = { path = "./vau" }

@@ -23,6 +23,7 @@ mod pkcs7_sign;
 mod pkcs7_verify;
 mod vau_decrypt;
 mod vau_encrypt;
+mod x509;
 
 use structopt::StructOpt;
 
@@ -33,6 +34,7 @@ use pkcs7_sign::{execute as pkcs7_sign, Opts as Pkcs7SignOpts};
 use pkcs7_verify::{execute as pkcs7_verify, Opts as Pkcs7VerifyOpts};
 use vau_decrypt::{execute as vau_decrypt, Opts as VauDecryptOpts};
 use vau_encrypt::{execute as vau_encrypt, Opts as VauEncryptOpts};
+use x509::{execute as x509, Opts as X509Opts};
 
 fn main() {
     let command = Command::from_args();
@@ -45,6 +47,7 @@ fn main() {
         Command::Pkcs7Verify(opts) => pkcs7_verify(opts),
         Command::VauDecrypt(opts) => vau_decrypt(opts),
         Command::VauEncrypt(opts) => vau_encrypt(opts),
+        Command::X509(opts) => x509(opts),
     }
 }
 
@@ -57,4 +60,5 @@ enum Command {
     Pkcs7Verify(Pkcs7VerifyOpts),
     VauDecrypt(VauDecryptOpts),
     VauEncrypt(VauEncryptOpts),
+    X509(X509Opts),
 }

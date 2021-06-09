@@ -15,12 +15,14 @@
  *
  */
 
+use std::env::var;
+use std::ffi::OsStr;
 use std::path::Path;
 
 use log::LevelFilter;
 use log4rs::{
     append::console::ConsoleAppender,
-    config::{Appender, Config, Root},
+    config::{Appender, Config, Logger, Root},
     encode::pattern::PatternEncoder,
     file::Deserializers,
     init_config, load_config_file,
@@ -46,7 +48,31 @@ fn create_default_config() -> Result<Config, Error> {
 
     let config = Config::builder()
         .appender(Appender::builder().build("stdout", Box::new(stdout)))
+        .logger(Logger::builder().appender("stdout").build(
+            "access_log",
+            level_from_env("access_log_level", LevelFilter::Info),
+        ))
+        .logger(Logger::builder().appender("stdout").build(
+            "req_res_log",
+            level_from_env("req_res_log_level", LevelFilter::Info),
+        ))
+        .logger(Logger::builder().appender("stdout").build(
+            "ref_erx_fd_server",
+            level_from_env("ref_erx_fd_server_log_level", LevelFilter::Debug),
+        ))
         .build(Root::builder().appender("stdout").build(LevelFilter::Info))?;
 
     Ok(config)
+}
+
+fn level_from_env<K: AsRef<OsStr>>(key: K, default: LevelFilter) -> LevelFilter {
+    match var(key) {
+        Ok(v) if v.to_lowercase() == "off" => LevelFilter::Off,
+        Ok(v) if v.to_lowercase() == "error" => LevelFilter::Error,
+        Ok(v) if v.to_lowercase() == "warn" => LevelFilter::Warn,
+        Ok(v) if v.to_lowercase() == "info" => LevelFilter::Info,
+        Ok(v) if v.to_lowercase() == "debug" => LevelFilter::Debug,
+        Ok(v) if v.to_lowercase() == "trace" => LevelFilter::Trace,
+        _ => default,
+    }
 }

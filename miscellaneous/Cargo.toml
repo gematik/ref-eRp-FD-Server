@@ -4,7 +4,9 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
+asn1 = "=0.4.1"
 base64 = "0.12"
 jwt = { version = "0.10", features = [ "openssl" ]}
+lazy_static = "1.4"
 openssl = "=0.10.33"
 serde = { version = "1.0", features = [ "derive" ] }

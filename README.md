@@ -191,9 +191,16 @@ To generate the needed key you can use the following Open SSL commands:
     # Extract public key
     $ openssl pkey -in qes_id -out qes_id.pub -pubout
 
-    # Create X509 certificate
+    # Create X509 certificate.
+    # CAUTION! Certificates created with this tool should not be used in productive environments.
+    # The admission extension is not fully supported!
     $ openssl req -new -key qes_id > cert.csr
-    $ openssl x509 -in cert.csr -out qes_id.cert -req -signkey qes_id -days 1001
+    $ cargo run -p tool -- x509 \
+        --input cert.csr \
+        --output qes_id.cert \
+        --signkey qes_id \
+        --days 1001 \
+        --profession 1.2.276.0.76.4.30
 
     # Generate private key for the IDP service (only used for access token generation)
     $ openssl ecparam -name brainpoolP256r1 -genkey -noout -out idp_id

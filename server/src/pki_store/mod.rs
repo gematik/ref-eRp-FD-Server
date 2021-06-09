@@ -15,7 +15,6 @@
  *
  */
 
-mod admission;
 mod cert_list;
 mod error;
 mod misc;
@@ -28,6 +27,7 @@ use std::sync::Arc;
 
 use arc_swap::{ArcSwapOption, Guard as ArcSwapGuard};
 use chrono::{DateTime, Utc};
+use miscellaneous::admission::{Admission, Profession};
 use openssl::{
     asn1::Asn1Object,
     cms::{CMSOptions, CmsContentInfo},
@@ -47,7 +47,6 @@ pub use error::Error;
 pub use puk_token::PukToken;
 pub use tsl::{TimeCheck, Tsl};
 
-use admission::{Admission, Profession};
 use cert_list::CertList;
 use misc::asn1_to_chrono;
 use ocsp_list::OcspList;
@@ -202,7 +201,7 @@ impl PkiStore {
                 match signer_cert
                     .get_extension(&OID_EXT_ADMISSION)?
                     .and_then(X509ExtensionRef::get_data)
-                    .map(Admission::parse)
+                    .map(Admission::from_der)
                 {
                     Some(Ok(admission))
                         if admission

@@ -247,7 +247,7 @@ impl Encode for AuditEventContainer<'_> {
             What::Task(id) => id.to_string(),
             What::MedicationDispense(id) => id.to_string(),
             What::Other(s) => s.clone(),
-            _ => "<unkown>".into(),
+            _ => "[unknown]".into(),
         };
 
         let agent = &audit_event.agent.name;
@@ -255,7 +255,7 @@ impl Encode for AuditEventContainer<'_> {
         if let Some(text) = &audit_event.text {
             let text = match (text, lang) {
                 /* misc */
-                (Text::Unknown, _) => "<unkown>".into(),
+                (Text::Unknown, _) => "[unknown]".into(),
                 (Text::Other(s), _) => s.to_owned(),
 
                 /* english */
@@ -295,10 +295,10 @@ impl Encode for AuditEventContainer<'_> {
                 (Text::TaskAbortRepresentative, Language::En) => {
                     format!("{} deleted e-prescription {}.", agent, id)
                 }
-                (Text::MedicationDispenseGetOne, Language::En) => {
+                (Text::MedicationDispenseGetMany, Language::En) => {
                     format!("{} downloaded a medication dispense list.", agent)
                 }
-                (Text::MedicationDispenseGetMany, Language::En) => format!(
+                (Text::MedicationDispenseGetOne, Language::En) => format!(
                     "{} downloaded medication dispense for e-prescription {}.",
                     agent, id
                 ),
@@ -340,11 +340,11 @@ impl Encode for AuditEventContainer<'_> {
                 (Text::TaskAbortRepresentative, Language::De) => {
                     format!("{} hat das E-Rezept {} gelöscht.", agent, id)
                 }
-                (Text::MedicationDispenseGetOne, Language::De) => format!(
+                (Text::MedicationDispenseGetMany, Language::De) => format!(
                     "{} hat eine Liste von Medikament-Informationen heruntergeladen.",
                     agent
                 ),
-                (Text::MedicationDispenseGetMany, Language::De) => format!(
+                (Text::MedicationDispenseGetOne, Language::De) => format!(
                     "{} hat Medikament-Informationen zum E-Rezept {} heruntergeladen.",
                     agent, id
                 ),

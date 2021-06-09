@@ -333,21 +333,35 @@ where
 
 pub struct TaskContainer<'a> {
     pub task: &'a Task,
-    pub for_supplier: bool,
+    requestor: Requestor,
+}
+
+#[derive(Eq, PartialEq)]
+enum Requestor {
+    Patient,
+    Supplier,
+    Doctor,
 }
 
 impl<'a> TaskContainer<'a> {
     pub fn for_supplier(task: &'a Task) -> Self {
         Self {
             task,
-            for_supplier: true,
+            requestor: Requestor::Supplier,
+        }
+    }
+
+    pub fn for_doctor(task: &'a Task) -> Self {
+        Self {
+            task,
+            requestor: Requestor::Doctor,
         }
     }
 
     pub fn for_patient(task: &'a Task) -> Self {
         Self {
             task,
-            for_supplier: false,
+            requestor: Requestor::Patient,
         }
     }
 }
@@ -365,7 +379,7 @@ impl Encode for TaskContainer<'_> {
 
         let identifier = IdentifierContainer {
             identifier: &task.identifier,
-            for_supplier: self.for_supplier,
+            requestor: self.requestor,
         };
 
         stream
@@ -428,7 +442,7 @@ impl Encode for &Extension {
 
 struct IdentifierContainer<'a> {
     identifier: &'a Identifier,
-    for_supplier: bool,
+    requestor: Requestor,
 }
 
 impl Encode for IdentifierContainer<'_> {
@@ -438,7 +452,7 @@ impl Encode for IdentifierContainer<'_> {
     {
         let IdentifierContainer {
             identifier,
-            for_supplier,
+            requestor,
         } = self;
 
         stream.array()?;
@@ -451,15 +465,17 @@ impl Encode for IdentifierContainer<'_> {
                 .end()?;
         }
 
-        if let Some(access_code) = &identifier.access_code {
-            stream
-                .element()?
-                .encode("system", SYSTEM_ACCESS_CODE, encode_any)?
-                .encode("value", access_code, encode_any)?
-                .end()?;
+        if requestor == Requestor::Doctor || requestor == Requestor::Patient {
+            if let Some(access_code) = &identifier.access_code {
+                stream
+                    .element()?
+                    .encode("system", SYSTEM_ACCESS_CODE, encode_any)?
+                    .encode("value", access_code, encode_any)?
+                    .end()?;
+            }
         }
 
-        if for_supplier {
+        if requestor == Requestor::Supplier {
             if let Some(secret) = &identifier.secret {
                 stream
                     .element()?
@@ -648,7 +664,7 @@ pub mod tests {
 
         let actual = TaskContainer::for_supplier(&value).json().unwrap();
         let actual = from_utf8(&actual).unwrap();
-        let expected = read_to_string("./examples/task.json").unwrap();
+        let expected = read_to_string("./examples/task_no_access_code.json").unwrap();
 
         assert_eq!(trim_json_str(&actual), trim_json_str(&expected));
     }
@@ -670,7 +686,7 @@ pub mod tests {
 
         let actual = TaskContainer::for_supplier(&value).xml().unwrap();
         let actual = from_utf8(&actual).unwrap();
-        let expected = read_to_string("./examples/task.xml").unwrap();
+        let expected = read_to_string("./examples/task_no_access_code.xml").unwrap();
 
         assert_eq!(trim_xml_str(&actual), trim_xml_str(&expected));
     }
