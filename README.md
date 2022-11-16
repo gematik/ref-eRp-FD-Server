@@ -1,3 +1,6 @@
+# ARCHIVED
+This project is no longer maintained and no more work will be done. The bootstrap phase of this reference implementation has come to an end. If you are interested in the productive systems source code, have a look at https://github.com/eRP-FD.
+
 # Introduction
 
 This project acts as reference implementation of main aspects of an e-prescription server designed by gematik.
